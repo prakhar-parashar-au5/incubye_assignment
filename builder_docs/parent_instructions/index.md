@@ -217,7 +217,9 @@ The builder must stop after the access-control migration, domain policy, session
 
 ### Task 05: Backend TypeScript migration
 
-Status: `READY`
+Status: `ACCEPTED AND COMMITTED`
+
+Independent planner verification passed: strict type check, lint, 202 fast tests, 123 real-MySQL tests, and the production build.
 
 Instructions:
 
@@ -241,11 +243,13 @@ builder_docs/responses/05-typescript-migration.md
 
 The builder must stop after strict type checking, all existing tests, the production build, and compiled command smoke tests pass. It must not start Express routes or frontend work.
 
-## Next planned task
+## Current task
 
 ### Task 06: Express authentication API
 
-Status: `NOT READY`
+Status: `ACCEPTED AND COMMITTED`
+
+Independent planner verification passed: strict type check, lint, 263 fast tests, 137 real-MySQL tests, and production build.
 
 Instructions:
 
@@ -267,7 +271,35 @@ Expected response:
 builder_docs/responses/06-authentication-api.md
 ```
 
-Task 06 cannot start until the TypeScript migration passes review and is committed.
+The builder must stop after the authentication endpoints, OpenAPI contract, rate limit, process smoke test, and all regression tests pass. It must not start employee routes or frontend work.
+
+## Current task
+
+### Task 07: Employee directory API
+
+Status: `READY`
+
+Instructions:
+
+```text
+builder_docs/parent_instructions/07-employee-directory-api.md
+```
+
+Supporting documents:
+
+```text
+docs_human/08-employee-directory-apis.md
+docs/16-employee-directory-api-design.md
+docs/17-employee-directory-api-test-plan.md
+```
+
+Expected response:
+
+```text
+builder_docs/responses/07-employee-directory-api.md
+```
+
+The builder must stop after the directory, options, detail, currency conversion, OpenAPI, authorization, and measured-query checks pass. It must not start frontend or mutation work.
 
 ## Response requirements
 
