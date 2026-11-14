@@ -25,14 +25,14 @@ The workbook does not contain compensation history. The application starts compe
 | `last_name` | Yes | `Sharma` | Must not be empty. |
 | `email` | Yes | `aditi.sharma.acme00001@acme.com` | Unique ACME email address. |
 | `department` | Yes | `Tech` | Must be an allowed department. |
-| `job_title` | Yes | `Backend Engineer` | Must be valid for the department. |
+| `job_title` | Yes | `Senior Software Engineer` | Must be valid for the department. |
 | `level` | Yes | `SENIOR` | Must be an allowed level. |
 | `country_code` | Yes | `IN` | Must be `IN` or `US`. |
 | `currency` | Yes | `INR` | Must match the country. |
 | `employment_status` | Yes | `CURRENTLY_WORKING` | Must be an allowed status. |
 | `hire_date` | Yes | `2022-08-14` | ISO date in `YYYY-MM-DD` format. |
 | `employment_end_date` | Conditional | `2025-01-31` | Required only when status is `LEFT`. |
-| `annual_base_salary` | Yes | `1500000.00` | Positive annual base salary. Maximum two decimal places. |
+| `annual_base_salary` | Yes | `2500000.00` | Positive annual base salary. Maximum two decimal places. |
 | `pay_frequency` | Yes | `MONTHLY` | Must be `MONTHLY` or `ANNUAL`. |
 | `annual_bonus` | Yes | `150000.00` | Current annual cash bonus target. Zero or positive. |
 | `salary_effective_date` | Yes | `2025-04-01` | Date when the current annual base salary became effective. |
