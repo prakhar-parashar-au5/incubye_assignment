@@ -241,6 +241,34 @@ builder_docs/responses/05-typescript-migration.md
 
 The builder must stop after strict type checking, all existing tests, the production build, and compiled command smoke tests pass. It must not start Express routes or frontend work.
 
+## Next planned task
+
+### Task 06: Express authentication API
+
+Status: `NOT READY`
+
+Instructions:
+
+```text
+builder_docs/parent_instructions/06-authentication-api.md
+```
+
+Supporting documents:
+
+```text
+docs_human/07-auth-api-raw.md
+docs/14-authentication-api-design.md
+docs/15-authentication-api-test-plan.md
+```
+
+Expected response:
+
+```text
+builder_docs/responses/06-authentication-api.md
+```
+
+Task 06 cannot start until the TypeScript migration passes review and is committed.
+
 ## Response requirements
 
 Every response must include:
