@@ -1,0 +1,9 @@
+ - Started with JavaScript for the speed as I'm more hands on with javascript, wanted to write fast hand written code to setup, Need to migrate to typescript since we're moving to HTTP layer. 
+ - All files will change. 
+ - Applicaton behavior does not change 
+ - All existing tests must continue to pass.
+ -  Why do we still need runtime validation?
+ - Do we allow any, @ts-ignore, or disabled strict mode? we use unknown
+ - What new commands do we need? Add typecheck and build commands. Update tests, migration, seed, and workbook commands to run TypeScript through tsx. Keep database tests separate because they require MySQL. Add a combined check command for lint, types, and fast tests.
+ - Frontend starts directly with TypeScript
+ - What work must wait until after the migration? Building the http layer, and routing must wait before migration

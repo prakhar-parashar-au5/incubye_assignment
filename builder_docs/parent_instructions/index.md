@@ -180,7 +180,16 @@ builder_docs/responses/03-workbook-database-seed.md
 
 ### Task 04: HR access-control foundation
 
-Status: `READY`
+Status: `ACCEPTED AND COMMITTED`
+
+Result:
+
+- HR user, scope, session, and audit tables created.
+- Argon2id password hashing added.
+- Two-hour JWT and database sessions added.
+- Current access loads on every request.
+- Last-active-administrator and administrator-scope protections added.
+- Independent planner verification passed: 196 fast tests and 123 real-MySQL tests.
 
 Instructions:
 
@@ -203,6 +212,34 @@ builder_docs/responses/04-hr-access-control.md
 ```
 
 The builder must stop after the access-control migration, domain policy, session foundation, and tests pass. It must not start Express routes or frontend work.
+
+## Current task
+
+### Task 05: Backend TypeScript migration
+
+Status: `READY`
+
+Instructions:
+
+```text
+builder_docs/parent_instructions/05-typescript-migration.md
+```
+
+Supporting documents:
+
+```text
+docs_human/06-typescript-migration-raw.md
+docs/12-typescript-migration-design.md
+docs/13-typescript-migration-test-plan.md
+```
+
+Expected response:
+
+```text
+builder_docs/responses/05-typescript-migration.md
+```
+
+The builder must stop after strict type checking, all existing tests, the production build, and compiled command smoke tests pass. It must not start Express routes or frontend work.
 
 ## Response requirements
 
