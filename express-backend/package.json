@@ -2,7 +2,7 @@
   "name": "acme-express-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "ACME compensation backend. Current milestones: source workbook generator and initial MySQL schema.",
+  "description": "ACME compensation backend. Current milestones: source workbook generator, initial MySQL schema, and workbook seed.",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -14,6 +14,7 @@
     "db:up": "COMPOSE_DISABLE_ENV_FILE=1 docker compose up -d --wait",
     "db:down": "COMPOSE_DISABLE_ENV_FILE=1 docker compose down",
     "db:migrate": "node scripts/migrate.js",
+    "db:seed": "node scripts/seed-database.js",
     "generate:workbook": "node scripts/generate-workbook.js"
   },
   "dependencies": {

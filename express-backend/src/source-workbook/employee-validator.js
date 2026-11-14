@@ -165,7 +165,7 @@ function validateDates(employee, generationDate, fail) {
  * Converts a money amount to integer minor units (paise / cents).
  * Returns null for non-numbers, non-finite values, and more than two decimals.
  */
-function toMinorUnits(amount) {
+export function toMinorUnits(amount) {
   if (typeof amount !== 'number' || !Number.isFinite(amount)) return null;
   const scaled = amount * 100;
   const minor = Math.round(scaled);
