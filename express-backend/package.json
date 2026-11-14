@@ -19,19 +19,27 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed-database.ts",
     "db:seed-demo-users": "tsx scripts/seed-demo-users.ts",
-    "generate:workbook": "tsx scripts/generate-workbook.ts"
+    "generate:workbook": "tsx scripts/generate-workbook.ts",
+    "openapi:generate": "tsx scripts/generate-openapi.ts",
+    "start": "node dist/src/server.js"
   },
   "dependencies": {
     "argon2": "0.45.2",
     "exceljs": "4.4.0",
+    "express": "5.3.0",
+    "express-rate-limit": "8.7.4",
     "jose": "6.2.17",
-    "mysql2": "3.24.6"
+    "mysql2": "3.24.6",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
+    "@types/express": "5.0.6",
     "@types/node": "22.20.5",
+    "@types/supertest": "7.2.1",
     "eslint": "9.39.5",
     "jszip": "3.10.2",
+    "supertest": "7.3.2",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.2"

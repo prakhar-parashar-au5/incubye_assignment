@@ -77,9 +77,11 @@
 
 ## Rate limit rule:
 
-  5 failed login attempts from one IP in 15 minutes
+  Limit five failed login attempts for one normalized email and caller network key in 15 minutes.
 
-  Decide:
+  The limiter hashes the normalized email. It must not store or log the plain email.
+
+  This prevents failed attempts for one account from blocking every user when Next.js calls Express.
 
 
  ## Demo credentials

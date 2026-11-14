@@ -53,6 +53,8 @@ export interface Principal {
   countries: string[];
   departments: string[];
   sessionId: string;
+  /** The database session's expiry (equal to the JWT exp by construction). */
+  sessionExpiresAt: Date;
 }
 
 export interface SignInResult {
@@ -166,6 +168,7 @@ export function createAuthService({ pool, tokens, clock = () => new Date() }: {
       countries: countries.map((r) => r.country_code).sort(),
       departments: departments.map((r) => r.name).sort(),
       sessionId,
+      sessionExpiresAt: fromDbTime(row.expires_at),
     };
   }
 

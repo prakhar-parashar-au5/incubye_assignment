@@ -145,6 +145,7 @@ describe('sign-in and sessions', () => {
       {
         hrUserId: scopedId, email: 'scoped.one@acme.com', displayName: 'Scoped One', role: 'SCOPED', status: 'ACTIVE',
         countries: ['IN'], departments: ['Support', 'Tech'], sessionId: undefined,
+        sessionExpiresAt: new Date('2026-11-14T12:00:00.000Z'),
       },
     );
   });

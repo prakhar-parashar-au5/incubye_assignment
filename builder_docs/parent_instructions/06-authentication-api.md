@@ -1,6 +1,6 @@
 # Builder task 06: Express authentication API
 
-**Status:** NOT READY. Task 05 must pass review and be committed first.
+**Status:** READY
 
 ## Goal
 

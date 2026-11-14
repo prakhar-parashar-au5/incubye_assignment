@@ -41,6 +41,15 @@ Defaults: seed `20261114`, generation date `2026-11-14`. The generator never use
 | `scripts/migrate.ts` | Thin migration entry point |
 | `test/support/test-database.ts` | `_test` name guard and test database reset |
 | `src/paths.ts` | Package-root asset paths (migrations, workbook) for source and `dist/` |
+| `src/http/contract.ts` | Zod request/response schemas, public error codes, paths |
+| `src/http/openapi.ts` | OpenAPI 3.1 document built from the contract |
+| `src/http/app.ts` | Express application factory (injected dependencies) |
+| `src/http/auth-routes.ts` | Login, current user, logout, Bearer middleware |
+| `src/http/rate-limit.ts` | Failed-login limiter, client IP source, clocked store |
+| `src/http/errors.ts` | Public error mapping |
+| `src/http/request-log.ts` | Safe request logging |
+| `src/http/config.ts` | Zod-validated server environment |
+| `src/server.ts` | Process entry point and graceful shutdown |
 | `src/errors.ts` | Narrowing helpers for caught `unknown` values |
 | `src/seed/workbook-reader.ts` | Reads and validates the `.xlsx`; money as exact decimal strings |
 | `src/seed/seed-safety.ts` | `--replace` and `APP_ENV` guard |
@@ -139,3 +148,33 @@ npm run db:seed-demo-users
   - No explicit `any`, `@ts-ignore`, or `@ts-nocheck`; lint enforces this, and `test/lint-policy.test.ts` proves the rules are active.
   - Untrusted values (workbook cells, environment, CLI input, future HTTP input) are typed `unknown` and narrowed by the existing runtime validators.
   - `test/types/type-contracts.ts` holds compile-time checks, using `@ts-expect-error` with a reason.
+
+## HTTP API (authentication only)
+
+```sh
+npm run build
+DATABASE_URL='mysql://…' JWT_SIGNING_KEY='<32+ bytes>' PORT=3000 CLIENT_IP_SOURCE=socket npm start
+npm run openapi:generate      # rewrites openapi/openapi.json from the Zod contract
+```
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | `{ "status": "ok" }` only |
+| `POST /api/v1/auth/login` | `{ email, password }` (strict) → `{ token, expiresAt, user }` |
+| `GET /api/v1/auth/me` | `Authorization: Bearer <JWT>` → current user, scopes, session expiry |
+| `POST /api/v1/auth/logout` | `Authorization: Bearer <JWT>` → `204`. Revokes the session; safe to repeat |
+| `GET /api/v1/openapi.json` | OpenAPI 3.1, generated from `src/http/contract.ts` |
+
+- **Errors.** Always `{ "error": { "code", "message" } }`, with one of these codes: `VALIDATION_ERROR`, `INVALID_CREDENTIALS`, `UNAUTHENTICATED`, `RATE_LIMITED`, `NOT_FOUND`, `INTERNAL_ERROR`. Internal authentication reasons are never returned.
+- **Failed-login limit.** 5 failed attempts per caller and account per 15 minutes; successful logins do not count.
+  - The key is `ip:<caller key>|email:<HMAC-SHA256 of the trimmed, lowercased email>`, using a random key per process. Plain emails are never stored or logged.
+  - A missing or non-string email uses the bucket `ip:<caller key>|email:none`.
+  - Through the Next.js server, all users share one caller key, so the email part keeps one account's failures from blocking the others. A per-browser-IP limit in Next.js is future work.
+  - The caller key comes from `CLIENT_IP_SOURCE`:
+    - `socket` (default): the TCP peer. Forwarded headers are ignored.
+    - `railway-x-real-ip`: the `X-Real-IP` header, which Railway's public edge sets and overwrites. Use this only when the service is reachable solely through Railway's public domain. Railway's private network (`*.railway.internal`) can send its own headers.
+
+  Express `trust proxy` stays off, because Railway documents no fixed hop count.
+- **Browser access.** No CORS and no cookies: the Next.js server calls this API and owns the browser cookie.
+- **Logs.** JSON lines with request ID, method, path without the query string, status, and duration only.
+- **Shutdown.** On `SIGTERM`/`SIGINT` the server stops accepting connections, closes the MySQL pool, and exits. It is forced to exit after 10 s.
