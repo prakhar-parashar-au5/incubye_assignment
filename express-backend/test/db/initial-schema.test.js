@@ -30,18 +30,24 @@ async function assertRejects(promise, code, constraint) {
   });
 }
 
+// Tables owned by 001. Later migrations add tables; access-schema.test.js
+// asserts the complete list after all migrations.
+const MIGRATION_001_TABLES = ['compensation_records', 'countries', 'departments', 'employees', 'job_titles'];
+
 describe('initial schema: tables and keys', () => {
   // Detects: the real migration failing or re-applying on a second run
   // (e.g. CREATE TABLE without a record, or a missing schema_migrations row).
   test('records 001_initial_schema.sql and applies nothing on a repeat run', async () => {
     const repeat = await runMigrations({ databaseUrl: DATABASE_URL });
-    assert.deepEqual(repeat, { applied: [], alreadyApplied: ['001_initial_schema.sql'] });
+    assert.deepEqual(repeat.applied, []);
+    assert.equal(repeat.alreadyApplied[0], '001_initial_schema.sql');
   });
-  // Detects: a missing table, or an extra table that belongs to a later migration.
-  test('creates exactly the approved tables', async () => {
+  // Detects: a missing 001 table.
+  test('creates the approved 001 tables', async () => {
     const rows = await query(
       `SELECT table_name AS name, engine AS engine FROM information_schema.tables
-       WHERE table_schema = DATABASE() ORDER BY table_name`,
+       WHERE table_schema = DATABASE() AND table_name IN (?) ORDER BY table_name`,
+      [[...MIGRATION_001_TABLES, 'schema_migrations']],
     );
     assert.deepEqual(rows.map((r) => `${r.name}:${r.engine}`), [
       'compensation_records:InnoDB',
@@ -59,9 +65,10 @@ describe('initial schema: tables and keys', () => {
       `SELECT table_name AS t, index_name AS i, non_unique AS nu,
               GROUP_CONCAT(column_name ORDER BY seq_in_index) AS cols
        FROM information_schema.statistics
-       WHERE table_schema = DATABASE() AND table_name <> 'schema_migrations'
+       WHERE table_schema = DATABASE() AND table_name IN (?)
        GROUP BY table_name, index_name, non_unique
        ORDER BY table_name, index_name`,
+      [MIGRATION_001_TABLES],
     );
     assert.deepEqual(rows.map((r) => `${r.t}.${r.i}${Number(r.nu) === 0 ? ' UNIQUE' : ''} (${r.cols})`), [
       'compensation_records.idx_compensation_employee_effective (employee_id,effective_from,version)',
@@ -87,7 +94,8 @@ describe('initial schema: tables and keys', () => {
       `SELECT rc.constraint_name AS name, rc.table_name AS t, rc.referenced_table_name AS ref,
               rc.update_rule AS up, rc.delete_rule AS del
        FROM information_schema.referential_constraints rc
-       WHERE rc.constraint_schema = DATABASE() ORDER BY rc.constraint_name`,
+       WHERE rc.constraint_schema = DATABASE() AND rc.table_name IN (?) ORDER BY rc.constraint_name`,
+      [MIGRATION_001_TABLES],
     );
     assert.deepEqual(rows.map((r) => `${r.name}: ${r.t} -> ${r.ref} update ${r.up} delete ${r.del}`), [
       'fk_compensation_employee: compensation_records -> employees update RESTRICT delete RESTRICT',

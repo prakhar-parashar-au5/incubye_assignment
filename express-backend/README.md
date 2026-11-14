@@ -44,6 +44,14 @@ Defaults: seed `20261114`, generation date `2026-11-14`. The generator never use
 | `src/seed/replace-employees.js` | One-transaction delete and batch insert |
 | `src/seed/seed-database.js` | Seed order: guard, validate, reference data, replace |
 | `scripts/seed-database.js` | Thin seed entry point |
+| `db/migrations/002_hr_access_control.sql` | HR users, scopes, sessions, access audit |
+| `src/access/access-policy.js` | Pure country AND department rule; who can manage HR users |
+| `src/access/passwords.js` | Argon2id hash and verify |
+| `src/access/session-tokens.js` | Two-hour HS256 JWTs (`jose`) |
+| `src/access/sessions.js` | Sign-in, per-request authentication, sign-out |
+| `src/access/hr-users.js` | Admin HR user changes with audit, one transaction each |
+| `src/access/demo-users.js` | Meera and Rohan demo accounts |
+| `scripts/seed-demo-users.js` | Thin demo-user entry point |
 
 ## Generation choices not fixed by the approved documents
 
@@ -92,3 +100,26 @@ npm run db:seed -- --replace --workbook path/to/file.xlsx --generation-date 2026
   4. Run one transaction: `DELETE`, then batch inserts of 1,000 rows, then count checks, then commit. Any failure rolls the transaction back, so the old data stays.
 - **Dates.** `--generation-date` must match the date the workbook was generated for, because the status and date rules depend on it. The default is the approved `2026-11-14`.
 - **Database IDs.** Internal IDs change after each seed, because auto-increment values are not reset. Use `employee_code` as the stable identifier.
+
+## HR access control (foundation only: no routes yet)
+
+- **Roles.** `ADMIN` sees everyone and manages HR users. `SCOPED` sees an employee only if the employee's country is in the user's countries AND the employee's department is in the user's departments. An empty list grants nothing.
+- **Sessions.** Sign-in creates an `hr_sessions` row and a two-hour HS256 JWT. The JWT contains only `sub` (HR user ID), `sid` (session ID), `iat`, and `exp`. Every `authenticate()` call re-reads the session, the user's status, and the scopes. Revocation, deactivation, and scope changes therefore apply on the next request.
+- **Signing key.** `JWT_SIGNING_KEY` comes from the injected environment and must be at least 32 bytes. Generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` and store it in the deployment's secret settings, never in a file in the repository.
+- **Passwords.** Argon2id (`m=19456, t=2, p=1`) through the `argon2` package. Only the PHC hash string is stored.
+- **Audit.** Each HR user change and its `access_audit_events` row commit together. Audit states contain role, status, countries, and departments only.
+
+### Demo users (development, test, demo only)
+
+Run after `npm run db:seed`, because the scopes need the departments:
+
+```sh
+APP_ENV=demo DATABASE_URL='mysql://…' \
+DEMO_MEERA_PASSWORD='<at least 12 characters>' DEMO_ROHAN_PASSWORD='<at least 12 characters>' \
+npm run db:seed-demo-users
+```
+
+- **Meera Iyer** (`meera.iyer@acme.com`): ADMIN.
+- **Rohan Mehta** (`rohan.mehta@acme.com`): SCOPED; countries `IN`; departments `Tech` and `Support`.
+- These are synthetic demo accounts. The passwords come only from the environment, and only their hashes are stored.
+- A rerun creates nothing and does not change passwords. It fails if an existing demo user's role, status, or scopes differ from the approved values.
