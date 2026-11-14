@@ -1,6 +1,3 @@
-# workbook -> db seed rough notes
-
-> collected from the decisions I made while planning this. AI helped arrange the notes, final calls are mine.
 
 ## what are we doing here
 
@@ -85,7 +82,7 @@ No old salary history because source excel itself only contains latest salary.
 
 ## IDs
 
-`ACME00001` etc is the actual stable employee id.
+ACME00001 etc is the actual stable employee id.
 
 The DB numeric id is internal. It can change after reseeding and nothing outside DB should depend on it.
 

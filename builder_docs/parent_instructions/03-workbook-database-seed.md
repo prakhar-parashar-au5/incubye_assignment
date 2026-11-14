@@ -1,6 +1,6 @@
 # Builder task 03: Seed MySQL from the workbook
 
-**Status:** NOT READY. Do not start until the instruction index marks this task READY.
+**Status:** READY
 
 ## Context
 

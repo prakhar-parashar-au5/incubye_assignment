@@ -20,10 +20,14 @@ builder_docs/
   parent_instructions/
     index.md                         # Current state and next task
     01-workbook-generator.md         # Completed task instructions
-    02-initial-migration.md          # Current task instructions
+    02-initial-migration.md          # Completed task instructions
+    02a-migration-review-fix.md      # Completed review correction
+    03-workbook-database-seed.md     # Current task instructions
   responses/
     01-workbook-generator.md         # Completed builder report
-    02-initial-migration.md          # Builder creates this after task 02
+    02-initial-migration.md          # Completed builder report
+    02-initial-migration-fix.md      # Completed review response
+    03-workbook-database-seed.md     # Builder creates this after task 03
 ```
 
 Product decisions and technical designs remain under `docs/`.
@@ -121,40 +125,37 @@ Result:
 - Independent planner check passed.
 - 121 tests passed.
 
-## Current task
-
 ### Task 02: Initial MySQL migration
 
-Status: `IN PROGRESS`
+Status: `ACCEPTED AND COMMITTED`
+
+Result:
+
+- Raw MySQL migration created.
+- Migration runner created.
+- Docker Compose MySQL 8 test service created.
+- Automatic `.env` loading disabled in project Compose commands.
+- Independent planner verification passed: 130 fast tests and 52 real-MySQL tests.
 
 Instructions:
 
 ```text
 builder_docs/parent_instructions/02-initial-migration.md
+builder_docs/parent_instructions/02a-migration-review-fix.md
 ```
 
-Required supporting documents:
-
-```text
-docs/05-initial-database-schema.md
-docs/06-schema-test-plan.md
-```
-
-Expected response:
+Responses:
 
 ```text
 builder_docs/responses/02-initial-migration.md
+builder_docs/responses/02-initial-migration-fix.md
 ```
 
-The builder must stop after the migration and schema tests pass.
-
-The builder must not write the workbook seed script during Task 02.
-
-## Next planned task
+## Current task
 
 ### Task 03: Seed MySQL from the workbook
 
-Status: `NOT READY`
+Status: `READY`
 
 Instructions:
 
@@ -176,7 +177,7 @@ Expected response:
 builder_docs/responses/03-workbook-database-seed.md
 ```
 
-Task 03 is designed but blocked. The planner must accept Task 02 and change the Task 03 status to `READY` before the builder starts it.
+The builder must stop after the workbook seed and transaction tests pass. It must not start Express API or frontend work.
 
 ## Response requirements
 
