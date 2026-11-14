@@ -243,8 +243,6 @@ builder_docs/responses/05-typescript-migration.md
 
 The builder must stop after strict type checking, all existing tests, the production build, and compiled command smoke tests pass. It must not start Express routes or frontend work.
 
-## Current task
-
 ### Task 06: Express authentication API
 
 Status: `ACCEPTED AND COMMITTED`
@@ -300,6 +298,34 @@ builder_docs/responses/07-employee-directory-api.md
 ```
 
 The builder must stop after the directory, options, detail, currency conversion, OpenAPI, authorization, and measured-query checks pass. It must not start frontend or mutation work.
+
+## Next planned task
+
+### Task 08: Next.js sign-in and employee directory
+
+Status: `NOT READY`
+
+Instructions:
+
+```text
+builder_docs/parent_instructions/08-frontend-directory.md
+```
+
+Supporting documents:
+
+```text
+docs_human/09-frontend-directory.md
+docs/20-frontend-architecture.md
+docs/21-frontend-test-plan.md
+```
+
+Expected response:
+
+```text
+builder_docs/responses/08-frontend-directory.md
+```
+
+Task 08 cannot start until the employee directory API passes review and Task 07 is committed.
 
 ## Response requirements
 
