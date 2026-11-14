@@ -179,6 +179,34 @@ builder_docs/responses/03-workbook-database-seed.md
 
 The builder must stop after the workbook seed and transaction tests pass. It must not start Express API or frontend work.
 
+## Next planned task
+
+### Task 04: HR access-control foundation
+
+Status: `NOT READY`
+
+Instructions:
+
+```text
+builder_docs/parent_instructions/04-hr-access-control.md
+```
+
+Supporting documents:
+
+```text
+docs_human/05-access-control-raw.md
+docs/10-access-control-design.md
+docs/11-access-control-test-plan.md
+```
+
+Expected response:
+
+```text
+builder_docs/responses/04-hr-access-control.md
+```
+
+Task 04 cannot start until Task 03 passes review and is committed.
+
 ## Response requirements
 
 Every response must include:
