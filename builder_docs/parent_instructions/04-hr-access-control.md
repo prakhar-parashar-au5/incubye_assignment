@@ -1,6 +1,6 @@
 # Builder task 04: HR access-control foundation
 
-**Status:** NOT READY. Task 03 must be accepted and committed first.
+**Status:** READY
 
 ## Goal
 

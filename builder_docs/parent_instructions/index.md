@@ -151,11 +151,18 @@ builder_docs/responses/02-initial-migration.md
 builder_docs/responses/02-initial-migration-fix.md
 ```
 
-## Current task
-
 ### Task 03: Seed MySQL from the workbook
 
-Status: `READY`
+Status: `ACCEPTED AND COMMITTED`
+
+Result:
+
+- Approved workbook parser created.
+- 10,000 employees inserted into MySQL.
+- 10,000 initial compensation records inserted.
+- Destructive replacement uses one transaction.
+- Rollback behavior verified with a real MySQL failure.
+- Independent planner verification passed: 159 fast tests and 66 real-MySQL tests.
 
 Instructions:
 
@@ -163,27 +170,17 @@ Instructions:
 builder_docs/parent_instructions/03-workbook-database-seed.md
 ```
 
-Supporting documents:
-
-```text
-docs/08-workbook-seed-design.md
-docs/09-workbook-seed-test-plan.md
-docs_human/04-workbook-database-seed-raw.md
-```
-
-Expected response:
+Response:
 
 ```text
 builder_docs/responses/03-workbook-database-seed.md
 ```
 
-The builder must stop after the workbook seed and transaction tests pass. It must not start Express API or frontend work.
-
-## Next planned task
+## Current task
 
 ### Task 04: HR access-control foundation
 
-Status: `NOT READY`
+Status: `READY`
 
 Instructions:
 
@@ -205,7 +202,7 @@ Expected response:
 builder_docs/responses/04-hr-access-control.md
 ```
 
-Task 04 cannot start until Task 03 passes review and is committed.
+The builder must stop after the access-control migration, domain policy, session foundation, and tests pass. It must not start Express routes or frontend work.
 
 ## Response requirements
 
