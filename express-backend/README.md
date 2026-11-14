@@ -1,6 +1,6 @@
 # express-backend
 
-Completed milestones: the deterministic source workbook generator, and the initial MySQL schema with a forward-only migration runner. There is no Express API or workbook import yet.
+Strict TypeScript (ESM, Node 22). Completed milestones: workbook generator, MySQL schema and migration runner, workbook seed, and HR access-control foundation. There is no Express API yet.
 
 The approved rules live in `../docs/01-source-workbook.md`, `../docs/02-synthetic-data-rules.md`, and `../docs/05-initial-database-schema.md`.
 
@@ -8,8 +8,10 @@ The approved rules live in `../docs/01-source-workbook.md`, `../docs/02-syntheti
 
 ```sh
 npm install
-npm run lint
-npm test
+npm run check                                 # lint + strict type check + fast tests
+npm run typecheck                             # tsc, no emit; includes test/types/type-contracts.ts
+npm test                                      # fast tests (node --test through tsx)
+npm run build                                 # clean dist/, then compile src/ and scripts/ (no tests)
 npm run generate:workbook                     # writes generated/acme-employees.xlsx
 npm run generate:workbook -- --overwrite      # replace an existing file
 npm run generate:workbook -- --output /tmp/a.xlsx --seed 7 --generation-date 2025-01-31
@@ -22,36 +24,38 @@ Defaults: seed `20261114`, generation date `2026-11-14`. The generator never use
 
 | File | Concern |
 |---|---|
-| `src/source-workbook/constants.js` | Approved values, ranges, distributions, titles |
-| `src/source-workbook/seeded-random.js` | Seeded random numbers (mulberry32) and shuffle |
-| `src/source-workbook/iso-date.js` | `YYYY-MM-DD` checks and UTC day arithmetic |
-| `src/source-workbook/names.js` | Fixed synthetic name lists |
-| `src/source-workbook/employee-generator.js` | Generates the 10,000 employees |
-| `src/source-workbook/employee-validator.js` | Rules for one employee |
-| `src/source-workbook/employee-dataset.js` | Rules for the complete data set |
-| `src/source-workbook/workbook-writer.js` | ExcelJS writing |
-| `src/source-workbook/source-workbook.js` | Validate, then write through a temporary file |
-| `src/source-workbook/cli-options.js` | Command-line parsing |
-| `scripts/generate-workbook.js` | Thin command-line entry point |
+| `src/source-workbook/constants.ts` | Approved values, ranges, distributions, titles |
+| `src/source-workbook/seeded-random.ts` | Seeded random numbers (mulberry32) and shuffle |
+| `src/source-workbook/iso-date.ts` | `YYYY-MM-DD` checks and UTC day arithmetic |
+| `src/source-workbook/names.ts` | Fixed synthetic name lists |
+| `src/source-workbook/employee-generator.ts` | Generates the 10,000 employees |
+| `src/source-workbook/employee-validator.ts` | Rules for one employee |
+| `src/source-workbook/employee-dataset.ts` | Rules for the complete data set |
+| `src/source-workbook/workbook-writer.ts` | ExcelJS writing |
+| `src/source-workbook/source-workbook.ts` | Validate, then write through a temporary file |
+| `src/source-workbook/cli-options.ts` | Command-line parsing |
+| `scripts/generate-workbook.ts` | Thin command-line entry point |
 | `db/migrations/001_initial_schema.sql` | Initial schema (five tables) |
-| `src/db/connection.js` | mysql2 connections with UTC, strict mode, exact decimals |
-| `src/db/migrate.js` | Forward-only migration runner |
-| `scripts/migrate.js` | Thin migration entry point |
-| `test/support/test-database.js` | `_test` name guard and test database reset |
-| `src/seed/workbook-reader.js` | Reads and validates the `.xlsx`; money as exact decimal strings |
-| `src/seed/seed-safety.js` | `--replace` and `APP_ENV` guard |
-| `src/seed/reference-data.js` | Inserts or verifies countries, departments, job titles |
-| `src/seed/replace-employees.js` | One-transaction delete and batch insert |
-| `src/seed/seed-database.js` | Seed order: guard, validate, reference data, replace |
-| `scripts/seed-database.js` | Thin seed entry point |
+| `src/db/connection.ts` | mysql2 connections with UTC, strict mode, exact decimals |
+| `src/db/migrate.ts` | Forward-only migration runner |
+| `scripts/migrate.ts` | Thin migration entry point |
+| `test/support/test-database.ts` | `_test` name guard and test database reset |
+| `src/paths.ts` | Package-root asset paths (migrations, workbook) for source and `dist/` |
+| `src/errors.ts` | Narrowing helpers for caught `unknown` values |
+| `src/seed/workbook-reader.ts` | Reads and validates the `.xlsx`; money as exact decimal strings |
+| `src/seed/seed-safety.ts` | `--replace` and `APP_ENV` guard |
+| `src/seed/reference-data.ts` | Inserts or verifies countries, departments, job titles |
+| `src/seed/replace-employees.ts` | One-transaction delete and batch insert |
+| `src/seed/seed-database.ts` | Seed order: guard, validate, reference data, replace |
+| `scripts/seed-database.ts` | Thin seed entry point |
 | `db/migrations/002_hr_access_control.sql` | HR users, scopes, sessions, access audit |
-| `src/access/access-policy.js` | Pure country AND department rule; who can manage HR users |
-| `src/access/passwords.js` | Argon2id hash and verify |
-| `src/access/session-tokens.js` | Two-hour HS256 JWTs (`jose`) |
-| `src/access/sessions.js` | Sign-in, per-request authentication, sign-out |
-| `src/access/hr-users.js` | Admin HR user changes with audit, one transaction each |
-| `src/access/demo-users.js` | Meera and Rohan demo accounts |
-| `scripts/seed-demo-users.js` | Thin demo-user entry point |
+| `src/access/access-policy.ts` | Pure country AND department rule; who can manage HR users |
+| `src/access/passwords.ts` | Argon2id hash and verify |
+| `src/access/session-tokens.ts` | Two-hour HS256 JWTs (`jose`) |
+| `src/access/sessions.ts` | Sign-in, per-request authentication, sign-out |
+| `src/access/hr-users.ts` | Admin HR user changes with audit, one transaction each |
+| `src/access/demo-users.ts` | Meera and Rohan demo accounts |
+| `scripts/seed-demo-users.ts` | Thin demo-user entry point |
 
 ## Generation choices not fixed by the approved documents
 
@@ -123,3 +127,15 @@ npm run db:seed-demo-users
 - **Rohan Mehta** (`rohan.mehta@acme.com`): SCOPED; countries `IN`; departments `Tech` and `Support`.
 - These are synthetic demo accounts. The passwords come only from the environment, and only their hashes are stored.
 - A rerun creates nothing and does not change passwords. It fails if an existing demo user's role, status, or scopes differ from the approved values.
+
+## TypeScript build and assets
+
+- **Toolchain.** TypeScript 6.0.3 (`strict`, `module`/`moduleResolution: nodenext`), `tsx` for running source and tests, and `typescript-eslint` for lint.
+  - TypeScript 7 is not used: typescript-eslint 8 supports TypeScript `<6.1.0`, because TypeScript 7.0 has no programmatic API yet.
+  - Relative imports use `.js` specifiers, which work both in `tsx` and in compiled Node output.
+- **Build output.** `npm run build` writes `dist/src/...` and `dist/scripts/...`. Run the compiled commands with `node dist/scripts/<name>.js`.
+- **Assets.** SQL migrations and the generated workbook are not copied into `dist/`. `src/paths.ts` finds the package root by walking up to the nearest `package.json`, which is `express-backend/` from both `src/` and `dist/src/`. Both `db:migrate` and the compiled `migrate.js` therefore read `express-backend/db/migrations/`, and the generator and seed both default to `express-backend/generated/acme-employees.xlsx`. A deployment must ship `db/migrations/` (and the workbook, if the seed runs there) next to `dist/`.
+- **Type policy.**
+  - No explicit `any`, `@ts-ignore`, or `@ts-nocheck`; lint enforces this, and `test/lint-policy.test.ts` proves the rules are active.
+  - Untrusted values (workbook cells, environment, CLI input, future HTTP input) are typed `unknown` and narrowed by the existing runtime validators.
+  - `test/types/type-contracts.ts` holds compile-time checks, using `@ts-expect-error` with a reason.

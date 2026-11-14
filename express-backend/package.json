@@ -2,21 +2,24 @@
   "name": "acme-express-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "ACME compensation backend. Current milestones: workbook generator, MySQL schema, workbook seed, and HR access-control foundation.",
+  "description": "ACME compensation backend (strict TypeScript). Milestones: workbook generator, MySQL schema, workbook seed, HR access-control foundation.",
   "type": "module",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "lint": "eslint .",
-    "test": "node --test \"test/*.test.js\"",
-    "test:db": "node --test --test-concurrency=1 \"test/db/*.test.js\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
+    "check": "npm run lint && npm run typecheck && npm test",
+    "test": "node --import tsx --test \"test/*.test.ts\"",
+    "test:db": "node --import tsx --test --test-concurrency=1 \"test/db/*.test.ts\"",
     "db:up": "COMPOSE_DISABLE_ENV_FILE=1 docker compose up -d --wait",
     "db:down": "COMPOSE_DISABLE_ENV_FILE=1 docker compose down",
-    "db:migrate": "node scripts/migrate.js",
-    "db:seed": "node scripts/seed-database.js",
-    "db:seed-demo-users": "node scripts/seed-demo-users.js",
-    "generate:workbook": "node scripts/generate-workbook.js"
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed-database.ts",
+    "db:seed-demo-users": "tsx scripts/seed-demo-users.ts",
+    "generate:workbook": "tsx scripts/generate-workbook.ts"
   },
   "dependencies": {
     "argon2": "0.45.2",
@@ -26,7 +29,11 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
+    "@types/node": "22.20.5",
     "eslint": "9.39.5",
-    "jszip": "3.10.2"
+    "jszip": "3.10.2",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.2"
   }
 }
