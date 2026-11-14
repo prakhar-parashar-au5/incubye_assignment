@@ -1,0 +1,23 @@
+{
+  "name": "acme-express-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ACME compensation backend. Current milestone: deterministic source workbook generator.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test": "node --test \"test/**/*.test.js\"",
+    "generate:workbook": "node scripts/generate-workbook.js"
+  },
+  "dependencies": {
+    "exceljs": "4.4.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "eslint": "9.39.5",
+    "jszip": "3.10.2"
+  }
+}
