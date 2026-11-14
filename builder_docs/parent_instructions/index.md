@@ -125,7 +125,7 @@ Result:
 
 ### Task 02: Initial MySQL migration
 
-Status: `READY`
+Status: `IN PROGRESS`
 
 Instructions:
 
@@ -152,9 +152,31 @@ The builder must not write the workbook seed script during Task 02.
 
 ## Next planned task
 
-Task 03 will import the generated workbook into MySQL.
+### Task 03: Seed MySQL from the workbook
 
-Task 03 is not approved yet. No builder may start it until this index points to its instruction file.
+Status: `NOT READY`
+
+Instructions:
+
+```text
+builder_docs/parent_instructions/03-workbook-database-seed.md
+```
+
+Supporting documents:
+
+```text
+docs/08-workbook-seed-design.md
+docs/09-workbook-seed-test-plan.md
+docs_human/04-workbook-database-seed-raw.md
+```
+
+Expected response:
+
+```text
+builder_docs/responses/03-workbook-database-seed.md
+```
+
+Task 03 is designed but blocked. The planner must accept Task 02 and change the Task 03 status to `READY` before the builder starts it.
 
 ## Response requirements
 
