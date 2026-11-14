@@ -1,0 +1,27 @@
+# Local MySQL 8 for schema integration tests only.
+# The credentials below are fixed, local-only test values, not secrets.
+# The port is bound to 127.0.0.1, and data lives in tmpfs (lost on restart).
+name: acme-take-home
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: acme-take-home-mysql
+    command:
+      - --default-time-zone=+00:00
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: acme_local_root
+      MYSQL_DATABASE: acme_test
+      MYSQL_USER: acme
+      MYSQL_PASSWORD: acme_local
+    ports:
+      - "127.0.0.1:3317:3306"
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uacme", "-pacme_local"]
+      interval: 2s
+      timeout: 5s
+      retries: 30

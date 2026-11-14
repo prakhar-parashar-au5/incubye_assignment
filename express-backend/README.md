@@ -1,8 +1,8 @@
 # express-backend
 
-Current milestone: the deterministic source workbook generator only. There is no Express API, database, or migration yet.
+Completed milestones: the deterministic source workbook generator, and the initial MySQL schema with a forward-only migration runner. There is no Express API or workbook import yet.
 
-The approved rules live in `../docs/01-source-workbook.md` and `../docs/02-synthetic-data-rules.md`.
+The approved rules live in `../docs/01-source-workbook.md`, `../docs/02-synthetic-data-rules.md`, and `../docs/05-initial-database-schema.md`.
 
 ## Commands
 
@@ -33,6 +33,11 @@ Defaults: seed `20261114`, generation date `2026-11-14`. The generator never use
 | `src/source-workbook/source-workbook.js` | Validate, then write through a temporary file |
 | `src/source-workbook/cli-options.js` | Command-line parsing |
 | `scripts/generate-workbook.js` | Thin command-line entry point |
+| `db/migrations/001_initial_schema.sql` | Initial schema (five tables) |
+| `src/db/connection.js` | mysql2 connections with UTC, strict mode, exact decimals |
+| `src/db/migrate.js` | Forward-only migration runner |
+| `scripts/migrate.js` | Thin migration entry point |
+| `test/support/test-database.js` | `_test` name guard and test database reset |
 
 ## Generation choices not fixed by the approved documents
 
@@ -47,3 +52,21 @@ Defaults: seed `20261114`, generation date `2026-11-14`. The generator never use
 - Same seed and date give the same logical data. File bytes can differ (ZIP metadata), so tests compare logical data.
 - ExcelJS 4.4.0 was last released in October 2023. `npm audit` reports a moderate advisory in its `uuid` dependency (buffer bounds in v3/v5/v6 when a buffer is passed). The generator does not call those functions.
 - Validation lists cover the six fixed-value columns. `job_title` has no list because its allowed values depend on department and level.
+
+## Database (MySQL 8)
+
+```sh
+npm run db:up      # local MySQL 8.4 on 127.0.0.1:3317, database acme_test, data in tmpfs
+DATABASE_URL='mysql://acme:acme_local@127.0.0.1:3317/acme_test' npm run test:db
+DATABASE_URL='mysql://acme:acme_local@127.0.0.1:3317/acme_test' npm run db:migrate
+npm run db:down
+```
+
+- Use `npm run db:up` and `npm run db:down` rather than plain `docker compose`. By default, Docker Compose automatically loads a `.env` file from the project directory. Both scripts set `COMPOSE_DISABLE_ENV_FILE=1`, the documented setting that turns that off. If you must run Compose by hand, prefix the command the same way: `COMPOSE_DISABLE_ENV_FILE=1 docker compose ...`.
+- `docker-compose.yml` uses no `${VAR}` substitution, so it needs no environment file.
+- The Compose credentials are fixed local test values, not secrets.
+- Code reads only an explicit argument or the injected `DATABASE_URL`. Nothing reads `.env` files.
+- `npm test` runs the fast unit tests only. `npm run test:db` runs the real-MySQL tests one file at a time, because they share one database.
+- The DB tests refuse to start unless the database name ends with `_test`. Each test file drops every table in that database before it runs.
+- Migrations live in `db/migrations/` as `NNN_name.sql`. They are forward-only: MySQL commits DDL implicitly, so a failed migration can leave earlier statements applied. Fix it with a new migration.
+- Every connection sets `time_zone = '+00:00'` and a strict `sql_mode`. DECIMAL values come back as exact strings and DATE values as `YYYY-MM-DD` strings.
