@@ -14,7 +14,7 @@ The candidate selected raw SQL, MySQL 8, and JavaScript. Do not introduce an ORM
 - `docs/06-schema-test-plan.md`
 - `docs/01-source-workbook.md`
 - `docs/02-synthetic-data-rules.md`
-- `builder_docs/01-workbook-generator.md`
+- `builder_docs/responses/01-workbook-generator.md`
 
 Do not change approved schema rules without a candidate decision.
 
@@ -107,7 +107,7 @@ Do not create:
 Write:
 
 ```text
-builder_docs/02-initial-migration.md
+builder_docs/responses/02-initial-migration.md
 ```
 
 Include:
