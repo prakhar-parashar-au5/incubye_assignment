@@ -15,6 +15,10 @@ import { sendError } from './errors.js';
 export const FAILED_LOGIN_LIMIT = 5;
 export const FAILED_LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
+/** Assistant cost limit (review fix 08a): per authenticated HR user. */
+export const ASSISTANT_REQUEST_LIMIT = 20;
+export const ASSISTANT_REQUEST_WINDOW_MS = 15 * 60 * 1000;
+
 /**
  * Where the client IP comes from:
  * - 'socket': the TCP peer address. Forwarded headers are ignored. The default.
@@ -143,6 +147,40 @@ export function failedLoginLimiter({ clientIpSource, clock, store = new ClockedM
     },
     // Our keyGenerator never reads req.ip and trust proxy is off, so the
     // library's proxy checks do not apply; keep its other checks on.
+    validate: { trustProxy: false, xForwardedForHeader: false, keyGeneratorIpFallback: false },
+  });
+}
+
+/**
+ * Assistant request limit: ASSISTANT_REQUEST_LIMIT requests per verified HR
+ * user per window. Mount after requireAuth: the key is the hrUserId of the
+ * principal requireAuth loaded from the database, never IP, email, JWT text,
+ * or anything in the request. Every authenticated request counts, whatever
+ * its outcome, because each one can reach the model.
+ *
+ * The store is in memory and per process. With several replicas each would
+ * keep its own counts, so a shared store (for example Redis) is needed there.
+ */
+export function assistantRequestLimiter({ clock, store = new ClockedMemoryStore(clock) }: {
+  clock: () => Date;
+  store?: ClockedMemoryStore | undefined;
+}): RequestHandler {
+  return rateLimit({
+    windowMs: ASSISTANT_REQUEST_WINDOW_MS,
+    limit: ASSISTANT_REQUEST_LIMIT,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    store,
+    keyGenerator: (_req, res) => {
+      const principal: unknown = res.locals.principal;
+      const hrUserId: unknown = typeof principal === 'object' && principal !== null ? Reflect.get(principal, 'hrUserId') : undefined;
+      // Fail closed: this middleware must run after requireAuth.
+      if (typeof hrUserId !== 'number' || !Number.isSafeInteger(hrUserId)) throw new Error('assistant limiter used before authentication');
+      return `hr-user:${hrUserId}`;
+    },
+    handler: (_req, res) => {
+      sendError(res, 429, 'RATE_LIMITED', 'Too many assistant requests. Try again later.');
+    },
     validate: { trustProxy: false, xForwardedForHeader: false, keyGeneratorIpFallback: false },
   });
 }

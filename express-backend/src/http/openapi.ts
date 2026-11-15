@@ -3,11 +3,54 @@
 // uses); only paths and descriptions are written here.
 import { z } from 'zod';
 
-import { PATHS, contractRegistry } from './contract.js';
+import {
+  CURRENCIES,
+  COUNTRY_CODES,
+  DEPARTMENTS,
+  EMPLOYMENT_STATUSES,
+  LEVELS,
+} from '../source-workbook/constants.js';
+import {
+  COMPARISON_CURRENCIES,
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+  MAX_SEARCH_LENGTH,
+  PATHS,
+  SORT_DIRECTIONS,
+  SORT_FIELDS,
+  contractRegistry,
+} from './contract.js';
 
 const ref = (id: string) => ({ $ref: `#/components/schemas/${id}` });
 const json = (id: string, description: string) => ({ description, content: { 'application/json': { schema: ref(id) } } });
 const error = (description: string) => json('ErrorResponse', description);
+
+/** OpenAPI path template from an Express path ("/:id" -> "/{id}"). */
+const openApiPath = (expressPath: string): string => expressPath.replace(/:([A-Za-z]+)/g, '{$1}');
+
+const queryParam = (name: string, schema: Record<string, unknown>, description?: string) => ({
+  name, in: 'query', required: false, ...(description ? { description } : {}), schema,
+});
+
+/**
+ * GET /employees query parameters. Values come from the same constants as
+ * DirectoryQueryParams; http-openapi.test.ts checks the two agree.
+ */
+const DIRECTORY_PARAMETERS = [
+  queryParam('q', { type: 'string', maxLength: MAX_SEARCH_LENGTH },
+    'Employee ID (exact or prefix), first, last, or full name (partial, case-insensitive), or exact email (case-insensitive). "%", "_", and "\\" are literal.'),
+  queryParam('department', { type: 'string', enum: [...DEPARTMENTS] }),
+  queryParam('country', { type: 'string', enum: [...COUNTRY_CODES] }),
+  queryParam('currency', { type: 'string', enum: [...CURRENCIES] }, 'Currency of the selected compensation record.'),
+  queryParam('level', { type: 'string', enum: [...LEVELS] }),
+  queryParam('status', { type: 'string', enum: [...EMPLOYMENT_STATUSES] }),
+  queryParam('sort', { type: 'string', enum: [...SORT_FIELDS], default: 'name' },
+    'Salary sorts compare unrounded USD values computed in MySQL from the saved rate, and require comparisonCurrency=USD. Ties break on employee ID.'),
+  queryParam('direction', { type: 'string', enum: [...SORT_DIRECTIONS], default: 'asc' }),
+  queryParam('page', { type: 'integer', minimum: 1, maximum: 1_000_000, default: 1 }),
+  queryParam('pageSize', { type: 'integer', minimum: 1, maximum: MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE }),
+  queryParam('comparisonCurrency', { type: 'string', enum: [...COMPARISON_CURRENCIES] }, 'Required when sort is a salary field.'),
+];
 
 function componentSchemas(): Record<string, unknown> {
   const { schemas } = z.toJSONSchema(contractRegistry, {
@@ -84,6 +127,79 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           operationId: 'getOpenApiDocument',
           summary: 'This document',
           responses: { 200: { description: 'OpenAPI 3.1 document.', content: { 'application/json': {} } } },
+        },
+      },
+      [PATHS.employees]: {
+        get: {
+          operationId: 'listEmployees',
+          summary: 'Search, filter, sort, and page the employees in the caller\'s scope',
+          description: 'Scope, filters, sorting, LIMIT, and OFFSET all run in MySQL. Totals count only employees in scope.',
+          security: [{ bearerAuth: [] }],
+          parameters: DIRECTORY_PARAMETERS,
+          responses: {
+            200: json('DirectoryResponse', 'One page. A page after the last page has no rows and correct totals.'),
+            400: error('VALIDATION_ERROR: invalid, unknown, or repeated parameter; salary sort without comparisonCurrency=USD; or salary sort with no saved INR rate.'),
+            401: error('UNAUTHENTICATED'),
+            500: error('INTERNAL_ERROR'),
+          },
+        },
+      },
+      [openApiPath(PATHS.employee)]: {
+        get: {
+          operationId: 'getEmployee',
+          summary: 'One employee with selected compensation and full compensation history',
+          security: [{ bearerAuth: [] }],
+          parameters: [{ name: 'employeeCode', in: 'path', required: true, schema: { type: 'string', pattern: '^ACME[0-9]{5}$' } }],
+          responses: {
+            200: json('EmployeeDetailResponse', 'The employee.'),
+            401: error('UNAUTHENTICATED'),
+            404: error('NOT_FOUND: unknown and out-of-scope employees return the same body.'),
+            500: error('INTERNAL_ERROR'),
+          },
+        },
+      },
+      [PATHS.directoryOptions]: {
+        get: {
+          operationId: 'getDirectoryOptions',
+          summary: 'Filter and sort values available inside the caller\'s scope',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: json('DirectoryOptionsResponse', 'Values present in scope. Salary sorts are omitted when no rate is loaded.'),
+            401: error('UNAUTHENTICATED'),
+            500: error('INTERNAL_ERROR'),
+          },
+        },
+      },
+      [PATHS.assistantMessages]: {
+        post: {
+          operationId: 'sendAssistantMessages',
+          summary: 'Ask the read-only compensation assistant',
+          description: 'Read-only. The server derives identity and scope from the Bearer token. Tools return permission-filtered cards; '
+            + 'the answer text is model-written. At most 4 tool rounds and 45 seconds per request.',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: ref('AssistantMessagesRequest') } } },
+          responses: {
+            200: json('AssistantMessagesResponse', 'The answer, tool calls, cards, and limitations.'),
+            400: error('VALIDATION_ERROR: invalid conversation.'),
+            401: error('UNAUTHENTICATED'),
+            500: error('INTERNAL_ERROR'),
+            503: error('ASSISTANT_UNAVAILABLE: no model configured, model timeout, or provider error. Other routes are unaffected.'),
+          },
+        },
+      },
+      [PATHS.mcp]: {
+        post: {
+          operationId: 'mcp',
+          summary: 'Read-only MCP endpoint (Streamable HTTP, stateless JSON-RPC)',
+          description: 'Model Context Protocol endpoint exposing the same five read-only tools as the assistant. '
+            + 'Use an MCP client. Requests with an Origin header are rejected with 403; GET and DELETE return 405.',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', description: 'JSON-RPC 2.0 message.' } } } },
+          responses: {
+            200: { description: 'JSON-RPC response (application/json or text/event-stream).' },
+            401: error('UNAUTHENTICATED'),
+            403: { description: 'Request carried an Origin header.' },
+          },
         },
       },
     },

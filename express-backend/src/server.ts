@@ -5,7 +5,14 @@ import type { AddressInfo } from 'node:net';
 
 import { createAuthService } from './access/sessions.js';
 import { createSessionTokens } from './access/session-tokens.js';
+import { createAssistantService } from './assistant/assistant-service.js';
+import { createCompensationInsights } from './assistant/compensation-insights.js';
+import { createOpenAiModelAdapter } from './assistant/openai-model.js';
+import { createToolRegistry } from './assistant/tools.js';
 import { createPool } from './db/connection.js';
+import { createDirectoryService } from './directory/directory-repository.js';
+import { loadExchangeRate } from './directory/exchange-rate.js';
+import type { ExchangeRateSnapshot } from './directory/exchange-rate.js';
 import { errorMessage } from './errors.js';
 import { createApp } from './http/app.js';
 import { readServerConfig } from './http/config.js';
@@ -23,8 +30,26 @@ try {
 
 const pool = createPool(config.databaseUrl);
 const tokens = createSessionTokens({ signingKey: config.jwtSigningKey });
+
+// The shipped snapshot. If it cannot be read, the API still serves the
+// directory; INR rows have no USD equivalent and salary sorting is rejected.
+let exchangeRate: ExchangeRateSnapshot | null = null;
+try {
+  exchangeRate = await loadExchangeRate();
+} catch (error) {
+  stdoutLogger({ event: 'exchange_rate_unavailable', errorName: error instanceof Error ? error.name : typeof error });
+}
+
+const directory = createDirectoryService({ pool, exchangeRate });
+const tools = createToolRegistry({ directory, insights: createCompensationInsights({ pool, exchangeRate }), exchangeRate });
+// Without OPENAI_API_KEY the assistant reports unavailable; every other route works.
+const model = config.openAiApiKey === null ? null : createOpenAiModelAdapter({ apiKey: config.openAiApiKey, model: config.openAiModel });
+
 const app = createApp({
   auth: createAuthService({ pool, tokens }),
+  directory,
+  tools,
+  assistant: createAssistantService({ model, tools, logger: stdoutLogger }),
   logger: stdoutLogger,
   clientIpSource: config.clientIpSource,
 });
@@ -32,7 +57,7 @@ const app = createApp({
 const server = createServer(app);
 server.listen(config.port, () => {
   const { port } = server.address() as AddressInfo; // listening on TCP, so address() is an AddressInfo
-  stdoutLogger({ event: 'server_listening', port, clientIpSource: config.clientIpSource });
+  stdoutLogger({ event: 'server_listening', port, clientIpSource: config.clientIpSource, assistant: model === null ? 'unavailable' : 'configured' });
 });
 
 let shuttingDown = false;

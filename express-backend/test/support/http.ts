@@ -3,6 +3,10 @@
 // test/db/auth-api.test.ts against MySQL.
 import { AuthenticationError, InvalidCredentialsError } from '../../src/access/sessions.js';
 import type { AuthService, Principal } from '../../src/access/sessions.js';
+import { createAssistantService } from '../../src/assistant/assistant-service.js';
+import type { CompensationInsights } from '../../src/assistant/compensation-insights.js';
+import { createToolRegistry } from '../../src/assistant/tools.js';
+import type { DirectoryService } from '../../src/directory/directory-repository.js';
 import { createApp } from '../../src/http/app.js';
 import type { AppDependencies } from '../../src/http/app.js';
 import type { LogEntry } from '../../src/http/request-log.js';
@@ -53,6 +57,47 @@ export function fakeAuth(): AuthService {
   };
 }
 
+/** A directory double: empty results. Real behaviour: test/db/employee-directory.test.ts. */
+export function fakeDirectory(): DirectoryService {
+  return {
+    async list(_principal, query) {
+      return {
+        employees: [],
+        page: { number: query.page, size: query.pageSize, totalRows: 0, totalPages: 0 },
+        sort: { field: query.sort, direction: query.direction, comparison: null },
+        exchangeRate: null,
+      };
+    },
+    async detail() {
+      return null;
+    },
+    async options() {
+      return { departments: [], countries: [], currencies: [], levels: [], statuses: [], sortFields: [], comparisonCurrencies: [] };
+    },
+  };
+}
+
+/** Insights double: no rows. Real behaviour: test/db/assistant-tools.test.ts. */
+export function fakeInsights(): CompensationInsights {
+  return {
+    async topCompensated() {
+      return { status: 'ok', rows: [], comparedInUsd: false };
+    },
+    async recentChanges() {
+      return { rows: [], totalMatching: 0 };
+    },
+    async summary() {
+      return [];
+    },
+  };
+}
+
+/** Tools and an assistant with no model configured, for apps that do not test the assistant. */
+export function noModelAssistant(directory: DirectoryService, insights: CompensationInsights = fakeInsights()) {
+  const tools = createToolRegistry({ directory, insights, exchangeRate: null });
+  return { tools, assistant: createAssistantService({ model: null, tools, logger: () => undefined }) };
+}
+
 export interface TestApp {
   app: ReturnType<typeof createApp>;
   logs: LogEntry[];
@@ -65,8 +110,13 @@ export interface TestApp {
 export function buildTestApp(overrides: Partial<AppDependencies> = {}): TestApp {
   const logs: LogEntry[] = [];
   let offsetMs = 0;
+  const directory = fakeDirectory();
+  const tools = createToolRegistry({ directory, insights: fakeInsights(), exchangeRate: null });
   const app = createApp({
     auth: fakeAuth(),
+    directory,
+    tools,
+    assistant: createAssistantService({ model: null, tools, logger: (entry) => logs.push(entry) }),
     logger: (entry) => logs.push(entry),
     clock: () => new Date(Date.now() + offsetMs),
     clientIpSource: 'socket',

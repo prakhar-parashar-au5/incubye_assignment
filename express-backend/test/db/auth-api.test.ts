@@ -9,10 +9,12 @@ import { createAuthService } from '../../src/access/sessions.js';
 import { createSessionTokens } from '../../src/access/session-tokens.js';
 import { createPool } from '../../src/db/connection.js';
 import { runMigrations } from '../../src/db/migrate.js';
+import { createDirectoryService } from '../../src/directory/directory-repository.js';
 import { createApp } from '../../src/http/app.js';
 import type { LogEntry } from '../../src/http/request-log.js';
 import { ensureReferenceData } from '../../src/seed/reference-data.js';
 import { selectRows } from '../support/db.js';
+import { noModelAssistant } from '../support/http.js';
 import { must } from '../support/must.js';
 import { resetTestDatabase, testDatabaseUrl } from '../support/test-database.js';
 
@@ -75,8 +77,11 @@ beforeEach(() => {
   const tokens = createSessionTokens({ signingKey: SIGNING_KEY, clock });
   // The session clock is fixed; the rate-limit clock stays on real time
   // (express-rate-limit compares its reset time with Date.now()).
+  const directory = createDirectoryService({ pool, exchangeRate: null, clock });
   app = createApp({
     auth: createAuthService({ pool, tokens, clock }),
+    directory,
+    ...noModelAssistant(directory),
     logger: (entry) => logs.push(entry),
     clientIpSource: 'socket',
   });

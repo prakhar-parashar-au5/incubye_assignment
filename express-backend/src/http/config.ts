@@ -3,6 +3,7 @@
 import { Buffer } from 'node:buffer';
 import { z } from 'zod';
 
+import { DEFAULT_OPENAI_MODEL } from '../assistant/openai-model.js';
 import { CLIENT_IP_SOURCES } from './rate-limit.js';
 import type { ClientIpSource } from './rate-limit.js';
 
@@ -11,6 +12,9 @@ export interface ServerConfig {
   jwtSigningKey: string;
   port: number;
   clientIpSource: ClientIpSource;
+  /** Null when OPENAI_API_KEY is unset or empty: the assistant reports unavailable and every other route works. */
+  openAiApiKey: string | null;
+  openAiModel: string;
 }
 
 const EnvSchema = z.object({
@@ -24,6 +28,8 @@ const EnvSchema = z.object({
   JWT_SIGNING_KEY: z.string().refine((value) => Buffer.byteLength(value, 'utf8') >= 32),
   PORT: z.string().regex(/^\d{1,5}$/).transform(Number).pipe(z.number().int().min(0).max(65535)).default(3000),
   CLIENT_IP_SOURCE: z.enum(CLIENT_IP_SOURCES).default('socket'),
+  OPENAI_API_KEY: z.string().optional().transform((value) => (value === undefined || value.trim() === '' ? null : value.trim())),
+  OPENAI_MODEL: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/).default(DEFAULT_OPENAI_MODEL),
 });
 
 export function readServerConfig(env: Readonly<Record<string, string | undefined>>): ServerConfig {
@@ -32,11 +38,20 @@ export function readServerConfig(env: Readonly<Record<string, string | undefined
     JWT_SIGNING_KEY: env.JWT_SIGNING_KEY,
     PORT: env.PORT,
     CLIENT_IP_SOURCE: env.CLIENT_IP_SOURCE,
+    OPENAI_API_KEY: env.OPENAI_API_KEY,
+    OPENAI_MODEL: env.OPENAI_MODEL,
   });
   if (!parsed.success) {
     const names = [...new Set(parsed.error.issues.map((issue) => String(issue.path[0])))].sort();
     throw new Error(`invalid server configuration: ${names.join(', ')} (missing or invalid)`);
   }
-  const { DATABASE_URL, JWT_SIGNING_KEY, PORT, CLIENT_IP_SOURCE } = parsed.data;
-  return { databaseUrl: DATABASE_URL, jwtSigningKey: JWT_SIGNING_KEY, port: PORT, clientIpSource: CLIENT_IP_SOURCE };
+  const { DATABASE_URL, JWT_SIGNING_KEY, PORT, CLIENT_IP_SOURCE, OPENAI_API_KEY, OPENAI_MODEL } = parsed.data;
+  return {
+    databaseUrl: DATABASE_URL,
+    jwtSigningKey: JWT_SIGNING_KEY,
+    port: PORT,
+    clientIpSource: CLIENT_IP_SOURCE,
+    openAiApiKey: OPENAI_API_KEY,
+    openAiModel: OPENAI_MODEL,
+  };
 }

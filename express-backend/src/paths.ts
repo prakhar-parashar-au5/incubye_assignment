@@ -21,3 +21,4 @@ export const PACKAGE_ROOT = findPackageRoot(fileURLToPath(import.meta.url));
 export const MIGRATIONS_DIR = path.join(PACKAGE_ROOT, 'db', 'migrations');
 export const DEFAULT_WORKBOOK_PATH = path.join(PACKAGE_ROOT, 'generated', 'acme-employees.xlsx');
 export const OPENAPI_FILE = path.join(PACKAGE_ROOT, 'openapi', 'openapi.json');
+export const EXCHANGE_RATE_FILE = path.join(PACKAGE_ROOT, 'data', 'exchange-rates', 'usd-inr.json');

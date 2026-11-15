@@ -16,11 +16,11 @@ describe('readServerConfig', () => {
   // Detects: startup with missing configuration, or defaults hiding a typo.
   test('requires DATABASE_URL and JWT_SIGNING_KEY and validates the rest', () => {
     assert.deepEqual(readServerConfig({ DATABASE_URL: DB_URL, JWT_SIGNING_KEY: KEY }), {
-      databaseUrl: DB_URL, jwtSigningKey: KEY, port: 3000, clientIpSource: 'socket',
+      databaseUrl: DB_URL, jwtSigningKey: KEY, port: 3000, clientIpSource: 'socket', openAiApiKey: null, openAiModel: 'gpt-6.1-sol',
     });
     assert.deepEqual(
       readServerConfig({ DATABASE_URL: DB_URL, JWT_SIGNING_KEY: KEY, PORT: '8080', CLIENT_IP_SOURCE: 'railway-x-real-ip' }),
-      { databaseUrl: DB_URL, jwtSigningKey: KEY, port: 8080, clientIpSource: 'railway-x-real-ip' },
+      { databaseUrl: DB_URL, jwtSigningKey: KEY, port: 8080, clientIpSource: 'railway-x-real-ip', openAiApiKey: null, openAiModel: 'gpt-6.1-sol' },
     );
     for (const env of [
       { JWT_SIGNING_KEY: KEY },
@@ -29,9 +29,19 @@ describe('readServerConfig', () => {
       { DATABASE_URL: DB_URL, JWT_SIGNING_KEY: 'short' },
       { DATABASE_URL: DB_URL, JWT_SIGNING_KEY: KEY, PORT: 'eighty' },
       { DATABASE_URL: DB_URL, JWT_SIGNING_KEY: KEY, CLIENT_IP_SOURCE: 'x-forwarded-for' },
+      { DATABASE_URL: DB_URL, JWT_SIGNING_KEY: KEY, OPENAI_MODEL: 'gpt 6; rm -rf' },
     ]) {
       assert.throws(() => readServerConfig(env), /invalid server configuration/, JSON.stringify(Object.keys(env)));
     }
+  });
+
+  // Detects: the backend requiring an OpenAI key to start.
+  test('OPENAI_API_KEY is optional; an empty value means no key', () => {
+    const base = { DATABASE_URL: DB_URL, JWT_SIGNING_KEY: KEY };
+    assert.equal(readServerConfig({ ...base, OPENAI_API_KEY: '' }).openAiApiKey, null);
+    assert.equal(readServerConfig({ ...base, OPENAI_API_KEY: '   ' }).openAiApiKey, null);
+    assert.equal(readServerConfig({ ...base, OPENAI_API_KEY: 'test-only-not-a-key' }).openAiApiKey, 'test-only-not-a-key');
+    assert.equal(readServerConfig({ ...base, OPENAI_MODEL: 'gpt-6-luna' }).openAiModel, 'gpt-6-luna');
   });
 
   // Detects: secret values echoed in a configuration error.
@@ -85,6 +95,8 @@ describe('server process', () => {
       const res = await fetch(`http://127.0.0.1:${port}/health`);
       assert.equal(res.status, 200);
       assert.deepEqual(await res.json(), { status: 'ok' });
+      // Started without OPENAI_API_KEY: the assistant reports unavailable.
+      assert.match(stdout, /"assistant":"unavailable"/);
 
       child.kill('SIGTERM');
       const [code] = await once(child, 'exit');

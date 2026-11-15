@@ -14,17 +14,59 @@ const get = (value: unknown, ...keys: string[]): unknown =>
 
 describe('OpenAPI contract', () => {
   // Detects: an endpoint missing from, or added to, the published contract.
-  test('documents exactly the five endpoints', () => {
+  test('documents exactly the ten endpoints', () => {
     const paths = get(doc, 'paths') as Json;
     const operations = Object.entries(paths).flatMap(([path, item]) => Object.keys(item as Json).map((m) => `${m.toUpperCase()} ${path}`));
     assert.deepEqual(operations.sort(), [
       'GET /api/v1/auth/me',
+      'GET /api/v1/employee-directory/options',
+      'GET /api/v1/employees',
+      'GET /api/v1/employees/{employeeCode}',
       'GET /api/v1/openapi.json',
       'GET /health',
+      'POST /api/v1/assistant/messages',
       'POST /api/v1/auth/login',
       'POST /api/v1/auth/logout',
+      'POST /api/v1/mcp',
     ]);
     assert.equal(get(doc, 'openapi'), '3.1.0');
+  });
+
+  // Detects: undocumented or wrongly typed directory query parameters.
+  test('directory query parameters match the runtime schema', () => {
+    const params = get(doc, 'paths', '/api/v1/employees', 'get', 'parameters') as Json[];
+    assert.deepEqual(params.map((p) => [p.name, p.in, p.required]), [
+      ['q', 'query', false], ['department', 'query', false], ['country', 'query', false], ['currency', 'query', false],
+      ['level', 'query', false], ['status', 'query', false], ['sort', 'query', false], ['direction', 'query', false],
+      ['page', 'query', false], ['pageSize', 'query', false], ['comparisonCurrency', 'query', false],
+    ]);
+    const byName = Object.fromEntries(params.map((p) => [p.name, p.schema]));
+    assert.deepEqual(get(byName, 'sort', 'enum'), ['name', 'employeeCode', 'department', 'country', 'level', 'hireDate', 'annualBaseSalary', 'annualCashCompensation']);
+    assert.equal(get(byName, 'sort', 'default'), 'name');
+    assert.deepEqual([get(byName, 'pageSize', 'minimum'), get(byName, 'pageSize', 'maximum'), get(byName, 'pageSize', 'default')], [1, 100, 25]);
+    assert.equal(get(byName, 'q', 'maxLength'), 100);
+    assert.deepEqual(get(byName, 'comparisonCurrency', 'enum'), ['USD']);
+    const detailParams = get(doc, 'paths', '/api/v1/employees/{employeeCode}', 'get', 'parameters') as Json[];
+    assert.deepEqual(detailParams.map((p) => [p.name, p.in, p.required]), [['employeeCode', 'path', true]]);
+  });
+
+  // Detects: response schemas missing money, state, or rate fields.
+  test('directory, detail, and options responses are documented', () => {
+    const responseRef = (path: string) => get(doc, 'paths', path, 'get', 'responses', '200', 'content', 'application/json', 'schema', '$ref');
+    assert.equal(responseRef('/api/v1/employees'), '#/components/schemas/DirectoryResponse');
+    assert.equal(responseRef('/api/v1/employees/{employeeCode}'), '#/components/schemas/EmployeeDetailResponse');
+    assert.equal(responseRef('/api/v1/employee-directory/options'), '#/components/schemas/DirectoryOptionsResponse');
+    const selected = get(doc, 'components', 'schemas', 'SelectedCompensation');
+    assert.deepEqual(get(selected, 'properties', 'state', 'enum'), ['CURRENT', 'UPCOMING', 'HISTORICAL']);
+    assert.equal(get(selected, 'properties', 'annualBaseSalary', 'type'), 'string');
+    assert.deepEqual(get(doc, 'components', 'schemas', 'ExchangeRateContext', 'required'), [
+      'baseCurrency', 'quoteCurrency', 'rate', 'sourceName', 'sourceUrl', 'effectiveDate', 'retrievedAt',
+    ]);
+    assert.ok((get(doc, 'components', 'schemas', 'EmployeeDetailResponse', 'properties', 'employee', 'required') as string[]).includes('version'));
+    for (const path of ['/api/v1/employees', '/api/v1/employees/{employeeCode}', '/api/v1/employee-directory/options']) {
+      const responses = Object.keys(get(doc, 'paths', path, 'get', 'responses') as Json).sort();
+      assert.deepEqual(responses, path === '/api/v1/employee-directory/options' ? ['200', '401', '500'] : path === '/api/v1/employees' ? ['200', '400', '401', '500'] : ['200', '401', '404', '500'], path);
+    }
   });
 
   // Detects: optional credentials or an open request object in the contract.
@@ -50,17 +92,46 @@ describe('OpenAPI contract', () => {
   });
 
   // Detects: protected endpoints documented without authentication.
-  test('uses an HTTP Bearer JWT security scheme on /me and /logout only', () => {
+  test('uses an HTTP Bearer JWT security scheme on every protected endpoint', () => {
     assert.deepEqual(get(doc, 'components', 'securitySchemes', 'bearerAuth'), { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' });
     assert.deepEqual(get(doc, 'paths', '/api/v1/auth/me', 'get', 'security'), [{ bearerAuth: [] }]);
     assert.deepEqual(get(doc, 'paths', '/api/v1/auth/logout', 'post', 'security'), [{ bearerAuth: [] }]);
+    for (const path of ['/api/v1/employees', '/api/v1/employees/{employeeCode}', '/api/v1/employee-directory/options']) {
+      assert.deepEqual(get(doc, 'paths', path, 'get', 'security'), [{ bearerAuth: [] }], path);
+    }
+    for (const path of ['/api/v1/assistant/messages', '/api/v1/mcp']) {
+      assert.deepEqual(get(doc, 'paths', path, 'post', 'security'), [{ bearerAuth: [] }], path);
+    }
     assert.equal(get(doc, 'paths', '/api/v1/auth/login', 'post', 'security'), undefined);
+  });
+
+  // Detects: an assistant contract that drifts from the shared frontend contract.
+  test('assistant request and response schemas follow the shared contract', () => {
+    const op = get(doc, 'paths', '/api/v1/assistant/messages', 'post');
+    assert.equal(get(op, 'requestBody', 'content', 'application/json', 'schema', '$ref'), '#/components/schemas/AssistantMessagesRequest');
+    assert.equal(get(op, 'responses', '200', 'content', 'application/json', 'schema', '$ref'), '#/components/schemas/AssistantMessagesResponse');
+    assert.deepEqual(Object.keys(get(op, 'responses') as Json).sort(), ['200', '400', '401', '500', '503']);
+    const req = get(doc, 'components', 'schemas', 'AssistantMessagesRequest');
+    assert.equal(get(req, 'additionalProperties'), false);
+    assert.deepEqual([get(req, 'properties', 'messages', 'minItems'), get(req, 'properties', 'messages', 'maxItems')], [1, 10]);
+    assert.deepEqual(get(req, 'properties', 'messages', 'items', 'properties', 'role', 'enum'), ['user', 'assistant']);
+    assert.equal(get(req, 'properties', 'messages', 'items', 'properties', 'content', 'maxLength'), 2000);
+    const res = get(doc, 'components', 'schemas', 'AssistantMessagesResponse');
+    assert.deepEqual(get(res, 'required'), ['answer', 'toolCalls', 'cards', 'limitations', 'generatedAt']);
+    const card = get(doc, 'components', 'schemas', 'AssistantCard') as Json;
+    const variants = (card.oneOf ?? card.anyOf) as Json[];
+    assert.deepEqual(variants.map((v) => v.$ref), ['EmployeeListCard', 'CompensationSummaryCard', 'RecentChangesCard', 'NoticeCard'].map((id) => `#/components/schemas/${id}`));
+    // Review fix 08a: recent means recently recorded; each change carries recordedAt.
+    const change = get(doc, 'components', 'schemas', 'RecentChangesCard', 'properties', 'changes', 'items');
+    assert.ok((get(change, 'required') as string[]).includes('recordedAt'));
+    assert.equal(get(change, 'properties', 'recordedAt', 'format'), 'date-time');
+    assert.ok((get(change, 'required') as string[]).includes('effectiveFrom'));
   });
 
   // Detects: error codes in the contract that differ from the approved list.
   test('error schema lists exactly the approved public codes', () => {
     assert.deepEqual(get(doc, 'components', 'schemas', 'ErrorResponse', 'properties', 'error', 'properties', 'code', 'enum'), [
-      'VALIDATION_ERROR', 'INVALID_CREDENTIALS', 'UNAUTHENTICATED', 'RATE_LIMITED', 'NOT_FOUND', 'INTERNAL_ERROR',
+      'VALIDATION_ERROR', 'INVALID_CREDENTIALS', 'UNAUTHENTICATED', 'RATE_LIMITED', 'NOT_FOUND', 'ASSISTANT_UNAVAILABLE', 'INTERNAL_ERROR',
     ]);
   });
 
@@ -82,9 +153,12 @@ describe('OpenAPI contract', () => {
     const paths = get(doc, 'paths') as Json;
     for (const [path, item] of Object.entries(paths)) {
       for (const method of Object.keys(item as Json)) {
-        const call = method === 'post' ? request(app).post(path) : request(app).get(path);
+        const url = path.replace('{employeeCode}', 'ACME00001');
+        const call = method === 'post' ? request(app).post(url) : request(app).get(url);
         const res = await call.set('Authorization', `Bearer ${FAKE_TOKEN}`).send({});
-        assert.notEqual(res.status, 404, `${method.toUpperCase()} ${path}`);
+        // The fake directory has no employees, so detail answers with the employee 404.
+        if (path.includes('{employeeCode}')) assert.equal(res.body.error?.message, 'Employee not found.', path);
+        else assert.notEqual(res.status, 404, `${method.toUpperCase()} ${path}`);
       }
     }
   });

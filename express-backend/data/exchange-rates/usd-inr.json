@@ -1,0 +1,11 @@
+{
+  "baseCurrency": "USD",
+  "quoteCurrency": "INR",
+  "rate": "93.9100",
+  "meaning": "1 USD = 93.9100 INR (quote currency units per one base currency unit)",
+  "sourceName": "Board of Governors of the Federal Reserve System, H.10 Foreign Exchange Rates (noon buying rates in New York, certified by the Federal Reserve Bank of New York)",
+  "sourceUrl": "https://www.federalreserve.gov/releases/h10/20261109/",
+  "effectiveDate": "2026-11-06",
+  "retrievedAt": "2026-11-14T18:47:36Z",
+  "evidence": "H.10 release dated November 9, 2026: 'Rates in currency units per U.S. dollar except as noted by an asterisk'. Row INDIA / RUPEE (no asterisk), column Nov. 6 = 93.9100."
+}

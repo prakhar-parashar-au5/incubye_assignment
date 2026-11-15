@@ -15,7 +15,10 @@ export const stdoutLogger: Logger = (entry) => {
 
 /**
  * Assigns a server-generated request ID (client-supplied IDs are not trusted)
- * and logs method, path without the query string, status, and duration.
+ * and logs method, route pattern, status, and duration. The route pattern
+ * (e.g. /api/v1/employees/:employeeCode) is logged instead of the path, so
+ * path parameters such as employee codes never reach the log. A request that
+ * matched no route logs "UNMATCHED", because its path is arbitrary user text.
  */
 export function requestLog(logger: Logger): RequestHandler {
   return (req, res, next) => {
@@ -24,11 +27,13 @@ export function requestLog(logger: Logger): RequestHandler {
     res.locals.requestId = requestId;
     res.set('X-Request-Id', requestId);
     res.on('finish', () => {
+      const route: unknown = req.route;
+      const routePath: unknown = typeof route === 'object' && route !== null ? Reflect.get(route, 'path') : undefined;
       logger({
         event: 'request',
         requestId,
         method: req.method,
-        path: req.path,
+        path: typeof routePath === 'string' ? `${req.baseUrl}${routePath}` : 'UNMATCHED',
         status: res.statusCode,
         durationMs: Math.round((performance.now() - started) * 10) / 10,
       });
