@@ -36,7 +36,13 @@ Do not run Git commands.
 
 ### Tester Task 01: HR browser review
 
-Status: `READY`
+Status: `COMPLETE - TRIAGED`
+
+Planner triage:
+
+```text
+docs/code-reviews/01-tester-feedback-triage.md
+```
 
 Instructions:
 
