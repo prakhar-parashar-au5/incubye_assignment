@@ -34,6 +34,7 @@ import { selectRows } from '../support/db.js';
 import type { Row } from '../support/db.js';
 import { answer, scriptedModel } from '../support/fake-model.js';
 import type { FakeStep } from '../support/fake-model.js';
+import { fakeSalaryAdjustments } from '../support/http.js';
 import { must } from '../support/must.js';
 import { resetTestDatabase, testDatabaseUrl } from '../support/test-database.js';
 
@@ -359,6 +360,7 @@ describe('HTTP assistant and MCP with real authentication', () => {
       tools,
       assistant: createAssistantService({ model, tools, logger: (e) => httpLogs.push(e), clock }),
       toolClock: clock,
+      salaryAdjustments: fakeSalaryAdjustments(),
       logger: (e) => httpLogs.push(e),
       clientIpSource: 'socket',
     });

@@ -76,10 +76,14 @@ describe('initial schema: tables and keys', () => {
        ORDER BY table_name, index_name`,
       [MIGRATION_001_TABLES],
     );
+    // 003 adds three compensation_records keys; salary-adjustment-schema.test.ts owns them.
     assert.deepEqual(rows.map((r) => `${r.t}.${r.i}${Number(r.nu) === 0 ? ' UNIQUE' : ''} (${r.cols})`), [
+      'compensation_records.fk_compensation_previous (previous_compensation_record_id)',
       'compensation_records.idx_compensation_employee_effective (employee_id,effective_from,version)',
       'compensation_records.PRIMARY UNIQUE (id)',
       'compensation_records.uk_compensation_employee_version UNIQUE (employee_id,version)',
+      'compensation_records.uk_compensation_operation_key UNIQUE (changed_by_hr_user_id,operation_idempotency_key)',
+      'compensation_records.uk_compensation_source_request UNIQUE (source_request_id)',
       'countries.PRIMARY UNIQUE (code)',
       'countries.uk_countries_name UNIQUE (name)',
       'departments.PRIMARY UNIQUE (id)',
@@ -103,8 +107,12 @@ describe('initial schema: tables and keys', () => {
        WHERE rc.constraint_schema = DATABASE() AND rc.table_name IN (?) ORDER BY rc.constraint_name`,
       [MIGRATION_001_TABLES],
     );
+    // fk_compensation_changed_by, _previous, and _source_request come from 003.
     assert.deepEqual(rows.map((r) => `${r.name}: ${r.t} -> ${r.ref} update ${r.up} delete ${r.del}`), [
+      'fk_compensation_changed_by: compensation_records -> hr_users update RESTRICT delete RESTRICT',
       'fk_compensation_employee: compensation_records -> employees update RESTRICT delete RESTRICT',
+      'fk_compensation_previous: compensation_records -> compensation_records update RESTRICT delete RESTRICT',
+      'fk_compensation_source_request: compensation_records -> compensation_change_requests update RESTRICT delete RESTRICT',
       'fk_employees_country: employees -> countries update RESTRICT delete RESTRICT',
       'fk_employees_job_title: employees -> job_titles update RESTRICT delete RESTRICT',
       'fk_job_titles_department: job_titles -> departments update RESTRICT delete RESTRICT',
@@ -119,9 +127,13 @@ describe('initial schema: tables and keys', () => {
          AND (column_name LIKE '%salary%' OR column_name LIKE '%bonus%' OR column_name LIKE '%monthly%')
        ORDER BY table_name, column_name`,
     );
+    // salary_bands is added by 003. Every money column is DECIMAL(15,2); none is monthly.
     assert.deepEqual(rows.map((r) => `${r.t}.${r.c} ${r.type}`), [
       'compensation_records.annual_base_salary decimal(15,2)',
       'compensation_records.annual_bonus decimal(15,2)',
+      'salary_bands.max_annual_base_salary decimal(15,2)',
+      'salary_bands.max_annual_bonus decimal(15,2)',
+      'salary_bands.min_annual_base_salary decimal(15,2)',
     ]);
   });
 });

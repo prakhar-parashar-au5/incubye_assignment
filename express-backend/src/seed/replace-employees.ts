@@ -60,7 +60,7 @@ async function countRows(connection: Connection, table: 'employees' | 'compensat
 }
 
 /**
- * Deletes all compensation records and employees, then inserts the given rows
+ * Deletes all compensation records, change requests, and employees, then inserts the given rows
  * with one version 1 INITIAL_IMPORT compensation record each. Any failure
  * rolls back everything, including the deletes. Uses DELETE (transactional),
  * never TRUNCATE (implicit commit). Auto-increment values are not reset.
@@ -75,7 +75,11 @@ export async function replaceEmployeeData(
 ): Promise<ReplacementCounts> {
   await connection.beginTransaction();
   try {
-    await connection.query('DELETE FROM compensation_records');
+    // Salary-adjustment history references compensation records (previous
+    // record, source request) and employees. Delete newest records first so a
+    // record is never deleted before the record that references it.
+    await connection.query('DELETE FROM compensation_records ORDER BY id DESC');
+    await connection.query('DELETE FROM compensation_change_requests');
     await connection.query('DELETE FROM employees');
 
     await insertInBatches(

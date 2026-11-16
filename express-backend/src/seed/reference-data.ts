@@ -1,6 +1,7 @@
 import type { Connection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
-import { CURRENCY_BY_COUNTRY, DEPARTMENTS, JOB_TITLES, LEVELS } from '../source-workbook/constants.js';
+import { PERCENTAGE_LIMITS } from '../compensation/adjustment.js';
+import { BONUS_CAPS, CURRENCY_BY_COUNTRY, DEPARTMENTS, JOB_TITLES, LEVELS, SALARY_RANGES } from '../source-workbook/constants.js';
 import type { CountryCode, Currency, Department, Level } from '../source-workbook/constants.js';
 
 interface ApprovedCountry {
@@ -97,11 +98,48 @@ export async function ensureReferenceData(connection: Connection): Promise<Map<s
       }
     }
 
+    await ensureSalaryBands(connection, titleIds);
     await connection.commit();
     return titleIds;
   } catch (error) {
     await connection.rollback();
     throw error;
+  }
+}
+
+/** "1200000" -> "1200000.00" for the whole-unit approved ranges. */
+const wholeUnits = (amount: number): string => `${String(amount)}.00`;
+
+/**
+ * Inserts a missing salary band for every job title and approved country,
+ * from the approved synthetic ranges and bonus caps. An existing band is left
+ * unchanged: bands are product policy and may be edited after the first seed.
+ * Runs inside ensureReferenceData's transaction.
+ */
+async function ensureSalaryBands(connection: Connection, titleIds: ReadonlyMap<string, number>): Promise<void> {
+  for (const department of DEPARTMENTS) {
+    for (const level of LEVELS) {
+      for (const title of JOB_TITLES[department][level]) {
+        const jobTitleId = titleIds.get(titleKey(department, title, level));
+        if (jobTitleId === undefined) throw new ReferenceDataError(`job title ${title} has no id`);
+        for (const country of APPROVED_COUNTRIES) {
+          const range = SALARY_RANGES[country.code][level];
+          const bonusCap = BONUS_CAPS[level === 'JUNIOR' ? 'JUNIOR' : 'OTHER'][country.currency];
+          await connection.execute(
+            `INSERT INTO salary_bands (job_title_id, country_code, currency, min_annual_base_salary, max_annual_base_salary,
+                                       max_annual_bonus, min_percentage_increase, max_percentage_increase,
+                                       min_percentage_decrease, max_percentage_decrease)
+             SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM DUAL
+             WHERE NOT EXISTS (SELECT 1 FROM salary_bands WHERE job_title_id = ? AND country_code = ? AND currency = ?)`,
+            [
+              jobTitleId, country.code, country.currency, wholeUnits(range.min), wholeUnits(range.max), wholeUnits(bonusCap),
+              PERCENTAGE_LIMITS.increase.min, PERCENTAGE_LIMITS.increase.max, PERCENTAGE_LIMITS.decrease.min, PERCENTAGE_LIMITS.decrease.max,
+              jobTitleId, country.code, country.currency,
+            ],
+          );
+        }
+      }
+    }
   }
 }
 

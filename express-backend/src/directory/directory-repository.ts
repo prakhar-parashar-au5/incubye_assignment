@@ -67,7 +67,7 @@ export interface Fragment {
   params: Params;
 }
 
-const EMPLOYEE_CODE = /^ACME[0-9]{5}$/;
+export const EMPLOYEE_CODE = /^ACME[0-9]{5}$/;
 const CODE_SEARCH = /^[A-Za-z0-9]+$/;
 
 const STATE_BY_STATUS: Readonly<Record<EmploymentStatus, CompensationState>> = Object.freeze({
@@ -140,7 +140,7 @@ export function scopeCondition(principal: Pick<Principal, 'role' | 'status' | 'c
   return { sql: 'e.country_code IN (?) AND d.name IN (?)', params: [[...principal.countries], [...principal.departments]] };
 }
 
-function searchCondition(q: string): Fragment {
+export function searchCondition(q: string): Fragment {
   const contains = `%${escapeLike(q)}%`;
   const conditions = [
     'e.first_name LIKE ?',

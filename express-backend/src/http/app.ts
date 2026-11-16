@@ -5,12 +5,14 @@ import type { Express } from 'express';
 
 import type { AuthService } from '../access/sessions.js';
 import type { AssistantService } from '../assistant/assistant-service.js';
+import type { SalaryAdjustmentService } from '../compensation/salary-adjustment-service.js';
 import type { ToolRegistry } from '../assistant/tools.js';
 import type { DirectoryService } from '../directory/directory-repository.js';
 import { assistantRoutes } from './assistant-routes.js';
 import { authRoutes } from './auth-routes.js';
 import { HealthResponse, PATHS } from './contract.js';
 import { directoryRoutes } from './directory-routes.js';
+import { salaryRoutes } from './salary-routes.js';
 import { errorHandler, notFoundHandler } from './errors.js';
 import { mcpRoutes } from './mcp-routes.js';
 import { buildOpenApiDocument } from './openapi.js';
@@ -38,10 +40,12 @@ export interface AppDependencies {
   toolClock?: () => Date;
   /** Injected so tests can inspect the assistant limiter; defaults to a new in-memory store. */
   assistantRateLimitStore?: ClockedMemoryStore;
+  /** Salary adjustments: preview, direct apply, requests, approval, cancellation. */
+  salaryAdjustments: SalaryAdjustmentService;
 }
 
 export function createApp({
-  auth, directory, assistant, tools, logger, clientIpSource, clock = () => new Date(), rateLimitStore, toolClock, assistantRateLimitStore,
+  auth, directory, assistant, tools, salaryAdjustments, logger, clientIpSource, clock = () => new Date(), rateLimitStore, toolClock, assistantRateLimitStore,
 }: AppDependencies): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -67,6 +71,7 @@ export function createApp({
 
   app.use(authRoutes({ auth, loginLimiter: failedLoginLimiter({ clientIpSource, clock, store: rateLimitStore }) }));
   app.use(directoryRoutes({ auth, directory }));
+  app.use(salaryRoutes({ auth, salaryAdjustments }));
 
   app.use(notFoundHandler);
   app.use(errorHandler(logger));

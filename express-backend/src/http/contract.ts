@@ -6,6 +6,9 @@ import { z } from 'zod';
 
 import { HR_STATUSES, ROLES } from '../access/access-policy.js';
 import { MAX_PASSWORD_LENGTH } from '../access/passwords.js';
+import { ADJUSTMENT_METHODS } from '../compensation/adjustment.js';
+import { ADJUSTMENT_TARGETS } from '../compensation/plan.js';
+import { CONFIRMATION_MODES } from '../compensation/preview-token.js';
 import {
   CHANGE_REASONS,
   COUNTRY_CODES,
@@ -29,6 +32,13 @@ export const PATHS = Object.freeze({
   directoryOptions: `${API_PREFIX}/employee-directory/options`,
   assistantMessages: `${API_PREFIX}/assistant/messages`,
   mcp: `${API_PREFIX}/mcp`,
+  salaryAdjustmentPreview: `${API_PREFIX}/employees/:employeeCode/salary-adjustments/preview`,
+  salaryAdjustments: `${API_PREFIX}/employees/:employeeCode/salary-adjustments`,
+  employeeSalaryAdjustmentRequests: `${API_PREFIX}/employees/:employeeCode/salary-adjustment-requests`,
+  salaryAdjustmentRequests: `${API_PREFIX}/salary-adjustment-requests`,
+  salaryAdjustmentRequest: `${API_PREFIX}/salary-adjustment-requests/:requestId`,
+  salaryAdjustmentRequestApprove: `${API_PREFIX}/salary-adjustment-requests/:requestId/approve`,
+  salaryAdjustmentRequestCancel: `${API_PREFIX}/salary-adjustment-requests/:requestId/cancel`,
 });
 
 /** Registry of schemas published as #/components/schemas/<id>. */
@@ -41,15 +51,43 @@ export const PUBLIC_ERROR_CODES = Object.freeze([
   'RATE_LIMITED',
   'NOT_FOUND',
   'ASSISTANT_UNAVAILABLE',
+  'FORBIDDEN',
+  'STALE_VERSION',
+  'DUPLICATE_OPERATION',
+  'PENDING_REQUEST_EXISTS',
+  'REQUEST_NOT_PENDING',
+  'EMPLOYEE_INELIGIBLE',
+  'SERVICE_UNAVAILABLE',
   'INTERNAL_ERROR',
 ] as const);
 export type PublicErrorCode = (typeof PUBLIC_ERROR_CODES)[number];
+
+/** Optional machine-readable detail for VALIDATION_ERROR on salary-adjustment routes. */
+export const ERROR_REASONS = Object.freeze([
+  'PREVIEW_EXPIRED',
+  'PREVIEW_INVALID',
+  'PREVIEW_MISMATCH',
+  'PERCENTAGE_RANGE',
+  'INVALID_AMOUNT',
+  'NEGATIVE_RESULT',
+  'NO_CHANGE',
+  'ZERO_BONUS_PERCENTAGE',
+  'BASE_NOT_POSITIVE',
+  'SALARY_BAND',
+  'PAST_EFFECTIVE_DATE',
+  'EFFECTIVE_BEFORE_CURRENT',
+  'FUTURE_CHANGE_EXISTS',
+  'NOTE_REQUIRED',
+  'IDEMPOTENCY_KEY_REQUIRED',
+] as const);
+export type ErrorReason = (typeof ERROR_REASONS)[number];
 
 export const ErrorResponse = z
   .object({
     error: z.object({
       code: z.enum(PUBLIC_ERROR_CODES),
       message: z.string(),
+      reason: z.enum(ERROR_REASONS).optional().describe('Present on some VALIDATION_ERROR responses so the client can show the right state.'),
     }),
   })
   .register(contractRegistry, { id: 'ErrorResponse', description: 'The only public error shape.' });
@@ -101,6 +139,13 @@ export const PUBLIC_MESSAGES: Readonly<Record<PublicErrorCode, string>> = Object
   RATE_LIMITED: 'Too many failed login attempts. Try again later.',
   NOT_FOUND: 'Route not found.',
   ASSISTANT_UNAVAILABLE: 'The assistant is unavailable. Other features are not affected.',
+  FORBIDDEN: 'You do not have permission to perform this action.',
+  STALE_VERSION: 'Compensation changed after this preview or request was created. Review a fresh preview.',
+  DUPLICATE_OPERATION: 'This idempotency key was already used for a different operation.',
+  PENDING_REQUEST_EXISTS: 'This employee already has a pending salary change request.',
+  REQUEST_NOT_PENDING: 'This salary change request is no longer pending.',
+  EMPLOYEE_INELIGIBLE: 'This employee is not eligible for a compensation adjustment.',
+  SERVICE_UNAVAILABLE: 'The service is temporarily unavailable. Try again.',
   INTERNAL_ERROR: 'An unexpected error occurred.',
 });
 
@@ -405,3 +450,194 @@ export const AssistantMessagesResponse = z
   })
   .register(contractRegistry, { id: 'AssistantMessagesResponse' });
 export type AssistantMessagesResponse = z.infer<typeof AssistantMessagesResponse>;
+
+// ---------------------------------------------------------------------------
+// Salary adjustments (Task 09). See docs_human/11-salary-adjustments.md.
+
+export const ADJUSTMENT_REASONS = Object.freeze(['PERFORMANCE', 'MARKET_ADJUSTMENT', 'PROMOTION', 'ROLE_CHANGE', 'CORRECTION'] as const);
+export const REQUEST_STATUSES = Object.freeze(['PENDING', 'APPROVED', 'CANCELLED', 'STALE'] as const);
+export const MAX_NOTE_LENGTH = 2000;
+/** Idempotency-Key header: 16..128 URL-safe characters (a UUID fits). */
+export const IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{16,128}$/;
+
+export const SalaryAdjustmentCommand = z
+  .strictObject({
+    target: z.enum(ADJUSTMENT_TARGETS),
+    method: z.enum(ADJUSTMENT_METHODS),
+    value: z.string().min(1).max(16)
+      .describe('Percentages: whole number (increase 1..200, decrease 1..50). Amounts: at most two decimals.'),
+    effectiveFrom: z.iso.date().describe('Today (UTC business date) or later.'),
+    reason: z.enum(ADJUSTMENT_REASONS),
+    note: z.string().max(MAX_NOTE_LENGTH).nullable().optional()
+      .describe('Required for CORRECTION. Blank is treated as no note. Do not include sensitive personal data.'),
+  })
+  .register(contractRegistry, { id: 'SalaryAdjustmentCommand' });
+export type SalaryAdjustmentCommand = z.infer<typeof SalaryAdjustmentCommand>;
+
+export const SalaryAdjustmentConfirmation = z
+  .strictObject({
+    previewToken: z.string().min(1).max(4096),
+    adjustment: SalaryAdjustmentCommand.describe('The exact command that was previewed.'),
+  })
+  .register(contractRegistry, { id: 'SalaryAdjustmentConfirmation', description: 'Send with an Idempotency-Key header.' });
+
+export const SalaryRequestCancellation = z
+  .strictObject({ note: z.string().min(1).max(MAX_NOTE_LENGTH).describe('Required cancellation reason.') })
+  .register(contractRegistry, { id: 'SalaryRequestCancellation' });
+
+const SignedAmount = z.string().regex(/^-?\d+\.\d{2}$/);
+
+const SalaryBandView = z.object({
+  currency: z.enum(CURRENCIES),
+  minAnnualBaseSalary: Money,
+  maxAnnualBaseSalary: Money,
+  maxAnnualBonus: Money,
+  minPercentageIncrease: z.number().int(),
+  maxPercentageIncrease: z.number().int(),
+  minPercentageDecrease: z.number().int(),
+  maxPercentageDecrease: z.number().int(),
+});
+
+const AdjustmentEmployee = z.object({
+  employeeCode: z.string(),
+  name: z.string(),
+  email: z.string(),
+  department: z.enum(DEPARTMENTS),
+  jobTitle: z.string(),
+  level: z.enum(LEVELS),
+  country: z.enum(COUNTRY_CODES),
+  employmentStatus: z.enum(EMPLOYMENT_STATUSES),
+});
+
+export const SalaryAdjustmentPreview = z
+  .object({
+    employee: AdjustmentEmployee,
+    adjustment: z.object({
+      target: z.enum(ADJUSTMENT_TARGETS),
+      method: z.enum(ADJUSTMENT_METHODS),
+      value: z.string().describe('Normalized: amounts with two decimals.'),
+      effectiveFrom: IsoDate,
+      reason: z.enum(ADJUSTMENT_REASONS),
+      note: z.string().nullable(),
+    }),
+    currency: z.enum(CURRENCIES),
+    current: z.object({
+      compensationVersion: z.number().int().positive().describe('Version of the record the adjustment is calculated from.'),
+      state: z.enum(COMPENSATION_STATES),
+      effectiveFrom: IsoDate,
+      annualBaseSalary: Money,
+      annualBonus: Money,
+      annualCashCompensation: Money,
+    }),
+    proposed: z.object({ annualBaseSalary: Money, annualBonus: Money, annualCashCompensation: Money }),
+    change: z.object({
+      amount: SignedAmount.describe('Signed change of the adjusted target.'),
+      direction: z.enum(['INCREASE', 'DECREASE']),
+      percentage: SignedAmount.nullable().describe('Signed, two decimals. Null when the current value is zero.'),
+      annualCashImpact: SignedAmount.describe('Signed change in annual cash compensation: the annual budget impact.'),
+    }),
+    salaryBand: SalaryBandView,
+    validation: z.object({ valid: z.literal(true) }).describe('Invalid adjustments are rejected with VALIDATION_ERROR and a reason.'),
+    warnings: z.object({
+      futureChange: z.object({
+        effectiveFrom: IsoDate,
+        annualBaseSalary: Money,
+        annualBonus: Money,
+        message: z.string(),
+      }).nullable().describe('An approved future change keeps its scheduled absolute amounts.'),
+      pendingRequestWillBecomeStale: z.boolean().describe('Admin preview only: applying makes the pending request STALE.'),
+    }),
+    expectedCompensationVersion: z.number().int().positive(),
+    confirmationMode: z.enum(CONFIRMATION_MODES),
+    previewToken: z.string(),
+    previewExpiresAt: z.iso.datetime(),
+  })
+  .register(contractRegistry, { id: 'SalaryAdjustmentPreview', description: 'Writes nothing. Valid for five minutes.' });
+export type SalaryAdjustmentPreview = z.infer<typeof SalaryAdjustmentPreview>;
+
+const HrUserRef = z.object({ displayName: z.string(), email: z.string() });
+
+export const CompensationRecordView = z
+  .object({
+    version: z.number().int().positive(),
+    annualBaseSalary: Money,
+    annualBonus: Money,
+    annualCashCompensation: Money,
+    currency: z.enum(CURRENCIES),
+    payFrequency: z.enum(PAY_FREQUENCIES),
+    effectiveFrom: IsoDate,
+    changeReason: z.enum(CHANGE_REASONS),
+    changeNote: z.string().nullable(),
+    changedBy: HrUserRef.nullable(),
+    sourceRequestId: z.uuid().nullable(),
+    recordedAt: z.iso.datetime(),
+  })
+  .register(contractRegistry, { id: 'CompensationRecordView' });
+export type CompensationRecordView = z.infer<typeof CompensationRecordView>;
+
+export const SalaryAdjustmentResult = z
+  .object({ employeeCode: z.string(), compensation: CompensationRecordView })
+  .register(contractRegistry, { id: 'SalaryAdjustmentResult' });
+export type SalaryAdjustmentResult = z.infer<typeof SalaryAdjustmentResult>;
+
+export const SalaryRequestView = z
+  .object({
+    requestId: z.uuid(),
+    status: z.enum(REQUEST_STATUSES),
+    employee: AdjustmentEmployee,
+    requestedBy: HrUserRef,
+    adjustment: z.object({
+      target: z.enum(ADJUSTMENT_TARGETS),
+      method: z.enum(ADJUSTMENT_METHODS),
+      value: z.string(),
+      currency: z.enum(CURRENCIES),
+      previousValue: Money,
+      proposedValue: Money,
+      effectiveFrom: IsoDate,
+      reason: z.enum(ADJUSTMENT_REASONS),
+      note: z.string().nullable(),
+    }),
+    requestedAgainstVersion: z.number().int().positive(),
+    createdAt: z.iso.datetime(),
+    decidedBy: HrUserRef.nullable().describe('The Admin who approved or cancelled. Null while pending and for STALE.'),
+    decidedAt: z.iso.datetime().nullable(),
+    decisionNote: z.string().nullable().describe('Cancellation note or stale reason.'),
+    resultingCompensationVersion: z.number().int().positive().nullable(),
+  })
+  .register(contractRegistry, { id: 'SalaryRequestView' });
+export type SalaryRequestView = z.infer<typeof SalaryRequestView>;
+
+export const SalaryRequestResponse = z
+  .object({ request: SalaryRequestView })
+  .register(contractRegistry, { id: 'SalaryRequestResponse' });
+
+export const SalaryRequestApproval = z
+  .object({ request: SalaryRequestView, compensation: CompensationRecordView })
+  .register(contractRegistry, { id: 'SalaryRequestApproval' });
+export type SalaryRequestApproval = z.infer<typeof SalaryRequestApproval>;
+
+export const SalaryRequestListQuery = z
+  .strictObject({
+    q: z.string().max(MAX_SEARCH_LENGTH).transform((s) => s.trim() || undefined).optional(),
+    department: z.enum(DEPARTMENTS).optional().describe('Admin HR only.'),
+    status: z.enum(REQUEST_STATUSES).optional(),
+    sort: z.enum(['createdAt']).default('createdAt'),
+    direction: z.enum(SORT_DIRECTIONS).default('desc'),
+    page: positiveInt(1_000_000).default(1),
+    pageSize: positiveInt(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
+  })
+  .transform((query) => Object.fromEntries(Object.entries(query).filter(([, v]) => v !== undefined)) as typeof query);
+export type SalaryRequestListQuery = z.output<typeof SalaryRequestListQuery>;
+
+export const SalaryRequestList = z
+  .object({
+    requests: z.array(SalaryRequestView),
+    page: z.object({
+      number: z.number().int().positive(),
+      size: z.number().int().positive(),
+      totalRows: z.number().int().nonnegative(),
+      totalPages: z.number().int().nonnegative(),
+    }),
+  })
+  .register(contractRegistry, { id: 'SalaryRequestList' });
+export type SalaryRequestList = z.infer<typeof SalaryRequestList>;

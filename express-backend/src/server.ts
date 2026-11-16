@@ -9,6 +9,8 @@ import { createAssistantService } from './assistant/assistant-service.js';
 import { createCompensationInsights } from './assistant/compensation-insights.js';
 import { createOpenAiModelAdapter } from './assistant/openai-model.js';
 import { createToolRegistry } from './assistant/tools.js';
+import { createPreviewTokens } from './compensation/preview-token.js';
+import { createSalaryAdjustmentService } from './compensation/salary-adjustment-service.js';
 import { createPool } from './db/connection.js';
 import { createDirectoryService } from './directory/directory-repository.js';
 import { loadExchangeRate } from './directory/exchange-rate.js';
@@ -50,6 +52,7 @@ const app = createApp({
   directory,
   tools,
   assistant: createAssistantService({ model, tools, logger: stdoutLogger }),
+  salaryAdjustments: createSalaryAdjustmentService({ pool, previewTokens: createPreviewTokens({ signingKey: config.jwtSigningKey }) }),
   logger: stdoutLogger,
   clientIpSource: config.clientIpSource,
 });

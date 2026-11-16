@@ -2,24 +2,27 @@ import type { ErrorRequestHandler, RequestHandler, Response } from 'express';
 
 import { errorCode } from '../errors.js';
 import { PUBLIC_MESSAGES } from './contract.js';
-import type { PublicErrorCode } from './contract.js';
+import type { ErrorReason, PublicErrorCode } from './contract.js';
 import type { Logger } from './request-log.js';
 
 /** A failure with a known public code. Handlers throw it; the error handler renders it. */
 export class ApiError extends Error {
   readonly status: number;
   readonly code: PublicErrorCode;
+  readonly reason: ErrorReason | undefined;
 
-  constructor(status: number, code: PublicErrorCode, message: string = PUBLIC_MESSAGES[code]) {
+  constructor(status: number, code: PublicErrorCode, message: string = PUBLIC_MESSAGES[code], reason?: ErrorReason) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.reason = reason;
   }
 }
 
-export function sendError(res: Response, status: number, code: PublicErrorCode, message: string = PUBLIC_MESSAGES[code]): void {
-  res.status(status).json({ error: { code, message } });
+/** The public error body. `reason` is included only when set. */
+export function sendError(res: Response, status: number, code: PublicErrorCode, message: string = PUBLIC_MESSAGES[code], reason?: ErrorReason): void {
+  res.status(status).json({ error: reason === undefined ? { code, message } : { code, message, reason } });
 }
 
 export const notFoundHandler: RequestHandler = (_req, res) => {
@@ -45,7 +48,7 @@ export function errorHandler(logger: Logger): ErrorRequestHandler {
     }
     if (error instanceof ApiError) {
       if (error.status === 401) res.set('WWW-Authenticate', 'Bearer');
-      sendError(res, error.status, error.code, error.message);
+      sendError(res, error.status, error.code, error.message, error.reason);
       return;
     }
     const type = bodyParserType(error);

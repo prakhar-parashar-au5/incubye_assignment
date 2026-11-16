@@ -55,13 +55,14 @@ after(async () => {
 
 describe('access schema: structure', () => {
   // Detects: a missing access table, or a later table added early.
-  test('migration 002 creates the five approved access tables', async () => {
+  test('migration 002 creates the five approved access tables (003 adds two salary tables)', async () => {
     const rows = await query(
       `SELECT table_name AS name, engine AS engine FROM information_schema.tables
        WHERE table_schema = DATABASE() ORDER BY table_name`,
     );
     assert.deepEqual(rows.map((r) => `${r.name}:${r.engine}`), [
       'access_audit_events:InnoDB',
+      'compensation_change_requests:InnoDB',
       'compensation_records:InnoDB',
       'countries:InnoDB',
       'departments:InnoDB',
@@ -71,13 +72,14 @@ describe('access schema: structure', () => {
       'hr_user_department_scopes:InnoDB',
       'hr_users:InnoDB',
       'job_titles:InnoDB',
+      'salary_bands:InnoDB',
       'schema_migrations:InnoDB',
     ]);
   });
 
-  test('records both migrations', async () => {
+  test('records every migration', async () => {
     const repeat = await runMigrations({ databaseUrl: DATABASE_URL });
-    assert.deepEqual(repeat, { applied: [], alreadyApplied: ['001_initial_schema.sql', '002_hr_access_control.sql'] });
+    assert.deepEqual(repeat, { applied: [], alreadyApplied: ['001_initial_schema.sql', '002_hr_access_control.sql', '003_salary_adjustments.sql'] });
   });
 
   // Detects: missing composite primary keys or lookup indexes.

@@ -16,6 +16,7 @@ import {
   MAX_PAGE_SIZE,
   MAX_SEARCH_LENGTH,
   PATHS,
+  REQUEST_STATUSES,
   SORT_DIRECTIONS,
   SORT_FIELDS,
   contractRegistry,
@@ -51,6 +52,31 @@ const DIRECTORY_PARAMETERS = [
   queryParam('pageSize', { type: 'integer', minimum: 1, maximum: MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE }),
   queryParam('comparisonCurrency', { type: 'string', enum: [...COMPARISON_CURRENCIES] }, 'Required when sort is a salary field.'),
 ];
+
+const EMPLOYEE_CODE_PARAMETER = { name: 'employeeCode', in: 'path', required: true, schema: { type: 'string', pattern: '^ACME[0-9]{5}$' } };
+const REQUEST_ID_PARAMETER = { name: 'requestId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } };
+const IDEMPOTENCY_KEY_PARAMETER = {
+  name: 'Idempotency-Key',
+  in: 'header',
+  required: true,
+  description: 'Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION.',
+  schema: { type: 'string', pattern: '^[A-Za-z0-9_-]{16,128}$' },
+};
+const SALARY_REQUEST_LIST_PARAMETERS = [
+  queryParam('q', { type: 'string', maxLength: MAX_SEARCH_LENGTH }, 'Employee ID (exact or prefix), name (partial), or exact email.'),
+  queryParam('department', { type: 'string', enum: [...DEPARTMENTS] }, 'Admin HR only; Scoped HR receives VALIDATION_ERROR.'),
+  queryParam('status', { type: 'string', enum: [...REQUEST_STATUSES] }),
+  queryParam('sort', { type: 'string', enum: ['createdAt'], default: 'createdAt' }),
+  queryParam('direction', { type: 'string', enum: [...SORT_DIRECTIONS], default: 'desc' }),
+  queryParam('page', { type: 'integer', minimum: 1, maximum: 1_000_000, default: 1 }),
+  queryParam('pageSize', { type: 'integer', minimum: 1, maximum: MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE }),
+];
+const SALARY_COMMON_ERRORS = {
+  400: error('VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED.'),
+  401: error('UNAUTHENTICATED'),
+  500: error('INTERNAL_ERROR'),
+  503: error('SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key.'),
+};
 
 function componentSchemas(): Record<string, unknown> {
   const { schemas } = z.toJSONSchema(contractRegistry, {
@@ -184,6 +210,122 @@ export function buildOpenApiDocument(): Record<string, unknown> {
             401: error('UNAUTHENTICATED'),
             500: error('INTERNAL_ERROR'),
             503: error('ASSISTANT_UNAVAILABLE: no model configured, model timeout, or provider error. Other routes are unaffected.'),
+          },
+        },
+      },
+      [openApiPath(PATHS.salaryAdjustmentPreview)]: {
+        post: {
+          operationId: 'previewSalaryAdjustment',
+          summary: 'Preview one salary adjustment (writes nothing)',
+          description: 'Returns exact old and new values, the salary band, warnings, and a five-minute preview token. '
+            + 'confirmationMode is DIRECT_APPLY for Admin HR and SUBMIT_REQUEST for Scoped HR.',
+          security: [{ bearerAuth: [] }],
+          parameters: [EMPLOYEE_CODE_PARAMETER],
+          requestBody: { required: true, content: { 'application/json': { schema: ref('SalaryAdjustmentCommand') } } },
+          responses: {
+            200: json('SalaryAdjustmentPreview', 'A valid adjustment.'),
+            ...SALARY_COMMON_ERRORS,
+            404: error('NOT_FOUND: unknown and out-of-scope employees return the same body.'),
+            409: error('PENDING_REQUEST_EXISTS (Scoped HR).'),
+            422: error('EMPLOYEE_INELIGIBLE'),
+          },
+        },
+      },
+      [openApiPath(PATHS.salaryAdjustments)]: {
+        post: {
+          operationId: 'applySalaryAdjustment',
+          summary: 'Admin HR: apply the exact previewed adjustment',
+          description: 'Creates one immutable compensation version and marks any pending request STALE, in one transaction.',
+          security: [{ bearerAuth: [] }],
+          parameters: [EMPLOYEE_CODE_PARAMETER, IDEMPOTENCY_KEY_PARAMETER],
+          requestBody: { required: true, content: { 'application/json': { schema: ref('SalaryAdjustmentConfirmation') } } },
+          responses: {
+            201: json('SalaryAdjustmentResult', 'The new compensation version (or the original result for a replay).'),
+            ...SALARY_COMMON_ERRORS,
+            403: error('FORBIDDEN: Scoped HR.'),
+            404: error('NOT_FOUND'),
+            409: error('STALE_VERSION (fetch and confirm a fresh preview) or DUPLICATE_OPERATION.'),
+            422: error('EMPLOYEE_INELIGIBLE'),
+          },
+        },
+      },
+      [openApiPath(PATHS.employeeSalaryAdjustmentRequests)]: {
+        post: {
+          operationId: 'submitSalaryAdjustmentRequest',
+          summary: 'Scoped HR: submit the exact previewed adjustment for approval',
+          description: 'Creates one PENDING request and no compensation record.',
+          security: [{ bearerAuth: [] }],
+          parameters: [EMPLOYEE_CODE_PARAMETER, IDEMPOTENCY_KEY_PARAMETER],
+          requestBody: { required: true, content: { 'application/json': { schema: ref('SalaryAdjustmentConfirmation') } } },
+          responses: {
+            201: json('SalaryRequestResponse', 'The pending request (or the original request for a replay).'),
+            ...SALARY_COMMON_ERRORS,
+            403: error('FORBIDDEN: Admin HR applies directly.'),
+            404: error('NOT_FOUND'),
+            409: error('STALE_VERSION, PENDING_REQUEST_EXISTS, or DUPLICATE_OPERATION.'),
+            422: error('EMPLOYEE_INELIGIBLE'),
+          },
+        },
+      },
+      [PATHS.salaryAdjustmentRequests]: {
+        get: {
+          operationId: 'listSalaryAdjustmentRequests',
+          summary: 'Requests for employees in the caller\'s current scope (all for Admin HR)',
+          security: [{ bearerAuth: [] }],
+          parameters: SALARY_REQUEST_LIST_PARAMETERS,
+          responses: {
+            200: json('SalaryRequestList', 'One page, sorted by creation time.'),
+            ...SALARY_COMMON_ERRORS,
+          },
+        },
+      },
+      [openApiPath(PATHS.salaryAdjustmentRequest)]: {
+        get: {
+          operationId: 'getSalaryAdjustmentRequest',
+          summary: 'One request',
+          security: [{ bearerAuth: [] }],
+          parameters: [REQUEST_ID_PARAMETER],
+          responses: {
+            200: json('SalaryRequestResponse', 'The request.'),
+            401: error('UNAUTHENTICATED'),
+            404: error('NOT_FOUND: unknown and out-of-scope requests return the same body.'),
+            500: error('INTERNAL_ERROR'),
+            503: error('SERVICE_UNAVAILABLE'),
+          },
+        },
+      },
+      [openApiPath(PATHS.salaryAdjustmentRequestApprove)]: {
+        post: {
+          operationId: 'approveSalaryAdjustmentRequest',
+          summary: 'Admin HR: approve the exact request',
+          description: 'Rechecks requester status and scope, eligibility, salary band, effective date, future changes, and compensation version. '
+            + 'A failed recheck caused by changed state marks the request STALE.',
+          security: [{ bearerAuth: [] }],
+          parameters: [REQUEST_ID_PARAMETER, IDEMPOTENCY_KEY_PARAMETER],
+          responses: {
+            200: json('SalaryRequestApproval', 'The approved request and the new compensation version.'),
+            ...SALARY_COMMON_ERRORS,
+            403: error('FORBIDDEN: Scoped HR.'),
+            404: error('NOT_FOUND'),
+            409: error('STALE_VERSION (request marked stale), REQUEST_NOT_PENDING, or DUPLICATE_OPERATION.'),
+            422: error('EMPLOYEE_INELIGIBLE (request marked stale).'),
+          },
+        },
+      },
+      [openApiPath(PATHS.salaryAdjustmentRequestCancel)]: {
+        post: {
+          operationId: 'cancelSalaryAdjustmentRequest',
+          summary: 'Admin HR: cancel a pending request with a note',
+          description: 'Changes no compensation.',
+          security: [{ bearerAuth: [] }],
+          parameters: [REQUEST_ID_PARAMETER, IDEMPOTENCY_KEY_PARAMETER],
+          requestBody: { required: true, content: { 'application/json': { schema: ref('SalaryRequestCancellation') } } },
+          responses: {
+            200: json('SalaryRequestResponse', 'The cancelled request.'),
+            ...SALARY_COMMON_ERRORS,
+            403: error('FORBIDDEN: Scoped HR.'),
+            404: error('NOT_FOUND'),
+            409: error('REQUEST_NOT_PENDING or DUPLICATE_OPERATION.'),
           },
         },
       },

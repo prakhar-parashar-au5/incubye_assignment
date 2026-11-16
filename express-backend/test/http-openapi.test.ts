@@ -14,7 +14,7 @@ const get = (value: unknown, ...keys: string[]): unknown =>
 
 describe('OpenAPI contract', () => {
   // Detects: an endpoint missing from, or added to, the published contract.
-  test('documents exactly the ten endpoints', () => {
+  test('documents exactly the seventeen endpoints', () => {
     const paths = get(doc, 'paths') as Json;
     const operations = Object.entries(paths).flatMap(([path, item]) => Object.keys(item as Json).map((m) => `${m.toUpperCase()} ${path}`));
     assert.deepEqual(operations.sort(), [
@@ -23,11 +23,18 @@ describe('OpenAPI contract', () => {
       'GET /api/v1/employees',
       'GET /api/v1/employees/{employeeCode}',
       'GET /api/v1/openapi.json',
+      'GET /api/v1/salary-adjustment-requests',
+      'GET /api/v1/salary-adjustment-requests/{requestId}',
       'GET /health',
       'POST /api/v1/assistant/messages',
       'POST /api/v1/auth/login',
       'POST /api/v1/auth/logout',
+      'POST /api/v1/employees/{employeeCode}/salary-adjustment-requests',
+      'POST /api/v1/employees/{employeeCode}/salary-adjustments',
+      'POST /api/v1/employees/{employeeCode}/salary-adjustments/preview',
       'POST /api/v1/mcp',
+      'POST /api/v1/salary-adjustment-requests/{requestId}/approve',
+      'POST /api/v1/salary-adjustment-requests/{requestId}/cancel',
     ]);
     assert.equal(get(doc, 'openapi'), '3.1.0');
   });
@@ -102,7 +109,43 @@ describe('OpenAPI contract', () => {
     for (const path of ['/api/v1/assistant/messages', '/api/v1/mcp']) {
       assert.deepEqual(get(doc, 'paths', path, 'post', 'security'), [{ bearerAuth: [] }], path);
     }
+    for (const [path, item] of Object.entries(get(doc, 'paths') as Json)) {
+      if (!path.includes('salary-adjustment')) continue;
+      for (const [method, operation] of Object.entries(item as Json)) {
+        assert.deepEqual(get(operation, 'security'), [{ bearerAuth: [] }], `${method} ${path}`);
+      }
+    }
     assert.equal(get(doc, 'paths', '/api/v1/auth/login', 'post', 'security'), undefined);
+  });
+
+  // Detects: salary endpoints documented without idempotency, errors, or schemas.
+  test('salary-adjustment operations document schemas, Idempotency-Key, and the approved errors', () => {
+    const op = (path: string, method = 'post') => get(doc, 'paths', path, method) as Json;
+    const errors = (path: string, method = 'post') => Object.keys(get(op(path, method), 'responses') as Json).sort();
+    const headerNames = (path: string) => ((get(op(path), 'parameters') as Json[] | undefined) ?? []).filter((p) => p.in === 'header').map((p) => [p.name, p.required]);
+    const preview = '/api/v1/employees/{employeeCode}/salary-adjustments/preview';
+    const direct = '/api/v1/employees/{employeeCode}/salary-adjustments';
+    const requests = '/api/v1/employees/{employeeCode}/salary-adjustment-requests';
+    const approve = '/api/v1/salary-adjustment-requests/{requestId}/approve';
+    const cancel = '/api/v1/salary-adjustment-requests/{requestId}/cancel';
+    assert.deepEqual(errors(preview), ['200', '400', '401', '404', '409', '422', '500', '503']);
+    assert.deepEqual(errors(direct), ['201', '400', '401', '403', '404', '409', '422', '500', '503']);
+    assert.deepEqual(errors(requests), ['201', '400', '401', '403', '404', '409', '422', '500', '503']);
+    assert.deepEqual(errors(approve), ['200', '400', '401', '403', '404', '409', '422', '500', '503']);
+    assert.deepEqual(errors(cancel), ['200', '400', '401', '403', '404', '409', '500', '503']);
+    for (const path of [direct, requests, approve, cancel]) assert.deepEqual(headerNames(path), [['Idempotency-Key', true]], path);
+    assert.deepEqual(headerNames(preview), []);
+    assert.equal(get(op(preview), 'requestBody', 'content', 'application/json', 'schema', '$ref'), '#/components/schemas/SalaryAdjustmentCommand');
+    assert.equal(get(op(direct), 'requestBody', 'content', 'application/json', 'schema', '$ref'), '#/components/schemas/SalaryAdjustmentConfirmation');
+    assert.equal(get(op(preview), 'responses', '200', 'content', 'application/json', 'schema', '$ref'), '#/components/schemas/SalaryAdjustmentPreview');
+    const command = get(doc, 'components', 'schemas', 'SalaryAdjustmentCommand');
+    assert.equal(get(command, 'additionalProperties'), false);
+    assert.deepEqual(get(command, 'properties', 'method', 'enum'), ['PERCENTAGE_INCREASE', 'PERCENTAGE_DECREASE', 'FIXED_INCREASE', 'FIXED_DECREASE', 'REPLACEMENT']);
+    assert.deepEqual(get(command, 'properties', 'reason', 'enum'), ['PERFORMANCE', 'MARKET_ADJUSTMENT', 'PROMOTION', 'ROLE_CHANGE', 'CORRECTION']);
+    assert.deepEqual(get(doc, 'components', 'schemas', 'SalaryRequestView', 'properties', 'status', 'enum'), ['PENDING', 'APPROVED', 'CANCELLED', 'STALE']);
+    const listParams = (get(op('/api/v1/salary-adjustment-requests', 'get'), 'parameters') as Json[]).map((p) => p.name);
+    assert.deepEqual(listParams, ['q', 'department', 'status', 'sort', 'direction', 'page', 'pageSize']);
+    assert.ok((get(doc, 'components', 'schemas', 'ErrorResponse', 'properties', 'error', 'properties', 'reason', 'enum') as string[]).includes('PREVIEW_EXPIRED'));
   });
 
   // Detects: an assistant contract that drifts from the shared frontend contract.
@@ -131,7 +174,9 @@ describe('OpenAPI contract', () => {
   // Detects: error codes in the contract that differ from the approved list.
   test('error schema lists exactly the approved public codes', () => {
     assert.deepEqual(get(doc, 'components', 'schemas', 'ErrorResponse', 'properties', 'error', 'properties', 'code', 'enum'), [
-      'VALIDATION_ERROR', 'INVALID_CREDENTIALS', 'UNAUTHENTICATED', 'RATE_LIMITED', 'NOT_FOUND', 'ASSISTANT_UNAVAILABLE', 'INTERNAL_ERROR',
+      'VALIDATION_ERROR', 'INVALID_CREDENTIALS', 'UNAUTHENTICATED', 'RATE_LIMITED', 'NOT_FOUND', 'ASSISTANT_UNAVAILABLE',
+      'FORBIDDEN', 'STALE_VERSION', 'DUPLICATE_OPERATION', 'PENDING_REQUEST_EXISTS', 'REQUEST_NOT_PENDING', 'EMPLOYEE_INELIGIBLE',
+      'SERVICE_UNAVAILABLE', 'INTERNAL_ERROR',
     ]);
   });
 
@@ -153,12 +198,12 @@ describe('OpenAPI contract', () => {
     const paths = get(doc, 'paths') as Json;
     for (const [path, item] of Object.entries(paths)) {
       for (const method of Object.keys(item as Json)) {
-        const url = path.replace('{employeeCode}', 'ACME00001');
+        const url = path.replace('{employeeCode}', 'ACME00001').replace('{requestId}', '00000000-0000-4000-8000-000000000000');
         const call = method === 'post' ? request(app).post(url) : request(app).get(url);
         const res = await call.set('Authorization', `Bearer ${FAKE_TOKEN}`).send({});
-        // The fake directory has no employees, so detail answers with the employee 404.
-        if (path.includes('{employeeCode}')) assert.equal(res.body.error?.message, 'Employee not found.', path);
-        else assert.notEqual(res.status, 404, `${method.toUpperCase()} ${path}`);
+        // Routed operations may answer 404 for a missing resource; only the
+        // unmatched-route handler says "Route not found."
+        assert.notEqual(res.body.error?.message, 'Route not found.', `${method.toUpperCase()} ${path}`);
       }
     }
   });

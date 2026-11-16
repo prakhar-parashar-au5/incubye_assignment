@@ -578,6 +578,867 @@
         }
       }
     },
+    "/api/v1/employees/{employeeCode}/salary-adjustments/preview": {
+      "post": {
+        "operationId": "previewSalaryAdjustment",
+        "summary": "Preview one salary adjustment (writes nothing)",
+        "description": "Returns exact old and new values, the salary band, warnings, and a five-minute preview token. confirmationMode is DIRECT_APPLY for Admin HR and SUBMIT_REQUEST for Scoped HR.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employeeCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^ACME[0-9]{5}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalaryAdjustmentCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A valid adjustment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalaryAdjustmentPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: unknown and out-of-scope employees return the same body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PENDING_REQUEST_EXISTS (Scoped HR).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EMPLOYEE_INELIGIBLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/employees/{employeeCode}/salary-adjustments": {
+      "post": {
+        "operationId": "applySalaryAdjustment",
+        "summary": "Admin HR: apply the exact previewed adjustment",
+        "description": "Creates one immutable compensation version and marks any pending request STALE, in one transaction.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employeeCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^ACME[0-9]{5}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalaryAdjustmentConfirmation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new compensation version (or the original result for a replay).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalaryAdjustmentResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Scoped HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION (fetch and confirm a fresh preview) or DUPLICATE_OPERATION.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EMPLOYEE_INELIGIBLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/employees/{employeeCode}/salary-adjustment-requests": {
+      "post": {
+        "operationId": "submitSalaryAdjustmentRequest",
+        "summary": "Scoped HR: submit the exact previewed adjustment for approval",
+        "description": "Creates one PENDING request and no compensation record.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employeeCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^ACME[0-9]{5}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalaryAdjustmentConfirmation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The pending request (or the original request for a replay).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalaryRequestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Admin HR applies directly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION, PENDING_REQUEST_EXISTS, or DUPLICATE_OPERATION.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EMPLOYEE_INELIGIBLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/salary-adjustment-requests": {
+      "get": {
+        "operationId": "listSalaryAdjustmentRequests",
+        "summary": "Requests for employees in the caller's current scope (all for Admin HR)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Employee ID (exact or prefix), name (partial), or exact email.",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "description": "Admin HR only; Scoped HR receives VALIDATION_ERROR.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Tech",
+                "HR",
+                "Finance",
+                "Operations",
+                "Support"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "CANCELLED",
+                "STALE"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "createdAt"
+              ],
+              "default": "createdAt"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page, sorted by creation time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalaryRequestList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/salary-adjustment-requests/{requestId}": {
+      "get": {
+        "operationId": "getSalaryAdjustmentRequest",
+        "summary": "One request",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalaryRequestResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: unknown and out-of-scope requests return the same body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/salary-adjustment-requests/{requestId}/approve": {
+      "post": {
+        "operationId": "approveSalaryAdjustmentRequest",
+        "summary": "Admin HR: approve the exact request",
+        "description": "Rechecks requester status and scope, eligibility, salary band, effective date, future changes, and compensation version. A failed recheck caused by changed state marks the request STALE.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,128}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The approved request and the new compensation version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalaryRequestApproval"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Scoped HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION (request marked stale), REQUEST_NOT_PENDING, or DUPLICATE_OPERATION.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EMPLOYEE_INELIGIBLE (request marked stale).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/salary-adjustment-requests/{requestId}/cancel": {
+      "post": {
+        "operationId": "cancelSalaryAdjustmentRequest",
+        "summary": "Admin HR: cancel a pending request with a note",
+        "description": "Changes no compensation.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalaryRequestCancellation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The cancelled request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalaryRequestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: Scoped HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "REQUEST_NOT_PENDING or DUPLICATE_OPERATION.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/mcp": {
       "post": {
         "operationId": "mcp",
@@ -637,11 +1498,39 @@
                   "RATE_LIMITED",
                   "NOT_FOUND",
                   "ASSISTANT_UNAVAILABLE",
+                  "FORBIDDEN",
+                  "STALE_VERSION",
+                  "DUPLICATE_OPERATION",
+                  "PENDING_REQUEST_EXISTS",
+                  "REQUEST_NOT_PENDING",
+                  "EMPLOYEE_INELIGIBLE",
+                  "SERVICE_UNAVAILABLE",
                   "INTERNAL_ERROR"
                 ]
               },
               "message": {
                 "type": "string"
+              },
+              "reason": {
+                "description": "Present on some VALIDATION_ERROR responses so the client can show the right state.",
+                "type": "string",
+                "enum": [
+                  "PREVIEW_EXPIRED",
+                  "PREVIEW_INVALID",
+                  "PREVIEW_MISMATCH",
+                  "PERCENTAGE_RANGE",
+                  "INVALID_AMOUNT",
+                  "NEGATIVE_RESULT",
+                  "NO_CHANGE",
+                  "ZERO_BONUS_PERCENTAGE",
+                  "BASE_NOT_POSITIVE",
+                  "SALARY_BAND",
+                  "PAST_EFFECTIVE_DATE",
+                  "EFFECTIVE_BEFORE_CURRENT",
+                  "FUTURE_CHANGE_EXISTS",
+                  "NOTE_REQUIRED",
+                  "IDEMPOTENCY_KEY_REQUIRED"
+                ]
               }
             },
             "required": [
@@ -2073,6 +2962,970 @@
           "cards",
           "limitations",
           "generatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SalaryAdjustmentCommand": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "enum": [
+              "BASE_SALARY",
+              "ANNUAL_BONUS"
+            ]
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "PERCENTAGE_INCREASE",
+              "PERCENTAGE_DECREASE",
+              "FIXED_INCREASE",
+              "FIXED_DECREASE",
+              "REPLACEMENT"
+            ]
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "description": "Percentages: whole number (increase 1..200, decrease 1..50). Amounts: at most two decimals."
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Today (UTC business date) or later."
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "PERFORMANCE",
+              "MARKET_ADJUSTMENT",
+              "PROMOTION",
+              "ROLE_CHANGE",
+              "CORRECTION"
+            ]
+          },
+          "note": {
+            "description": "Required for CORRECTION. Blank is treated as no note. Do not include sensitive personal data.",
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "target",
+          "method",
+          "value",
+          "effectiveFrom",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "SalaryAdjustmentConfirmation": {
+        "type": "object",
+        "properties": {
+          "previewToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "adjustment": {
+            "description": "The exact command that was previewed.",
+            "$ref": "#/components/schemas/SalaryAdjustmentCommand"
+          }
+        },
+        "required": [
+          "previewToken",
+          "adjustment"
+        ],
+        "additionalProperties": false
+      },
+      "SalaryRequestCancellation": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "Required cancellation reason."
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "additionalProperties": false
+      },
+      "SalaryAdjustmentPreview": {
+        "type": "object",
+        "properties": {
+          "employee": {
+            "type": "object",
+            "properties": {
+              "employeeCode": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "department": {
+                "type": "string",
+                "enum": [
+                  "Tech",
+                  "HR",
+                  "Finance",
+                  "Operations",
+                  "Support"
+                ]
+              },
+              "jobTitle": {
+                "type": "string"
+              },
+              "level": {
+                "type": "string",
+                "enum": [
+                  "JUNIOR",
+                  "MID",
+                  "SENIOR",
+                  "LEAD",
+                  "MANAGER"
+                ]
+              },
+              "country": {
+                "type": "string",
+                "enum": [
+                  "IN",
+                  "US"
+                ]
+              },
+              "employmentStatus": {
+                "type": "string",
+                "enum": [
+                  "SOON_TO_JOIN",
+                  "CURRENTLY_WORKING",
+                  "LEFT"
+                ]
+              }
+            },
+            "required": [
+              "employeeCode",
+              "name",
+              "email",
+              "department",
+              "jobTitle",
+              "level",
+              "country",
+              "employmentStatus"
+            ],
+            "additionalProperties": false
+          },
+          "adjustment": {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "string",
+                "enum": [
+                  "BASE_SALARY",
+                  "ANNUAL_BONUS"
+                ]
+              },
+              "method": {
+                "type": "string",
+                "enum": [
+                  "PERCENTAGE_INCREASE",
+                  "PERCENTAGE_DECREASE",
+                  "FIXED_INCREASE",
+                  "FIXED_DECREASE",
+                  "REPLACEMENT"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "description": "Normalized: amounts with two decimals."
+              },
+              "effectiveFrom": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "PERFORMANCE",
+                  "MARKET_ADJUSTMENT",
+                  "PROMOTION",
+                  "ROLE_CHANGE",
+                  "CORRECTION"
+                ]
+              },
+              "note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "target",
+              "method",
+              "value",
+              "effectiveFrom",
+              "reason",
+              "note"
+            ],
+            "additionalProperties": false
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "INR",
+              "USD"
+            ]
+          },
+          "current": {
+            "type": "object",
+            "properties": {
+              "compensationVersion": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Version of the record the adjustment is calculated from."
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "CURRENT",
+                  "UPCOMING",
+                  "HISTORICAL"
+                ]
+              },
+              "effectiveFrom": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              "annualBaseSalary": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              "annualBonus": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              "annualCashCompensation": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              }
+            },
+            "required": [
+              "compensationVersion",
+              "state",
+              "effectiveFrom",
+              "annualBaseSalary",
+              "annualBonus",
+              "annualCashCompensation"
+            ],
+            "additionalProperties": false
+          },
+          "proposed": {
+            "type": "object",
+            "properties": {
+              "annualBaseSalary": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              "annualBonus": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              "annualCashCompensation": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              }
+            },
+            "required": [
+              "annualBaseSalary",
+              "annualBonus",
+              "annualCashCompensation"
+            ],
+            "additionalProperties": false
+          },
+          "change": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "description": "Signed change of the adjusted target."
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "INCREASE",
+                  "DECREASE"
+                ]
+              },
+              "percentage": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^-?\\d+\\.\\d{2}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Signed, two decimals. Null when the current value is zero."
+              },
+              "annualCashImpact": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2}$",
+                "description": "Signed change in annual cash compensation: the annual budget impact."
+              }
+            },
+            "required": [
+              "amount",
+              "direction",
+              "percentage",
+              "annualCashImpact"
+            ],
+            "additionalProperties": false
+          },
+          "salaryBand": {
+            "type": "object",
+            "properties": {
+              "currency": {
+                "type": "string",
+                "enum": [
+                  "INR",
+                  "USD"
+                ]
+              },
+              "minAnnualBaseSalary": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              "maxAnnualBaseSalary": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              "maxAnnualBonus": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              "minPercentageIncrease": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "maxPercentageIncrease": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "minPercentageDecrease": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "maxPercentageDecrease": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "currency",
+              "minAnnualBaseSalary",
+              "maxAnnualBaseSalary",
+              "maxAnnualBonus",
+              "minPercentageIncrease",
+              "maxPercentageIncrease",
+              "minPercentageDecrease",
+              "maxPercentageDecrease"
+            ],
+            "additionalProperties": false
+          },
+          "validation": {
+            "type": "object",
+            "properties": {
+              "valid": {
+                "type": "boolean",
+                "const": true
+              }
+            },
+            "required": [
+              "valid"
+            ],
+            "additionalProperties": false,
+            "description": "Invalid adjustments are rejected with VALIDATION_ERROR and a reason."
+          },
+          "warnings": {
+            "type": "object",
+            "properties": {
+              "futureChange": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "effectiveFrom": {
+                        "type": "string",
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                      },
+                      "annualBaseSalary": {
+                        "type": "string",
+                        "pattern": "^\\d+\\.\\d{2}$",
+                        "description": "Exact decimal string with two decimal places."
+                      },
+                      "annualBonus": {
+                        "type": "string",
+                        "pattern": "^\\d+\\.\\d{2}$",
+                        "description": "Exact decimal string with two decimal places."
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "effectiveFrom",
+                      "annualBaseSalary",
+                      "annualBonus",
+                      "message"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "An approved future change keeps its scheduled absolute amounts."
+              },
+              "pendingRequestWillBecomeStale": {
+                "type": "boolean",
+                "description": "Admin preview only: applying makes the pending request STALE."
+              }
+            },
+            "required": [
+              "futureChange",
+              "pendingRequestWillBecomeStale"
+            ],
+            "additionalProperties": false
+          },
+          "expectedCompensationVersion": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "confirmationMode": {
+            "type": "string",
+            "enum": [
+              "DIRECT_APPLY",
+              "SUBMIT_REQUEST"
+            ]
+          },
+          "previewToken": {
+            "type": "string"
+          },
+          "previewExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "employee",
+          "adjustment",
+          "currency",
+          "current",
+          "proposed",
+          "change",
+          "salaryBand",
+          "validation",
+          "warnings",
+          "expectedCompensationVersion",
+          "confirmationMode",
+          "previewToken",
+          "previewExpiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "CompensationRecordView": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "annualBaseSalary": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Exact decimal string with two decimal places."
+          },
+          "annualBonus": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Exact decimal string with two decimal places."
+          },
+          "annualCashCompensation": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Exact decimal string with two decimal places."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "INR",
+              "USD"
+            ]
+          },
+          "payFrequency": {
+            "type": "string",
+            "enum": [
+              "MONTHLY",
+              "ANNUAL"
+            ]
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "changeReason": {
+            "type": "string",
+            "enum": [
+              "INITIAL_IMPORT",
+              "PERFORMANCE",
+              "MARKET_ADJUSTMENT",
+              "PROMOTION",
+              "ROLE_CHANGE",
+              "CORRECTION"
+            ]
+          },
+          "changeNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "changedBy": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "displayName",
+                  "email"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceRequestId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "version",
+          "annualBaseSalary",
+          "annualBonus",
+          "annualCashCompensation",
+          "currency",
+          "payFrequency",
+          "effectiveFrom",
+          "changeReason",
+          "changeNote",
+          "changedBy",
+          "sourceRequestId",
+          "recordedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SalaryAdjustmentResult": {
+        "type": "object",
+        "properties": {
+          "employeeCode": {
+            "type": "string"
+          },
+          "compensation": {
+            "$ref": "#/components/schemas/CompensationRecordView"
+          }
+        },
+        "required": [
+          "employeeCode",
+          "compensation"
+        ],
+        "additionalProperties": false
+      },
+      "SalaryRequestView": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "CANCELLED",
+              "STALE"
+            ]
+          },
+          "employee": {
+            "type": "object",
+            "properties": {
+              "employeeCode": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "department": {
+                "type": "string",
+                "enum": [
+                  "Tech",
+                  "HR",
+                  "Finance",
+                  "Operations",
+                  "Support"
+                ]
+              },
+              "jobTitle": {
+                "type": "string"
+              },
+              "level": {
+                "type": "string",
+                "enum": [
+                  "JUNIOR",
+                  "MID",
+                  "SENIOR",
+                  "LEAD",
+                  "MANAGER"
+                ]
+              },
+              "country": {
+                "type": "string",
+                "enum": [
+                  "IN",
+                  "US"
+                ]
+              },
+              "employmentStatus": {
+                "type": "string",
+                "enum": [
+                  "SOON_TO_JOIN",
+                  "CURRENTLY_WORKING",
+                  "LEFT"
+                ]
+              }
+            },
+            "required": [
+              "employeeCode",
+              "name",
+              "email",
+              "department",
+              "jobTitle",
+              "level",
+              "country",
+              "employmentStatus"
+            ],
+            "additionalProperties": false
+          },
+          "requestedBy": {
+            "type": "object",
+            "properties": {
+              "displayName": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "displayName",
+              "email"
+            ],
+            "additionalProperties": false
+          },
+          "adjustment": {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "string",
+                "enum": [
+                  "BASE_SALARY",
+                  "ANNUAL_BONUS"
+                ]
+              },
+              "method": {
+                "type": "string",
+                "enum": [
+                  "PERCENTAGE_INCREASE",
+                  "PERCENTAGE_DECREASE",
+                  "FIXED_INCREASE",
+                  "FIXED_DECREASE",
+                  "REPLACEMENT"
+                ]
+              },
+              "value": {
+                "type": "string"
+              },
+              "currency": {
+                "type": "string",
+                "enum": [
+                  "INR",
+                  "USD"
+                ]
+              },
+              "previousValue": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              "proposedValue": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              "effectiveFrom": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "PERFORMANCE",
+                  "MARKET_ADJUSTMENT",
+                  "PROMOTION",
+                  "ROLE_CHANGE",
+                  "CORRECTION"
+                ]
+              },
+              "note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "target",
+              "method",
+              "value",
+              "currency",
+              "previousValue",
+              "proposedValue",
+              "effectiveFrom",
+              "reason",
+              "note"
+            ],
+            "additionalProperties": false
+          },
+          "requestedAgainstVersion": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "decidedBy": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "displayName",
+                  "email"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The Admin who approved or cancelled. Null while pending and for STALE."
+          },
+          "decidedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decisionNote": {
+            "description": "Cancellation note or stale reason.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resultingCompensationVersion": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "requestId",
+          "status",
+          "employee",
+          "requestedBy",
+          "adjustment",
+          "requestedAgainstVersion",
+          "createdAt",
+          "decidedBy",
+          "decidedAt",
+          "decisionNote",
+          "resultingCompensationVersion"
+        ],
+        "additionalProperties": false
+      },
+      "SalaryRequestResponse": {
+        "type": "object",
+        "properties": {
+          "request": {
+            "$ref": "#/components/schemas/SalaryRequestView"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "additionalProperties": false
+      },
+      "SalaryRequestApproval": {
+        "type": "object",
+        "properties": {
+          "request": {
+            "$ref": "#/components/schemas/SalaryRequestView"
+          },
+          "compensation": {
+            "$ref": "#/components/schemas/CompensationRecordView"
+          }
+        },
+        "required": [
+          "request",
+          "compensation"
+        ],
+        "additionalProperties": false
+      },
+      "SalaryRequestList": {
+        "type": "object",
+        "properties": {
+          "requests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SalaryRequestView"
+            }
+          },
+          "page": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "size": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalRows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "number",
+              "size",
+              "totalRows",
+              "totalPages"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "requests",
+          "page"
         ],
         "additionalProperties": false
       }

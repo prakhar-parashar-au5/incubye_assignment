@@ -90,7 +90,38 @@ describe('reference data', () => {
   // Detects: duplicate reference rows on every seed.
   test('running reference-data setup again creates no duplicates', async () => {
     await ensureReferenceData(connection);
-    assert.deepEqual([await count('countries'), await count('departments'), await count('job_titles')], [2, 5, 44]);
+    assert.deepEqual([await count('countries'), await count('departments'), await count('job_titles'), await count('salary_bands')], [2, 5, 44, 88]);
+  });
+
+  // Detects: missing bands, bands from the wrong level or currency, or bonus caps not applied.
+  test('creates one salary band per job title and country from the approved ranges and caps', async () => {
+    const rows = await query(
+      `SELECT jt.level, b.country_code, b.currency, COUNT(*) AS titles,
+              MIN(b.min_annual_base_salary) AS min_base, MAX(b.max_annual_base_salary) AS max_base, MAX(b.max_annual_bonus) AS max_bonus,
+              MIN(b.min_percentage_increase) AS min_inc, MAX(b.max_percentage_increase) AS max_inc,
+              MIN(b.min_percentage_decrease) AS min_dec, MAX(b.max_percentage_decrease) AS max_dec
+       FROM salary_bands b JOIN job_titles jt ON jt.id = b.job_title_id
+       GROUP BY jt.level, b.country_code, b.currency ORDER BY b.country_code, jt.level`,
+    );
+    assert.deepEqual(rows.map((r) => `${r.country_code}/${r.currency} ${r.level} x${r.titles}: ${r.min_base}-${r.max_base} bonus<=${r.max_bonus} +${r.min_inc}..${r.max_inc}% -${r.min_dec}..${r.max_dec}%`), [
+      'IN/INR JUNIOR x6: 500000.00-1200000.00 bonus<=200000.00 +1..200% -1..50%',
+      'IN/INR MID x10: 1000000.00-2200000.00 bonus<=1000000.00 +1..200% -1..50%',
+      'IN/INR SENIOR x13: 1800000.00-3800000.00 bonus<=1000000.00 +1..200% -1..50%',
+      'IN/INR LEAD x10: 3000000.00-5500000.00 bonus<=1000000.00 +1..200% -1..50%',
+      'IN/INR MANAGER x5: 3500000.00-7000000.00 bonus<=1000000.00 +1..200% -1..50%',
+      'US/USD JUNIOR x6: 55000.00-90000.00 bonus<=2000.00 +1..200% -1..50%',
+      'US/USD MID x10: 80000.00-130000.00 bonus<=10000.00 +1..200% -1..50%',
+      'US/USD SENIOR x13: 120000.00-190000.00 bonus<=10000.00 +1..200% -1..50%',
+      'US/USD LEAD x10: 160000.00-230000.00 bonus<=10000.00 +1..200% -1..50%',
+      'US/USD MANAGER x5: 150000.00-250000.00 bonus<=10000.00 +1..200% -1..50%',
+    ]);
+  });
+
+  // Detects: the seed overwriting a band that policy owners have since changed.
+  test('keeps an existing band unchanged', async () => {
+    await exec("UPDATE salary_bands SET max_annual_bonus = '123.45' WHERE id = (SELECT id FROM (SELECT MIN(id) AS id FROM salary_bands) t)");
+    await ensureReferenceData(connection);
+    assert.equal((await query("SELECT COUNT(*) AS n FROM salary_bands WHERE max_annual_bonus = '123.45'"))[0]?.n, '1');
   });
 
   // Detects: "insert if missing" that silently accepts a wrong existing row.
@@ -267,5 +298,35 @@ describe('seedDatabase', () => {
     const result = await seed();
     assert.deepEqual([result.employees, result.compensationRecords], [10000, 10000]);
     assert.deepEqual([await count('employees'), await count('compensation_records')], [10000, 10000]);
+  });
+
+  // Detects: a replacement blocked by salary-adjustment history (requests and
+  // chained compensation records referencing each other and the employees).
+  test('replaces data that has change requests and chained compensation records', async () => {
+    const hrUserId = (await exec(
+      "INSERT INTO hr_users (email, display_name, password_hash, role) VALUES ('seed.chain@acme.com', 'Seed Chain', '$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHQ$aGFzaA', 'SCOPED')",
+    )).insertId;
+    const [employee] = await query("SELECT id FROM employees WHERE employee_code = 'ACME00001'");
+    const [initial] = await query("SELECT c.id FROM compensation_records c JOIN employees e ON e.id = c.employee_id WHERE e.employee_code = 'ACME00001'");
+    const request = await exec('INSERT INTO compensation_change_requests SET ?', [{
+      public_id: '00000000-0000-4000-8000-000000000001', employee_id: employee?.id, requested_by_hr_user_id: hrUserId,
+      adjustment_target: 'BASE_SALARY', adjustment_method: 'REPLACEMENT', input_value: '3100000.00', currency: 'INR',
+      previous_target_value: '3026700.00', proposed_target_value: '3100000.00', requested_against_version: 1, base_compensation_version: 1,
+      effective_from: '2026-11-15', change_reason: 'PERFORMANCE', status: 'APPROVED', decided_by_hr_user_id: hrUserId,
+      decided_at: '2026-11-15 10:00:00.000', request_idempotency_key: 'seed-chain-req', decision_idempotency_key: 'seed-chain-dec',
+      created_at: '2026-11-15 09:00:00.000', updated_at: '2026-11-15 10:00:00.000',
+    }]);
+    await exec('INSERT INTO compensation_records SET ?', [{
+      employee_id: employee?.id, version: 2, annual_base_salary: '3100000.00', annual_bonus: '531185.85', currency: 'INR', pay_frequency: 'MONTHLY',
+      effective_from: '2026-11-15', change_reason: 'PERFORMANCE', previous_compensation_record_id: initial?.id,
+      changed_by_hr_user_id: hrUserId, source_request_id: request.insertId, operation_idempotency_key: 'seed-chain-dec',
+    }]);
+
+    const result = await seed();
+    assert.deepEqual([result.employees, result.compensationRecords], [10000, 10000]);
+    assert.equal(await count('compensation_change_requests'), 0);
+    // HR users and salary bands are not employee data and survive a replacement.
+    assert.equal(Number((await query("SELECT COUNT(*) AS n FROM hr_users WHERE email = 'seed.chain@acme.com'"))[0]?.n), 1);
+    assert.equal(await count('salary_bands'), 88);
   });
 });

@@ -6,6 +6,8 @@ import type { AuthService, Principal } from '../../src/access/sessions.js';
 import { createAssistantService } from '../../src/assistant/assistant-service.js';
 import type { CompensationInsights } from '../../src/assistant/compensation-insights.js';
 import { createToolRegistry } from '../../src/assistant/tools.js';
+import { SalaryAdjustmentError } from '../../src/compensation/salary-adjustment-service.js';
+import type { SalaryAdjustmentService } from '../../src/compensation/salary-adjustment-service.js';
 import type { DirectoryService } from '../../src/directory/directory-repository.js';
 import { createApp } from '../../src/http/app.js';
 import type { AppDependencies } from '../../src/http/app.js';
@@ -98,6 +100,22 @@ export function noModelAssistant(directory: DirectoryService, insights: Compensa
   return { tools, assistant: createAssistantService({ model: null, tools, logger: () => undefined }) };
 }
 
+/** A salary-adjustment double: every operation is forbidden. Real behaviour: test/db/salary-adjustments.test.ts. */
+export function fakeSalaryAdjustments(): SalaryAdjustmentService {
+  const forbidden = async (): Promise<never> => {
+    throw new SalaryAdjustmentError('FORBIDDEN');
+  };
+  return {
+    preview: forbidden,
+    applyDirect: forbidden,
+    submitRequest: forbidden,
+    listRequests: forbidden,
+    getRequest: forbidden,
+    approve: forbidden,
+    cancel: forbidden,
+  };
+}
+
 export interface TestApp {
   app: ReturnType<typeof createApp>;
   logs: LogEntry[];
@@ -117,6 +135,7 @@ export function buildTestApp(overrides: Partial<AppDependencies> = {}): TestApp 
     directory,
     tools,
     assistant: createAssistantService({ model: null, tools, logger: (entry) => logs.push(entry) }),
+    salaryAdjustments: fakeSalaryAdjustments(),
     logger: (entry) => logs.push(entry),
     clock: () => new Date(Date.now() + offsetMs),
     clientIpSource: 'socket',
