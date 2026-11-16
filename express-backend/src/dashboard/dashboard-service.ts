@@ -47,7 +47,7 @@ export interface DashboardService {
 const WORKING_ONLY = 'This section includes currently working employees only.';
 const USD_NOTE = 'USD equivalents are informational; native amounts are authoritative.';
 const USD_UNAVAILABLE = 'USD comparison is unavailable: no saved exchange rate. Native totals are unaffected.';
-const COMMITMENT_DEFINITION = 'Annual cash compensation of soon-to-join employees, plus the signed annual cash change of approved future changes for currently working employees (scheduled minus current). Left employees contribute nothing.';
+const COMMITMENT_DEFINITION = 'Selected initial annual cash compensation of soon-to-join employees, plus the signed annual cash change (scheduled minus selected) of each approved later future adjustment for soon-to-join and currently working employees. Left employees contribute nothing.';
 const UPCOMING_LIST_LIMIT = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -231,13 +231,18 @@ export function createDashboardService({ pool, exchangeRate, clock = () => new D
          GROUP BY sc.currency`,
         [asOf, asOf, ...withStatus.params],
       ),
-      // Approved future changes of working employees: scheduled minus current annual cash.
+      // Approved future adjustments: scheduled minus selected annual cash.
+      // Working: selected = current. Soon to join: selected = initial
+      // compensation (counted above); a same-day adjustment that is itself the
+      // selected record is excluded here (f.version <> sc.version), so no
+      // amount is counted twice. LEFT never contributes.
       rows<ImpactRow>(
         `SELECT f.currency, COUNT(*) AS n,
                 SUM((f.annual_base_salary + f.annual_bonus) - (sc.annual_base_salary + sc.annual_bonus)) AS impact
          ${FROM_EMPLOYEES} ${SELECTED_COMPENSATION}
          JOIN compensation_records f ON f.employee_id = e.id AND f.effective_from > ? AND f.change_reason <> 'INITIAL_IMPORT'
-         WHERE ${withStatus.sql} AND e.employment_status = 'CURRENTLY_WORKING' AND sc.version IS NOT NULL
+         WHERE ${withStatus.sql} AND e.employment_status IN ('CURRENTLY_WORKING', 'SOON_TO_JOIN') AND sc.version IS NOT NULL
+           AND f.version <> sc.version
          GROUP BY f.currency`,
         [asOf, asOf, asOf, ...withStatus.params],
       ),

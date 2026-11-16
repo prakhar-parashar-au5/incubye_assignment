@@ -94,10 +94,15 @@ const fromDbTime = (text: string): Date => new Date(`${text.replace(' ', 'T')}Z`
 /**
  * @param deps.clock  must be the one the tokens use
  */
-export function createAuthService({ pool, tokens, clock = () => new Date() }: {
+export function createAuthService({ pool, tokens, clock = () => new Date(), afterPasswordCheck }: {
   pool: Pool;
   tokens: SessionTokens;
   clock?: () => Date;
+  /**
+   * Test seam only (review fix 11b race tests): awaited after a known user's
+   * password and status pass, before the session is inserted. Never set in production.
+   */
+  afterPasswordCheck?: () => Promise<void>;
 }): AuthService {
   // Verified against when the email is unknown, so both paths cost one Argon2 check.
   let dummyHash: string | undefined;
@@ -107,25 +112,52 @@ export function createAuthService({ pool, tokens, clock = () => new Date() }: {
   };
 
   async function signIn(email: unknown, password: unknown): Promise<SignInResult> {
-    const [rows] = await pool.execute<SignInRow[]>('SELECT id, password_hash, status FROM hr_users WHERE email = ?', [normalizeEmail(email)]);
-    const user = rows[0];
-    if (user === undefined) {
-      await verifyPassword(await getDummyHash(), typeof password === 'string' ? password : '');
-      throw new InvalidCredentialsError();
-    }
-    const passwordOk = await verifyPassword(user.password_hash, password);
-    if (!passwordOk || user.status !== 'ACTIVE') throw new InvalidCredentialsError();
+    // Review fix 11b: one transaction on one connection. The locking read waits
+    // for any in-flight password, status, or role change on this row and then
+    // reads the committed row; the shared lock it takes is held until the
+    // session row is inserted and committed. A concurrent regeneration or
+    // deactivation (which locks the row FOR UPDATE) is therefore ordered
+    // entirely before this sign-in (the old password fails) or entirely after
+    // it (its revocation covers the new session).
+    // READ COMMITTED: a lookup of an unknown email takes no gap lock.
+    const connection = await pool.getConnection();
+    let session: { hrUserId: number; sessionId: string; issuedAt: Date; expiresAt: Date };
+    try {
+      await connection.query('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
+      await connection.beginTransaction();
+      try {
+        const [rows] = await connection.execute<SignInRow[]>(
+          'SELECT id, password_hash, status FROM hr_users WHERE email = ? FOR SHARE', [normalizeEmail(email)]);
+        const user = rows[0];
+        if (user === undefined) {
+          await connection.rollback();
+          // Same cost as a known email: one Argon2 verification.
+          await verifyPassword(await getDummyHash(), typeof password === 'string' ? password : '');
+          throw new InvalidCredentialsError();
+        }
+        const passwordOk = await verifyPassword(user.password_hash, password);
+        if (!passwordOk || user.status !== 'ACTIVE') throw new InvalidCredentialsError();
+        if (afterPasswordCheck !== undefined) await afterPasswordCheck();
 
-    // Whole seconds, so the database expiry equals the JWT exp claim.
-    const issuedAt = new Date(Math.floor(clock().getTime() / 1000) * 1000);
-    const expiresAt = new Date(issuedAt.getTime() + SESSION_TTL_SECONDS * 1000);
-    const sessionId = randomUUID();
-    await pool.execute(
-      'INSERT INTO hr_sessions (id, hr_user_id, created_at, expires_at) VALUES (?, ?, ?, ?)',
-      [sessionId, user.id, issuedAt, expiresAt],
-    );
-    const token = await tokens.sign({ hrUserId: user.id, sessionId, issuedAt });
-    return { token, expiresAt };
+        // Whole seconds, so the database expiry equals the JWT exp claim.
+        const issuedAt = new Date(Math.floor(clock().getTime() / 1000) * 1000);
+        const expiresAt = new Date(issuedAt.getTime() + SESSION_TTL_SECONDS * 1000);
+        const sessionId = randomUUID();
+        await connection.execute(
+          'INSERT INTO hr_sessions (id, hr_user_id, created_at, expires_at) VALUES (?, ?, ?, ?)',
+          [sessionId, user.id, issuedAt, expiresAt],
+        );
+        await connection.commit();
+        session = { hrUserId: user.id, sessionId, issuedAt, expiresAt };
+      } catch (error) {
+        await connection.rollback(); // no-op after the unknown-email rollback
+        throw error;
+      }
+    } finally {
+      connection.release();
+    }
+    const token = await tokens.sign({ hrUserId: session.hrUserId, sessionId: session.sessionId, issuedAt: session.issuedAt });
+    return { token, expiresAt: session.expiresAt };
   }
 
   async function verifyToken(token: unknown): Promise<VerifiedSessionToken> {

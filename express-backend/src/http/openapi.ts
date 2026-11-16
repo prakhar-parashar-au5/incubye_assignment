@@ -3,6 +3,7 @@
 // uses); only paths and descriptions are written here.
 import { z } from 'zod';
 
+import { ROLES } from '../access/access-policy.js';
 import {
   CURRENCIES,
   COUNTRY_CODES,
@@ -19,6 +20,8 @@ import {
   DASHBOARD_LIST_MAX_PAGE_SIZE,
   DASHBOARD_NO_ADJUSTMENT_MONTHS,
   DASHBOARD_PERIOD_DAYS,
+  HR_USER_LIST_STATUSES,
+  HR_USER_SORT_FIELDS,
   PATHS,
   REQUEST_STATUSES,
   SORT_DIRECTIONS,
@@ -114,6 +117,58 @@ const SALARY_COMMON_ERRORS = {
   500: error('INTERNAL_ERROR'),
   503: error('SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key.'),
 };
+
+const HR_USER_ID_PARAMETER = { name: 'hrUserId', in: 'path', required: true, schema: { type: 'integer', minimum: 1 } };
+const HR_USER_LIST_PARAMETERS = [
+  queryParam('q', { type: 'string', maxLength: MAX_SEARCH_LENGTH }, 'Display name (partial, case-insensitive) or exact email (case-insensitive). Wildcards are literal.'),
+  queryParam('role', { type: 'string', enum: [...ROLES] }),
+  queryParam('status', { type: 'string', enum: [...HR_USER_LIST_STATUSES], default: 'ACTIVE' }, 'ALL includes inactive users.'),
+  queryParam('country', { type: 'string', enum: [...COUNTRY_CODES] }, 'Users whose access includes this country. Admin HR matches every country.'),
+  queryParam('department', { type: 'string', enum: [...DEPARTMENTS] }, 'Users whose access includes this department. Admin HR matches every department.'),
+  queryParam('sort', { type: 'string', enum: [...HR_USER_SORT_FIELDS], default: 'updatedAt' }, 'Ties break on HR user ID.'),
+  queryParam('direction', { type: 'string', enum: [...SORT_DIRECTIONS] }, 'Default: desc for updatedAt, asc for name and email.'),
+  queryParam('page', { type: 'integer', minimum: 1, maximum: 1_000_000, default: 1 }),
+  queryParam('pageSize', { type: 'integer', minimum: 1, maximum: MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE }),
+];
+const HR_ACCESS_READ_ERRORS = {
+  401: error('UNAUTHENTICATED'),
+  403: error('FORBIDDEN: only active Admin HR.'),
+  500: error('INTERNAL_ERROR'),
+  503: error('SERVICE_UNAVAILABLE'),
+};
+const HR_ACCESS_WRITE_ERRORS = {
+  400: error('VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.'),
+  ...HR_ACCESS_READ_ERRORS,
+  503: error('SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.'),
+};
+const hrAccessPreview = (operationId: string, summary: string, schema: string, errors: Record<string, unknown>, parameters: unknown[] = [HR_USER_ID_PARAMETER]) => ({
+  post: {
+    operationId,
+    summary,
+    description: 'Writes nothing. Returns the old and proposed access, the estimated accessible employee count, the sessions that would be revoked, and a five-minute preview token.',
+    security: [{ bearerAuth: [] }],
+    parameters,
+    requestBody: { required: true, content: { 'application/json': { schema: ref(schema) } } },
+    responses: { 200: json('HrAccessPreview', 'The exact preview.'), ...HR_ACCESS_WRITE_ERRORS, ...errors },
+  },
+});
+const hrAccessWrite = (method: 'post' | 'put', operationId: string, summary: string, description: string, schema: string, errors: Record<string, unknown>) => ({
+  [method]: {
+    operationId,
+    summary,
+    description: `${description} Send the previewed body with previewToken and an Idempotency-Key. The change, any session revocation, the version increment, and the audit event commit in one transaction. A no-change confirmation writes nothing.`,
+    security: [{ bearerAuth: [] }],
+    parameters: [HR_USER_ID_PARAMETER, IDEMPOTENCY_KEY_PARAMETER],
+    requestBody: { required: true, content: { 'application/json': { schema: ref(schema) } } },
+    responses: {
+      200: json('HrUserChangeResult', 'The resulting HR user and the audit event (or the original result for a replay).'),
+      ...HR_ACCESS_WRITE_ERRORS,
+      404: error('NOT_FOUND'),
+      409: error('STALE_VERSION or DUPLICATE_OPERATION.'),
+      ...errors,
+    },
+  },
+});
 
 function componentSchemas(): Record<string, unknown> {
   const { schemas } = z.toJSONSchema(contractRegistry, {
@@ -378,6 +433,120 @@ export function buildOpenApiDocument(): Record<string, unknown> {
       [PATHS.dashboardWithoutRecentAdjustment]: dashboardOperation('getDashboardWithoutRecentAdjustment', 'Working employees without a recorded adjustment', 'DashboardWithoutAdjustmentResponse',
         [...DASHBOARD_FILTER_PARAMETERS, NO_ADJUSTMENT_MONTHS_PARAMETER, ...DASHBOARD_PAGE_PARAMETERS],
         'No recorded salary adjustment since import or during the selected period. The initial import is not an adjustment.'),
+      [PATHS.hrUsers]: {
+        get: {
+          operationId: 'listHrUsers',
+          summary: 'Admin HR: search, filter, sort, and page HR users',
+          description: 'Active users by default. Filtering, sorting, LIMIT, and OFFSET run in MySQL.',
+          security: [{ bearerAuth: [] }],
+          parameters: HR_USER_LIST_PARAMETERS,
+          responses: { 200: json('HrUserListResponse', 'One page.'), 400: error('VALIDATION_ERROR: invalid, unknown, or repeated parameter.'), ...HR_ACCESS_READ_ERRORS },
+        },
+        post: {
+          operationId: 'createHrUser',
+          summary: 'Admin HR: create the exact previewed HR user',
+          description: 'Generates a random temporary password and returns it once, in this response only. Only its Argon2id hash is stored. No email is sent. '
+            + 'A replay with the same Idempotency-Key returns the user with temporaryPassword null.',
+          security: [{ bearerAuth: [] }],
+          parameters: [IDEMPOTENCY_KEY_PARAMETER],
+          requestBody: { required: true, content: { 'application/json': { schema: ref('HrUserCreateRequest') } } },
+          responses: {
+            201: json('HrUserCreateResult', 'The new HR user, its audit event, and the one-time temporary password.'),
+            ...HR_ACCESS_WRITE_ERRORS,
+            409: error('EMAIL_TAKEN or DUPLICATE_OPERATION.'),
+            422: error('INVALID_SCOPE: scopes on an Admin, a Scoped user without a country and a department, or an unknown value.'),
+          },
+        },
+      },
+      [PATHS.hrUsersPreview]: hrAccessPreview('previewHrUserCreation', 'Admin HR: preview a new HR user', 'HrUserCreatePreviewRequest', {
+        409: error('EMAIL_TAKEN'),
+        422: error('INVALID_SCOPE'),
+      }, []),
+      [openApiPath(PATHS.hrUser)]: {
+        get: {
+          operationId: 'getHrUser',
+          summary: 'Admin HR: one HR user with current scope and accessible employee count',
+          security: [{ bearerAuth: [] }],
+          parameters: [HR_USER_ID_PARAMETER],
+          responses: { 200: json('HrUserDetailResponse', 'The HR user.'), 404: error('NOT_FOUND'), ...HR_ACCESS_READ_ERRORS },
+        },
+      },
+      [openApiPath(PATHS.hrUserAccessAudit)]: {
+        get: {
+          operationId: 'listHrUserAccessAudit',
+          summary: 'Admin HR: immutable access audit events for one HR user, newest first',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            HR_USER_ID_PARAMETER,
+            queryParam('page', { type: 'integer', minimum: 1, maximum: 1_000_000, default: 1 }),
+            queryParam('pageSize', { type: 'integer', minimum: 1, maximum: MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE }),
+          ],
+          responses: { 200: json('AccessAuditResponse', 'One page.'), 400: error('VALIDATION_ERROR'), 404: error('NOT_FOUND'), ...HR_ACCESS_READ_ERRORS },
+        },
+      },
+      [openApiPath(PATHS.hrUserProfilePreview)]: hrAccessPreview('previewHrUserProfile', 'Admin HR: preview a display-name change', 'HrUserProfilePreviewRequest', {
+        404: error('NOT_FOUND'), 409: error('STALE_VERSION'),
+      }),
+      [openApiPath(PATHS.hrUserProfile)]: hrAccessWrite('post', 'updateHrUserProfile', 'Admin HR: change the display name', 'Email and role cannot change. Sessions are not revoked.', 'HrUserProfileRequest', {}),
+      [openApiPath(PATHS.hrUserPromotePreview)]: hrAccessPreview('previewHrUserPromotion', 'Admin HR: preview Scoped-to-Admin promotion', 'HrUserPromotePreviewRequest', {
+        404: error('NOT_FOUND'), 409: error('STALE_VERSION'),
+      }),
+      [openApiPath(PATHS.hrUserPromote)]: hrAccessWrite('post', 'promoteHrUser', 'Admin HR: promote Scoped HR to Admin HR',
+        'Removes every scope row and revokes every active session of the user. Admin-to-Scoped demotion is not supported.', 'HrUserPromoteRequest', {}),
+      [openApiPath(PATHS.hrUserScopesPreview)]: hrAccessPreview('previewHrUserScopes', 'Admin HR: preview replacing country and department scopes', 'HrUserScopesPreviewRequest', {
+        404: error('NOT_FOUND'), 409: error('STALE_VERSION'), 422: error('INVALID_SCOPE: unknown value, or scopes on an Admin.'),
+      }),
+      [openApiPath(PATHS.hrUserScopes)]: hrAccessWrite('put', 'replaceHrUserScopes', 'Admin HR: replace country and department scopes together',
+        'Both lists are replaced in one transaction. Takes effect on the user\'s next request; sessions are not revoked.', 'HrUserScopesRequest', {
+          422: error('INVALID_SCOPE: unknown value, or scopes on an Admin.'),
+        }),
+      [openApiPath(PATHS.hrUserDeactivatePreview)]: hrAccessPreview('previewHrUserDeactivation', 'Admin HR: preview deactivation', 'HrUserDeactivatePreviewRequest', {
+        404: error('NOT_FOUND'), 409: error('STALE_VERSION or LAST_ACTIVE_ADMIN.'),
+      }),
+      [openApiPath(PATHS.hrUserDeactivate)]: hrAccessWrite('post', 'deactivateHrUser', 'Admin HR: deactivate access',
+        'Requires a reason. Revokes every active session of the user in the same transaction. The last active Admin cannot be deactivated.', 'HrUserDeactivateRequest', {
+          409: error('STALE_VERSION, DUPLICATE_OPERATION, or LAST_ACTIVE_ADMIN.'),
+        }),
+      [openApiPath(PATHS.hrUserReactivatePreview)]: hrAccessPreview('previewHrUserReactivation', 'Admin HR: preview reactivation', 'HrUserReactivatePreviewRequest', {
+        404: error('NOT_FOUND'), 409: error('STALE_VERSION'),
+      }),
+      [openApiPath(PATHS.hrUserReactivate)]: hrAccessWrite('post', 'reactivateHrUser', 'Admin HR: reactivate access',
+        'Requires a reason. Restores the stored role and scopes. Old sessions stay revoked; the user signs in again.', 'HrUserReactivateRequest', {}),
+      [openApiPath(PATHS.hrUserRegeneratePasswordPreview)]: {
+        post: {
+          operationId: 'previewHrUserPasswordRegeneration',
+          summary: 'Admin HR: preview regenerating a temporary password',
+          description: 'Writes nothing and contains no password. Shows the target, current version, the active sessions that will be revoked, the warning, the reason, and a five-minute preview token.',
+          security: [{ bearerAuth: [] }],
+          parameters: [HR_USER_ID_PARAMETER],
+          requestBody: { required: true, content: { 'application/json': { schema: ref('HrUserPasswordRegenerationPreviewRequest') } } },
+          responses: {
+            200: json('HrUserPasswordRegenerationPreview', 'The exact preview.'),
+            ...HR_ACCESS_WRITE_ERRORS,
+            404: error('NOT_FOUND'),
+            409: error('STALE_VERSION, or SELF_PASSWORD_REGENERATION_FORBIDDEN when the target is the caller.'),
+          },
+        },
+      },
+      [openApiPath(PATHS.hrUserRegeneratePassword)]: {
+        post: {
+          operationId: 'regenerateHrUserPassword',
+          summary: 'Admin HR: regenerate a temporary password',
+          description: 'Account recovery, for example after a lost creation response. Stores only the Argon2id hash of a new random password, revokes every active '
+            + 'session, increments the version, and writes one TEMPORARY_PASSWORD_REGENERATED audit event in one transaction, then returns the password once. '
+            + 'No email is sent. A replay with the same Idempotency-Key does not regenerate again: it returns temporaryPassword null and credentialRecoveryRequired true. '
+            + 'An Admin cannot regenerate their own password (another active Admin must do it).',
+          security: [{ bearerAuth: [] }],
+          parameters: [HR_USER_ID_PARAMETER, IDEMPOTENCY_KEY_PARAMETER],
+          requestBody: { required: true, content: { 'application/json': { schema: ref('HrUserPasswordRegenerationRequest') } } },
+          responses: {
+            200: json('HrUserPasswordRegenerationResult', 'The new temporary password once (or the original outcome without a password for a replay).'),
+            ...HR_ACCESS_WRITE_ERRORS,
+            404: error('NOT_FOUND'),
+            409: error('STALE_VERSION, DUPLICATE_OPERATION, or SELF_PASSWORD_REGENERATION_FORBIDDEN when the target is the caller.'),
+          },
+        },
+      },
       [PATHS.mcp]: {
         post: {
           operationId: 'mcp',

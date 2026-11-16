@@ -3,6 +3,8 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
+import { createAccessPreviewTokens } from './access/access-preview-token.js';
+import { createHrAccessService } from './access/hr-access-service.js';
 import { createAuthService } from './access/sessions.js';
 import { createSessionTokens } from './access/session-tokens.js';
 import { createAssistantService } from './assistant/assistant-service.js';
@@ -55,6 +57,7 @@ const app = createApp({
   assistant: createAssistantService({ model, tools, logger: stdoutLogger }),
   salaryAdjustments: createSalaryAdjustmentService({ pool, previewTokens: createPreviewTokens({ signingKey: config.jwtSigningKey }) }),
   dashboard: createDashboardService({ pool, exchangeRate }),
+  hrAccess: createHrAccessService({ pool, previewTokens: createAccessPreviewTokens({ signingKey: config.jwtSigningKey }) }),
   logger: stdoutLogger,
   clientIpSource: config.clientIpSource,
 });

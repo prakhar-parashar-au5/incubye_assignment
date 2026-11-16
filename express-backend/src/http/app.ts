@@ -3,6 +3,7 @@
 import express from 'express';
 import type { Express } from 'express';
 
+import type { HrAccessService } from '../access/hr-access-service.js';
 import type { AuthService } from '../access/sessions.js';
 import type { AssistantService } from '../assistant/assistant-service.js';
 import type { SalaryAdjustmentService } from '../compensation/salary-adjustment-service.js';
@@ -14,6 +15,7 @@ import { authRoutes } from './auth-routes.js';
 import { HealthResponse, PATHS } from './contract.js';
 import { dashboardRoutes } from './dashboard-routes.js';
 import { directoryRoutes } from './directory-routes.js';
+import { hrAccessRoutes } from './hr-access-routes.js';
 import { salaryRoutes } from './salary-routes.js';
 import { errorHandler, notFoundHandler } from './errors.js';
 import { mcpRoutes } from './mcp-routes.js';
@@ -46,10 +48,12 @@ export interface AppDependencies {
   salaryAdjustments: SalaryAdjustmentService;
   /** Read-only, permission-aware dashboard analytics. */
   dashboard: DashboardService;
+  /** Admin-only HR access management. */
+  hrAccess: HrAccessService;
 }
 
 export function createApp({
-  auth, directory, assistant, tools, salaryAdjustments, dashboard, logger, clientIpSource, clock = () => new Date(), rateLimitStore, toolClock, assistantRateLimitStore,
+  auth, directory, assistant, tools, salaryAdjustments, dashboard, hrAccess, logger, clientIpSource, clock = () => new Date(), rateLimitStore, toolClock, assistantRateLimitStore,
 }: AppDependencies): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -77,6 +81,7 @@ export function createApp({
   app.use(directoryRoutes({ auth, directory }));
   app.use(salaryRoutes({ auth, salaryAdjustments }));
   app.use(dashboardRoutes({ auth, dashboard }));
+  app.use(hrAccessRoutes({ auth, hrAccess }));
 
   app.use(notFoundHandler);
   app.use(errorHandler(logger));

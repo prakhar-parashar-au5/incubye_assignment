@@ -2,8 +2,18 @@
 // one transaction. Authorization is checked inside each operation, against
 // the actor's current database row, not against data held by a caller.
 //
-// Operation inputs are typed `unknown` where they will come from HTTP requests
-// in the later API task: they are validated here at runtime.
+// Lock order (every write): one locking read of the actor row, the target
+// row, and, for deactivation and role changes, every ACTIVE ADMIN row, all in
+// ascending id order in a single statement. Every operation takes HR user
+// row locks in the same global order, so two operations cannot deadlock on
+// them, and concurrent last-admin checks serialise (review fix 04a).
+//
+// Then, under those locks: actor check, target state, idempotent replay
+// check, expected-version check, the change, session revocation, version
+// increment, and the audit event.
+//
+// Operation inputs are typed `unknown` where they come from callers that may
+// not have validated them: they are validated here at runtime.
 import type { Connection, Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
 import { errorCode } from '../errors.js';
@@ -12,15 +22,20 @@ import { ROLES, HR_STATUSES, canManageHrUsers } from './access-policy.js';
 import type { HrStatus, Role } from './access-policy.js';
 import { MAX_PASSWORD_LENGTH, NEW_PASSWORD_MIN_LENGTH, hashPassword } from './passwords.js';
 
-export type AccessErrorCode = 'FORBIDDEN' | 'INVALID_INPUT' | 'EMAIL_TAKEN' | 'NOT_FOUND' | 'LAST_ACTIVE_ADMIN';
+export type AccessErrorCode =
+  | 'FORBIDDEN' | 'INVALID_INPUT' | 'EMAIL_TAKEN' | 'NOT_FOUND' | 'LAST_ACTIVE_ADMIN' | 'STALE_VERSION' | 'DUPLICATE_OPERATION'
+  | 'SELF_PASSWORD_REGENERATION';
 
 export class AccessError extends Error {
   readonly code: AccessErrorCode;
+  /** INVALID_INPUT caused by a country or department scope (unknown value, or scopes on an ADMIN). */
+  readonly invalidScope: boolean;
 
-  constructor(code: AccessErrorCode, message: string) {
+  constructor(code: AccessErrorCode, message: string, { invalidScope = false }: { invalidScope?: boolean } = {}) {
     super(message);
     this.name = 'AccessError';
     this.code = code;
+    this.invalidScope = invalidScope;
   }
 }
 
@@ -30,11 +45,19 @@ export const AUDIT_ACTIONS = Object.freeze([
   'DEPARTMENT_SCOPES_CHANGED',
   'HR_USER_ACTIVATED',
   'HR_USER_DEACTIVATED',
+  'DISPLAY_NAME_CHANGED',
+  'SCOPES_REPLACED',
+  'HR_USER_PROMOTED',
+  'TEMPORARY_PASSWORD_REGENERATED',
 ] as const);
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
+/** These actions revoke every active session of the target in the same transaction. */
+const SESSION_REVOKING_ACTIONS: ReadonlySet<AuditAction> = new Set(['HR_USER_DEACTIVATED', 'HR_USER_PROMOTED', 'TEMPORARY_PASSWORD_REGENERATED']);
+
 /** Exactly what an audit event stores: never passwords, hashes, tokens, or session IDs. */
 export interface AuditState {
+  displayName: string;
   role: Role;
   status: HrStatus;
   countries: string[];
@@ -46,15 +69,23 @@ export interface HrUserState extends AuditState {
   version: number;
 }
 
+/** An access-management API write: the actor's idempotency key and the command fingerprint. */
+export interface AccessOperation {
+  idempotencyKey: string;
+  fingerprint: string;
+}
+
 /** Pool or single connection: mysql2's Pool type extends Connection. */
 type Db = Pool | Connection;
 
 interface UserStateRow extends RowDataPacket {
+  display_name: string;
   role: string;
   status: string;
   version: number;
 }
-interface RoleStatusRow extends RowDataPacket {
+interface LockedUserRow extends RowDataPacket {
+  id: number;
   role: string;
   status: string;
 }
@@ -71,8 +102,13 @@ interface IdNameRow extends RowDataPacket {
   id: number;
   name: string;
 }
-interface IdRow extends RowDataPacket {
+interface StoredOperationRow extends RowDataPacket {
   id: number;
+  target_hr_user_id: number;
+  action: string;
+  operation_fingerprint: string;
+  resulting_version: number | null;
+  revoked_session_count: number | null;
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -95,6 +131,13 @@ function validateDisplayName(name: unknown): string {
   return trimmed;
 }
 
+function validateReason(reason: unknown): string | null {
+  if (reason === undefined || reason === null) return null;
+  const trimmed = typeof reason === 'string' ? reason.trim() : '';
+  if (trimmed.length === 0 || trimmed.length > 2000) throw new AccessError('INVALID_INPUT', 'reason must be 1 to 2000 characters');
+  return trimmed;
+}
+
 function validateList(values: unknown, label: string): string[] {
   if (!Array.isArray(values) || values.some((v) => typeof v !== 'string' || v === '')) {
     throw new AccessError('INVALID_INPUT', `${label} must be a list of names`);
@@ -105,11 +148,23 @@ function validateList(values: unknown, label: string): string[] {
   return [...strings].sort();
 }
 
-/** Runs fn(connection) in one transaction. Accepts a pool or a connection. */
+function validateExpectedVersion(version: unknown): number | undefined {
+  if (version === undefined) return undefined;
+  if (typeof version !== 'number' || !Number.isSafeInteger(version) || version < 1) {
+    throw new AccessError('INVALID_INPUT', 'expected version must be a positive integer');
+  }
+  return version;
+}
+
+/**
+ * Runs fn(connection) in one READ COMMITTED transaction: every read after a
+ * lock sees the latest committed rows. Accepts a pool or a connection.
+ */
 async function inTransaction<T>(db: Db, fn: (connection: Connection) => Promise<T>): Promise<T> {
   const pooled = 'getConnection' in db ? await db.getConnection() : undefined;
   const connection: Connection = pooled ?? db;
   try {
+    await connection.query('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
     await connection.beginTransaction();
     try {
       const result = await fn(connection);
@@ -124,9 +179,22 @@ async function inTransaction<T>(db: Db, fn: (connection: Connection) => Promise<
   }
 }
 
-async function assertActorCanManage(connection: Connection, actorHrUserId: number): Promise<void> {
-  const [rows] = await connection.execute<RoleStatusRow[]>('SELECT role, status FROM hr_users WHERE id = ? FOR SHARE', [actorHrUserId]);
-  const actor = rows[0];
+/**
+ * Locks the given HR user rows, plus every ACTIVE ADMIN row when asked, in
+ * ascending id order with one statement. Returns the locked rows.
+ */
+async function lockHrUsers(connection: Connection, ids: readonly number[], { activeAdmins = false } = {}): Promise<LockedUserRow[]> {
+  const [rows] = await connection.query<LockedUserRow[]>(
+    `SELECT id, role, status FROM hr_users
+     WHERE id IN (?)${activeAdmins ? " OR (role = 'ADMIN' AND status = 'ACTIVE')" : ''}
+     ORDER BY id FOR UPDATE`,
+    [[...new Set(ids)]],
+  );
+  return rows;
+}
+
+function assertActorCanManage(locked: readonly LockedUserRow[], actorHrUserId: number): void {
+  const actor = locked.find((row) => row.id === actorHrUserId);
   if (actor === undefined || !canManageHrUsers(actor)) {
     throw new AccessError('FORBIDDEN', 'only an active Admin HR can manage HR users');
   }
@@ -137,7 +205,7 @@ async function resolveCountries(connection: Connection, countries: readonly stri
   const [rows] = await connection.query<CodeRow[]>('SELECT code FROM countries WHERE code IN (?)', [countries]);
   const known = new Set(rows.map((r) => r.code));
   const missing = countries.filter((c) => !known.has(c));
-  if (missing.length > 0) throw new AccessError('INVALID_INPUT', `unknown country: ${missing.join(', ')}`);
+  if (missing.length > 0) throw new AccessError('INVALID_INPUT', `unknown country: ${missing.join(', ')}`, { invalidScope: true });
 }
 
 /** Resolves exact department names to ids. Returns ids in input order. */
@@ -152,7 +220,7 @@ async function resolveDepartments(connection: Connection, departments: readonly 
     if (id === undefined) missing.push(department);
     else ids.push(id);
   }
-  if (missing.length > 0) throw new AccessError('INVALID_INPUT', `unknown department: ${missing.join(', ')}`);
+  if (missing.length > 0) throw new AccessError('INVALID_INPUT', `unknown department: ${missing.join(', ')}`, { invalidScope: true });
   return ids;
 }
 
@@ -170,7 +238,7 @@ function narrowDbRoleStatus(row: { role: string; status: string }): { role: Role
 /** Current access state of one HR user. Locks the row when lock is true. */
 async function loadState(connection: Db, hrUserId: number, { lock = false } = {}): Promise<HrUserState> {
   const [users] = await connection.execute<UserStateRow[]>(
-    `SELECT role, status, version FROM hr_users WHERE id = ?${lock ? ' FOR UPDATE' : ''}`,
+    `SELECT display_name, role, status, version FROM hr_users WHERE id = ?${lock ? ' FOR UPDATE' : ''}`,
     [hrUserId],
   );
   const user = users[0];
@@ -181,6 +249,7 @@ async function loadState(connection: Db, hrUserId: number, { lock = false } = {}
     [hrUserId],
   );
   return {
+    displayName: user.display_name,
     ...narrowDbRoleStatus(user),
     version: user.version,
     countries: countries.map((r) => r.country_code).sort(),
@@ -189,7 +258,7 @@ async function loadState(connection: Db, hrUserId: number, { lock = false } = {}
 }
 
 // Only these keys reach the audit log: never passwords, hashes, tokens, or session IDs.
-const auditState = ({ role, status, countries, departments }: AuditState): AuditState => ({ role, status, countries, departments });
+const auditState = ({ displayName, role, status, countries, departments }: AuditState): AuditState => ({ displayName, role, status, countries, departments });
 
 interface AuditEvent {
   actorHrUserId: number | null;
@@ -197,14 +266,44 @@ interface AuditEvent {
   action: AuditAction;
   before: AuditState | null;
   after: AuditState;
+  resultingVersion: number;
+  reason?: string | null;
+  revokedSessionCount?: number | null;
+  operation?: AccessOperation | undefined;
 }
 
-async function writeAudit(connection: Connection, { actorHrUserId, targetHrUserId, action, before, after }: AuditEvent): Promise<void> {
-  await connection.execute(
-    `INSERT INTO access_audit_events (actor_hr_user_id, target_hr_user_id, action, before_state, after_state)
-     VALUES (?, ?, ?, ?, ?)`,
-    [actorHrUserId, targetHrUserId, action, before ? JSON.stringify(auditState(before)) : null, JSON.stringify(auditState(after))],
+/** @returns the audit event id */
+async function writeAudit(connection: Connection, event: AuditEvent): Promise<number> {
+  const [result] = await connection.execute<ResultSetHeader>(
+    `INSERT INTO access_audit_events (actor_hr_user_id, target_hr_user_id, action, before_state, after_state, reason,
+                                      resulting_version, revoked_session_count, operation_idempotency_key, operation_fingerprint)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      event.actorHrUserId, event.targetHrUserId, event.action,
+      event.before ? JSON.stringify(auditState(event.before)) : null, JSON.stringify(auditState(event.after)),
+      event.reason ?? null, event.resultingVersion, event.revokedSessionCount ?? null,
+      event.operation?.idempotencyKey ?? null, event.operation?.fingerprint ?? null,
+    ],
   );
+  return result.insertId;
+}
+
+/** The audit event an earlier write by this actor stored under this key, if any. */
+async function findOperation(connection: Connection, actorHrUserId: number, operation: AccessOperation): Promise<StoredOperationRow | undefined> {
+  const [rows] = await connection.execute<StoredOperationRow[]>(
+    `SELECT id, target_hr_user_id, action, operation_fingerprint, resulting_version, revoked_session_count
+     FROM access_audit_events WHERE actor_hr_user_id = ? AND operation_idempotency_key = ?`,
+    [actorHrUserId, operation.idempotencyKey],
+  );
+  return rows[0];
+}
+
+/** A unique-key race on the idempotency key (same actor, same key) is a duplicate operation. */
+function mapDuplicateOperation(error: unknown): unknown {
+  if (errorCode(error) === 'ER_DUP_ENTRY' && error instanceof Error && /uk_access_audit_operation_key/.test(error.message)) {
+    return new AccessError('DUPLICATE_OPERATION', 'this idempotency key was already used for a different operation');
+  }
+  return error;
 }
 
 async function insertScopes(connection: Connection, hrUserId: number, countries: readonly string[], departmentIds: readonly number[]): Promise<void> {
@@ -216,7 +315,7 @@ async function insertScopes(connection: Connection, hrUserId: number, countries:
   }
 }
 
-/** Untrusted creation input (future HTTP body). */
+/** Untrusted creation input. */
 export interface NewHrUserFields {
   email: unknown;
   displayName: unknown;
@@ -256,7 +355,7 @@ function validateNewUser({ email, displayName, password, role, countries, depart
 // Approved rule (04a): an ADMIN has empty country and department scope lists.
 function assertAdminHasNoScopes(role: Role, countries: readonly string[], departments: readonly string[]): void {
   if (role === 'ADMIN' && (countries.length > 0 || departments.length > 0)) {
-    throw new AccessError('INVALID_INPUT', 'an Admin HR cannot have country or department scopes');
+    throw new AccessError('INVALID_INPUT', 'an Admin HR cannot have country or department scopes', { invalidScope: true });
   }
 }
 
@@ -265,7 +364,8 @@ async function insertUserWithAudit(
   input: NewHrUserInput,
   passwordHash: string,
   actorHrUserId: number | null,
-): Promise<number> {
+  operation?: AccessOperation,
+): Promise<{ hrUserId: number; auditEventId: number }> {
   await resolveCountries(connection, input.countries);
   const departmentIds = await resolveDepartments(connection, input.departments);
   let hrUserId: number;
@@ -281,21 +381,62 @@ async function insertUserWithAudit(
   }
   await insertScopes(connection, hrUserId, input.countries, departmentIds);
   const after = await loadState(connection, hrUserId);
-  await writeAudit(connection, { actorHrUserId, targetHrUserId: hrUserId, action: 'HR_USER_CREATED', before: null, after });
-  return hrUserId;
+  const auditEventId = await writeAudit(connection, {
+    actorHrUserId, targetHrUserId: hrUserId, action: 'HR_USER_CREATED', before: null, after, resultingVersion: after.version, operation,
+  });
+  return { hrUserId, auditEventId };
+}
+
+export interface CreateResult {
+  hrUserId: number;
+  auditEventId: number;
+  /** True when this idempotency key already created this user: nothing was written. */
+  replayed: boolean;
+}
+
+/**
+ * Admin operation: creates an ACTIVE HR user with scopes and one audit event.
+ * With an operation, the same actor and key replays the original creation for
+ * the same command fingerprint and fails with DUPLICATE_OPERATION otherwise.
+ * The actor row is locked FOR UPDATE, so retries of one creation serialise.
+ */
+export async function createHrUserOperation(
+  db: Db,
+  { actorHrUserId, operation, confirm, ...fields }: NewHrUserFields & {
+    actorHrUserId: number;
+    operation?: AccessOperation;
+    /** Runs under the actor lock after the replay check, before the insert. A throw rolls back. */
+    confirm?: () => Promise<void>;
+  },
+): Promise<CreateResult> {
+  const input = validateNewUser(fields);
+  const passwordHash = await hashPassword(fields.password); // outside the transaction: keeps it short
+  try {
+    return await inTransaction(db, async (connection) => {
+      assertActorCanManage(await lockHrUsers(connection, [actorHrUserId]), actorHrUserId);
+      if (operation !== undefined) {
+        const stored = await findOperation(connection, actorHrUserId, operation);
+        if (stored !== undefined) {
+          if (stored.action !== 'HR_USER_CREATED' || stored.operation_fingerprint !== operation.fingerprint) {
+            throw new AccessError('DUPLICATE_OPERATION', 'this idempotency key was already used for a different operation');
+          }
+          return { hrUserId: stored.target_hr_user_id, auditEventId: stored.id, replayed: true };
+        }
+      }
+      if (confirm !== undefined) await confirm();
+      return { ...(await insertUserWithAudit(connection, input, passwordHash, actorHrUserId, operation)), replayed: false };
+    });
+  } catch (error) {
+    throw mapDuplicateOperation(error);
+  }
 }
 
 /**
  * Admin operation: creates an ACTIVE HR user with scopes and one audit event.
  * @returns new HR user id
  */
-export async function createHrUser(db: Db, { actorHrUserId, ...fields }: NewHrUserFields & { actorHrUserId: number }): Promise<number> {
-  const input = validateNewUser(fields);
-  const passwordHash = await hashPassword(fields.password); // outside the transaction: keeps it short
-  return inTransaction(db, async (connection) => {
-    await assertActorCanManage(connection, actorHrUserId);
-    return insertUserWithAudit(connection, input, passwordHash, actorHrUserId);
-  });
+export async function createHrUser(db: Db, args: NewHrUserFields & { actorHrUserId: number }): Promise<number> {
+  return (await createHrUserOperation(db, args)).hrUserId;
 }
 
 /**
@@ -306,39 +447,93 @@ export async function createHrUser(db: Db, { actorHrUserId, ...fields }: NewHrUs
 export async function bootstrapHrUser(db: Db, fields: NewHrUserFields): Promise<number> {
   const input = validateNewUser(fields);
   const passwordHash = await hashPassword(fields.password);
-  return inTransaction(db, (connection) => insertUserWithAudit(connection, input, passwordHash, null));
+  return inTransaction(db, async (connection) => (await insertUserWithAudit(connection, input, passwordHash, null)).hrUserId);
 }
 
-export type ChangeResult = { changed: false } | { changed: true; version: number };
+export type ChangeResult =
+  | { changed: false }
+  | { changed: true; version: number; auditEventId: number; revokedSessionCount: number; replayed: boolean };
 
 interface ChangeTarget {
   actorHrUserId: number;
   targetHrUserId: number;
 }
 
+/** Options shared by every change. The access-management API always passes all of them. */
+export interface ChangeOptions {
+  /** hr_users.version the caller previewed; a mismatch is STALE_VERSION. */
+  expectedVersion?: unknown;
+  /** Idempotency key and command fingerprint. */
+  operation?: AccessOperation;
+  /** Time used for session revocation. */
+  now?: Date;
+  /**
+   * Runs under the row locks after the replay and version checks, before the
+   * change, with the current state (e.g. the exact preview check). A throw rolls back.
+   */
+  confirm?: (current: HrUserState) => Promise<void>;
+}
+
+interface ChangePlan {
+  action: AuditAction;
+  reason?: string | null;
+}
+
 /**
  * Shared shape of a locked, audited change to one HR user. A thrown error
- * rolls back everything: no version change and no audit event.
- * `prelock(connection)` runs first, before any other lock, so operations that
- * lock several rows always take them in the same order (no deadlocks).
+ * rolls back everything: no change, session revocation, version, or audit.
+ * `apply` returns null for "nothing to change" (no version, no audit).
  */
 async function changeHrUser(
   db: Db,
   { actorHrUserId, targetHrUserId }: ChangeTarget,
-  apply: (connection: Connection, before: HrUserState) => Promise<AuditAction | null>,
-  { prelock }: { prelock?: ((connection: Connection) => Promise<void>) | undefined } = {},
+  apply: (connection: Connection, before: HrUserState, locked: readonly LockedUserRow[]) => Promise<ChangePlan | null>,
+  { lockActiveAdmins = false, expectedVersion, operation, now = new Date(), confirm }: ChangeOptions & { lockActiveAdmins?: boolean },
 ): Promise<ChangeResult> {
-  return inTransaction(db, async (connection) => {
-    if (prelock) await prelock(connection);
-    await assertActorCanManage(connection, actorHrUserId);
-    const before = await loadState(connection, targetHrUserId, { lock: true });
-    const action = await apply(connection, before);
-    if (action === null) return { changed: false };
-    await connection.execute('UPDATE hr_users SET version = version + 1 WHERE id = ?', [targetHrUserId]);
-    const after = await loadState(connection, targetHrUserId);
-    await writeAudit(connection, { actorHrUserId, targetHrUserId, action, before, after });
-    return { changed: true, version: after.version };
-  });
+  const expected = validateExpectedVersion(expectedVersion);
+  try {
+    return await inTransaction(db, async (connection) => {
+      const locked = await lockHrUsers(connection, [actorHrUserId, targetHrUserId], { activeAdmins: lockActiveAdmins });
+      assertActorCanManage(locked, actorHrUserId);
+      const before = await loadState(connection, targetHrUserId);
+
+      // Replay before the version check: a retry after success returns the
+      // original result instead of a stale conflict.
+      if (operation !== undefined) {
+        const stored = await findOperation(connection, actorHrUserId, operation);
+        if (stored !== undefined) {
+          if (stored.target_hr_user_id !== targetHrUserId || stored.operation_fingerprint !== operation.fingerprint || stored.resulting_version === null) {
+            throw new AccessError('DUPLICATE_OPERATION', 'this idempotency key was already used for a different operation');
+          }
+          return { changed: true, version: stored.resulting_version, auditEventId: stored.id, revokedSessionCount: stored.revoked_session_count ?? 0, replayed: true };
+        }
+      }
+      if (expected !== undefined && before.version !== expected) {
+        throw new AccessError('STALE_VERSION', 'the HR user changed after the expected version');
+      }
+      if (confirm !== undefined) await confirm(before);
+
+      const plan = await apply(connection, before, locked);
+      if (plan === null) return { changed: false };
+      let revokedSessionCount: number | null = null;
+      if (SESSION_REVOKING_ACTIONS.has(plan.action)) {
+        const [revoked] = await connection.execute<ResultSetHeader>(
+          'UPDATE hr_sessions SET revoked_at = ? WHERE hr_user_id = ? AND revoked_at IS NULL AND expires_at > ?',
+          [now, targetHrUserId, now],
+        );
+        revokedSessionCount = revoked.affectedRows;
+      }
+      await connection.execute('UPDATE hr_users SET version = version + 1 WHERE id = ?', [targetHrUserId]);
+      const after = await loadState(connection, targetHrUserId);
+      const auditEventId = await writeAudit(connection, {
+        actorHrUserId, targetHrUserId, action: plan.action, before, after, resultingVersion: after.version,
+        reason: plan.reason ?? null, revokedSessionCount, operation,
+      });
+      return { changed: true, version: after.version, auditEventId, revokedSessionCount: revokedSessionCount ?? 0, replayed: false };
+    });
+  } catch (error) {
+    throw mapDuplicateOperation(error);
+  }
 }
 
 const sameList = (a: readonly string[], b: readonly string[]): boolean => a.length === b.length && a.every((v, i) => v === b[i]);
@@ -346,7 +541,7 @@ const sameList = (a: readonly string[], b: readonly string[]): boolean => a.leng
 /** Admin operation: replaces a user's country scopes. Unchanged lists write nothing. */
 export async function setCountryScopes(
   db: Db,
-  { actorHrUserId, targetHrUserId, countries }: ChangeTarget & { countries: unknown },
+  { actorHrUserId, targetHrUserId, countries, ...options }: ChangeTarget & ChangeOptions & { countries: unknown },
 ): Promise<ChangeResult> {
   const next = validateList(countries, 'countries');
   return changeHrUser(db, { actorHrUserId, targetHrUserId }, async (connection, before) => {
@@ -355,14 +550,14 @@ export async function setCountryScopes(
     await resolveCountries(connection, next);
     await connection.execute('DELETE FROM hr_user_country_scopes WHERE hr_user_id = ?', [targetHrUserId]);
     await insertScopes(connection, targetHrUserId, next, []);
-    return 'COUNTRY_SCOPES_CHANGED';
-  });
+    return { action: 'COUNTRY_SCOPES_CHANGED' };
+  }, options);
 }
 
 /** Admin operation: replaces a user's department scopes (by department name). */
 export async function setDepartmentScopes(
   db: Db,
-  { actorHrUserId, targetHrUserId, departments }: ChangeTarget & { departments: unknown },
+  { actorHrUserId, targetHrUserId, departments, ...options }: ChangeTarget & ChangeOptions & { departments: unknown },
 ): Promise<ChangeResult> {
   const next = validateList(departments, 'departments');
   return changeHrUser(db, { actorHrUserId, targetHrUserId }, async (connection, before) => {
@@ -371,43 +566,118 @@ export async function setDepartmentScopes(
     const ids = await resolveDepartments(connection, next);
     await connection.execute('DELETE FROM hr_user_department_scopes WHERE hr_user_id = ?', [targetHrUserId]);
     await insertScopes(connection, targetHrUserId, [], ids);
-    return 'DEPARTMENT_SCOPES_CHANGED';
-  });
+    return { action: 'DEPARTMENT_SCOPES_CHANGED' };
+  }, options);
+}
+
+/**
+ * Admin operation: replaces country and department scopes together in one
+ * transaction and one audit event, so no intermediate state (one dimension
+ * changed) is ever committed or visible. Unchanged lists write nothing.
+ */
+export async function replaceScopes(
+  db: Db,
+  { actorHrUserId, targetHrUserId, countries, departments, ...options }: ChangeTarget & ChangeOptions & { countries: unknown; departments: unknown },
+): Promise<ChangeResult> {
+  const nextCountries = validateList(countries, 'countries');
+  const nextDepartments = validateList(departments, 'departments');
+  return changeHrUser(db, { actorHrUserId, targetHrUserId }, async (connection, before) => {
+    assertAdminHasNoScopes(before.role, nextCountries, nextDepartments);
+    if (sameList(before.countries, nextCountries) && sameList(before.departments, nextDepartments)) return null;
+    await resolveCountries(connection, nextCountries);
+    const departmentIds = await resolveDepartments(connection, nextDepartments);
+    await connection.execute('DELETE FROM hr_user_country_scopes WHERE hr_user_id = ?', [targetHrUserId]);
+    await connection.execute('DELETE FROM hr_user_department_scopes WHERE hr_user_id = ?', [targetHrUserId]);
+    await insertScopes(connection, targetHrUserId, nextCountries, departmentIds);
+    return { action: 'SCOPES_REPLACED' };
+  }, options);
+}
+
+/** Admin operation: changes the display name. Sessions are not revoked. */
+export async function setDisplayName(
+  db: Db,
+  { actorHrUserId, targetHrUserId, displayName, ...options }: ChangeTarget & ChangeOptions & { displayName: unknown },
+): Promise<ChangeResult> {
+  const next = validateDisplayName(displayName);
+  return changeHrUser(db, { actorHrUserId, targetHrUserId }, async (connection, before) => {
+    if (before.displayName === next) return null;
+    await connection.execute('UPDATE hr_users SET display_name = ? WHERE id = ?', [next, targetHrUserId]);
+    return { action: 'DISPLAY_NAME_CHANGED' };
+  }, options);
+}
+
+/**
+ * Admin operation: promotes SCOPED HR to ADMIN HR. Removes every scope row and
+ * revokes every active session of the target, in one transaction. An ADMIN
+ * target is unchanged (there is no demotion). Uses the active-Admin lock order.
+ */
+export async function promoteToAdmin(
+  db: Db,
+  { actorHrUserId, targetHrUserId, ...options }: ChangeTarget & ChangeOptions,
+): Promise<ChangeResult> {
+  return changeHrUser(db, { actorHrUserId, targetHrUserId }, async (connection, before) => {
+    if (before.role === 'ADMIN') return null;
+    await connection.execute('DELETE FROM hr_user_country_scopes WHERE hr_user_id = ?', [targetHrUserId]);
+    await connection.execute('DELETE FROM hr_user_department_scopes WHERE hr_user_id = ?', [targetHrUserId]);
+    await connection.execute("UPDATE hr_users SET role = 'ADMIN' WHERE id = ?", [targetHrUserId]);
+    return { action: 'HR_USER_PROMOTED' };
+  }, { ...options, lockActiveAdmins: true });
 }
 
 /**
  * Admin operation: activates or deactivates an HR user.
  * The last ACTIVE ADMIN cannot be deactivated (approved rule 04a), including
- * by themselves. Deactivating an admin first locks every active admin row in
- * id order, so two concurrent deactivations serialise: the second re-reads
- * the committed state, sees one active admin, and fails with LAST_ACTIVE_ADMIN.
+ * by themselves. Deactivation locks every active admin row together with the
+ * actor and target in id order, so two concurrent deactivations serialise:
+ * the second re-reads the committed state, sees one active admin, and fails
+ * with LAST_ACTIVE_ADMIN. Deactivation revokes every active session of the
+ * target in the same transaction. Reactivation restores the stored role and
+ * scopes, never sessions.
  */
 export async function setHrUserStatus(
   db: Db,
-  { actorHrUserId, targetHrUserId, status }: ChangeTarget & { status: unknown },
+  { actorHrUserId, targetHrUserId, status, reason, ...options }: ChangeTarget & ChangeOptions & { status: unknown; reason?: unknown },
 ): Promise<ChangeResult> {
   if (!isOneOf(HR_STATUSES, status)) throw new AccessError('INVALID_INPUT', `status must be one of ${HR_STATUSES.join(', ')}`);
-  let activeAdminIds: number[] = [];
-  const prelock = status === 'INACTIVE'
-    ? async (connection: Connection): Promise<void> => {
-      const [rows] = await connection.query<IdRow[]>(
-        "SELECT id FROM hr_users WHERE role = 'ADMIN' AND status = 'ACTIVE' ORDER BY id FOR UPDATE",
-      );
-      activeAdminIds = rows.map((r) => r.id);
-    }
-    : undefined;
-  return changeHrUser(db, { actorHrUserId, targetHrUserId }, async (connection, before) => {
+  const note = validateReason(reason);
+  return changeHrUser(db, { actorHrUserId, targetHrUserId }, async (connection, before, locked) => {
     if (before.status === status) return null;
     if (status === 'INACTIVE' && before.role === 'ADMIN') {
-      const remaining = activeAdminIds.filter((id) => id !== targetHrUserId);
+      const remaining = locked.filter((row) => row.role === 'ADMIN' && row.status === 'ACTIVE' && row.id !== targetHrUserId);
       if (remaining.length === 0) throw new AccessError('LAST_ACTIVE_ADMIN', 'cannot deactivate the last active Admin HR');
     }
     await connection.execute('UPDATE hr_users SET status = ? WHERE id = ?', [status, targetHrUserId]);
-    return status === 'ACTIVE' ? 'HR_USER_ACTIVATED' : 'HR_USER_DEACTIVATED';
-  }, { prelock });
+    return { action: status === 'ACTIVE' ? 'HR_USER_ACTIVATED' : 'HR_USER_DEACTIVATED', reason: note };
+  }, { ...options, lockActiveAdmins: status === 'INACTIVE' });
 }
 
-/** Read-only current state for the demo-user check. */
+/**
+ * Admin operation (review fix 11a): replaces the user's password hash with the
+ * hash of a newly generated temporary password, revokes every active session,
+ * increments the version, and writes one TEMPORARY_PASSWORD_REGENERATED event,
+ * in one transaction. The caller hashes the password before calling; only the
+ * hash reaches the database, and neither reaches the audit event. Always a
+ * change: a replay (same actor, key, and fingerprint) writes nothing.
+ */
+export async function regenerateTemporaryPassword(
+  db: Db,
+  { actorHrUserId, targetHrUserId, passwordHash, reason, ...options }: ChangeTarget & ChangeOptions & { passwordHash: string; reason: unknown },
+): Promise<ChangeResult> {
+  // Review fix 11b: self-regeneration revokes the actor's own session; a lost
+  // response would then leave no session able to recover (a sole Admin is locked out).
+  if (actorHrUserId === targetHrUserId) {
+    throw new AccessError('SELF_PASSWORD_REGENERATION', 'an Admin cannot regenerate their own temporary password');
+  }
+  if (!passwordHash.startsWith('$argon2id$')) throw new AccessError('INVALID_INPUT', 'password hash must be Argon2id');
+  const note = validateReason(reason);
+  if (note === null) throw new AccessError('INVALID_INPUT', 'reason is required');
+  return changeHrUser(db, { actorHrUserId, targetHrUserId }, async (connection) => {
+    await connection.execute('UPDATE hr_users SET password_hash = ? WHERE id = ?', [passwordHash, targetHrUserId]);
+    return { action: 'TEMPORARY_PASSWORD_REGENERATED', reason: note };
+  }, options);
+}
+
+/** Read-only current state. */
 export async function loadHrUserState(db: Db, hrUserId: number): Promise<HrUserState> {
   return loadState(db, hrUserId);
 }

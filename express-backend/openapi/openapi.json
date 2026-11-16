@@ -2101,6 +2101,2077 @@
         }
       }
     },
+    "/api/v1/hr-users": {
+      "get": {
+        "operationId": "listHrUsers",
+        "summary": "Admin HR: search, filter, sort, and page HR users",
+        "description": "Active users by default. Filtering, sorting, LIMIT, and OFFSET run in MySQL.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Display name (partial, case-insensitive) or exact email (case-insensitive). Wildcards are literal.",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMIN",
+                "SCOPED"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "ALL includes inactive users.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "INACTIVE",
+                "ALL"
+              ],
+              "default": "ACTIVE"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "description": "Users whose access includes this country. Admin HR matches every country.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "IN",
+                "US"
+              ]
+            }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "description": "Users whose access includes this department. Admin HR matches every department.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Tech",
+                "HR",
+                "Finance",
+                "Operations",
+                "Support"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Ties break on HR user ID.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "updatedAt",
+                "name",
+                "email"
+              ],
+              "default": "updatedAt"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "description": "Default: desc for updatedAt, asc for name and email.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrUserListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: invalid, unknown, or repeated parameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createHrUser",
+        "summary": "Admin HR: create the exact previewed HR user",
+        "description": "Generates a random temporary password and returns it once, in this response only. Only its Argon2id hash is stored. No email is sent. A replay with the same Idempotency-Key returns the user with temporaryPassword null.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new HR user, its audit event, and the one-time temporary password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrUserCreateResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EMAIL_TAKEN or DUPLICATE_OPERATION.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_SCOPE: scopes on an Admin, a Scoped user without a country and a department, or an unknown value.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/preview": {
+      "post": {
+        "operationId": "previewHrUserCreation",
+        "summary": "Admin HR: preview a new HR user",
+        "description": "Writes nothing. Returns the old and proposed access, the estimated accessible employee count, the sessions that would be revoked, and a five-minute preview token.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserCreatePreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The exact preview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrAccessPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EMAIL_TAKEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_SCOPE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}": {
+      "get": {
+        "operationId": "getHrUser",
+        "summary": "Admin HR: one HR user with current scope and accessible employee count",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The HR user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrUserDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}/access-audit": {
+      "get": {
+        "operationId": "listHrUserAccessAudit",
+        "summary": "Admin HR: immutable access audit events for one HR user, newest first",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessAuditResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}/profile/preview": {
+      "post": {
+        "operationId": "previewHrUserProfile",
+        "summary": "Admin HR: preview a display-name change",
+        "description": "Writes nothing. Returns the old and proposed access, the estimated accessible employee count, the sessions that would be revoked, and a five-minute preview token.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserProfilePreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The exact preview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrAccessPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}/profile": {
+      "post": {
+        "operationId": "updateHrUserProfile",
+        "summary": "Admin HR: change the display name",
+        "description": "Email and role cannot change. Sessions are not revoked. Send the previewed body with previewToken and an Idempotency-Key. The change, any session revocation, the version increment, and the audit event commit in one transaction. A no-change confirmation writes nothing.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The resulting HR user and the audit event (or the original result for a replay).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrUserChangeResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION or DUPLICATE_OPERATION.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}/promote/preview": {
+      "post": {
+        "operationId": "previewHrUserPromotion",
+        "summary": "Admin HR: preview Scoped-to-Admin promotion",
+        "description": "Writes nothing. Returns the old and proposed access, the estimated accessible employee count, the sessions that would be revoked, and a five-minute preview token.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserPromotePreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The exact preview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrAccessPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}/promote": {
+      "post": {
+        "operationId": "promoteHrUser",
+        "summary": "Admin HR: promote Scoped HR to Admin HR",
+        "description": "Removes every scope row and revokes every active session of the user. Admin-to-Scoped demotion is not supported. Send the previewed body with previewToken and an Idempotency-Key. The change, any session revocation, the version increment, and the audit event commit in one transaction. A no-change confirmation writes nothing.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserPromoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The resulting HR user and the audit event (or the original result for a replay).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrUserChangeResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION or DUPLICATE_OPERATION.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}/scopes/preview": {
+      "post": {
+        "operationId": "previewHrUserScopes",
+        "summary": "Admin HR: preview replacing country and department scopes",
+        "description": "Writes nothing. Returns the old and proposed access, the estimated accessible employee count, the sessions that would be revoked, and a five-minute preview token.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserScopesPreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The exact preview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrAccessPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_SCOPE: unknown value, or scopes on an Admin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}/scopes": {
+      "put": {
+        "operationId": "replaceHrUserScopes",
+        "summary": "Admin HR: replace country and department scopes together",
+        "description": "Both lists are replaced in one transaction. Takes effect on the user's next request; sessions are not revoked. Send the previewed body with previewToken and an Idempotency-Key. The change, any session revocation, the version increment, and the audit event commit in one transaction. A no-change confirmation writes nothing.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserScopesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The resulting HR user and the audit event (or the original result for a replay).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrUserChangeResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION or DUPLICATE_OPERATION.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_SCOPE: unknown value, or scopes on an Admin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}/deactivate/preview": {
+      "post": {
+        "operationId": "previewHrUserDeactivation",
+        "summary": "Admin HR: preview deactivation",
+        "description": "Writes nothing. Returns the old and proposed access, the estimated accessible employee count, the sessions that would be revoked, and a five-minute preview token.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserDeactivatePreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The exact preview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrAccessPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION or LAST_ACTIVE_ADMIN.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}/deactivate": {
+      "post": {
+        "operationId": "deactivateHrUser",
+        "summary": "Admin HR: deactivate access",
+        "description": "Requires a reason. Revokes every active session of the user in the same transaction. The last active Admin cannot be deactivated. Send the previewed body with previewToken and an Idempotency-Key. The change, any session revocation, the version increment, and the audit event commit in one transaction. A no-change confirmation writes nothing.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserDeactivateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The resulting HR user and the audit event (or the original result for a replay).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrUserChangeResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION, DUPLICATE_OPERATION, or LAST_ACTIVE_ADMIN.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}/reactivate/preview": {
+      "post": {
+        "operationId": "previewHrUserReactivation",
+        "summary": "Admin HR: preview reactivation",
+        "description": "Writes nothing. Returns the old and proposed access, the estimated accessible employee count, the sessions that would be revoked, and a five-minute preview token.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserReactivatePreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The exact preview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrAccessPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}/reactivate": {
+      "post": {
+        "operationId": "reactivateHrUser",
+        "summary": "Admin HR: reactivate access",
+        "description": "Requires a reason. Restores the stored role and scopes. Old sessions stay revoked; the user signs in again. Send the previewed body with previewToken and an Idempotency-Key. The change, any session revocation, the version increment, and the audit event commit in one transaction. A no-change confirmation writes nothing.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserReactivateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The resulting HR user and the audit event (or the original result for a replay).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrUserChangeResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION or DUPLICATE_OPERATION.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}/regenerate-temporary-password/preview": {
+      "post": {
+        "operationId": "previewHrUserPasswordRegeneration",
+        "summary": "Admin HR: preview regenerating a temporary password",
+        "description": "Writes nothing and contains no password. Shows the target, current version, the active sessions that will be revoked, the warning, the reason, and a five-minute preview token.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserPasswordRegenerationPreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The exact preview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrUserPasswordRegenerationPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION, or SELF_PASSWORD_REGENERATION_FORBIDDEN when the target is the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hr-users/{hrUserId}/regenerate-temporary-password": {
+      "post": {
+        "operationId": "regenerateHrUserPassword",
+        "summary": "Admin HR: regenerate a temporary password",
+        "description": "Account recovery, for example after a lost creation response. Stores only the Argon2id hash of a new random password, revokes every active session, increments the version, and writes one TEMPORARY_PASSWORD_REGENERATED audit event in one transaction, then returns the password once. No email is sent. A replay with the same Idempotency-Key does not regenerate again: it returns temporaryPassword null and credentialRecoveryRequired true. An Admin cannot regenerate their own password (another active Admin must do it).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hrUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrUserPasswordRegenerationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The new temporary password once (or the original outcome without a password for a replay).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrUserPasswordRegenerationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION, DUPLICATE_OPERATION, or SELF_PASSWORD_REGENERATION_FORBIDDEN when the target is the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/mcp": {
       "post": {
         "operationId": "mcp",
@@ -2166,6 +4237,10 @@
                   "PENDING_REQUEST_EXISTS",
                   "REQUEST_NOT_PENDING",
                   "EMPLOYEE_INELIGIBLE",
+                  "LAST_ACTIVE_ADMIN",
+                  "EMAIL_TAKEN",
+                  "INVALID_SCOPE",
+                  "SELF_PASSWORD_REGENERATION_FORBIDDEN",
                   "SERVICE_UNAVAILABLE",
                   "INTERNAL_ERROR"
                 ]
@@ -5151,7 +7226,7 @@
                             "approvedFutureChangeAnnualCashImpact": {
                               "type": "string",
                               "pattern": "^-?\\d+\\.\\d{2}$",
-                              "description": "Signed: scheduled minus current annual cash."
+                              "description": "Signed: scheduled minus selected annual cash (current for working employees, initial for soon-to-join employees)."
                             },
                             "totalAnnualCashCommitment": {
                               "type": "string",
@@ -6294,6 +8369,1371 @@
           "employees",
           "page",
           "notApplied"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserCreatePreviewRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "description": "Unique without case sensitivity. Cannot change later."
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "SCOPED"
+            ]
+          },
+          "countries": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$"
+            },
+            "description": "Empty for ADMIN. At least one for SCOPED."
+          },
+          "departments": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "description": "Empty for ADMIN. At least one for SCOPED."
+          }
+        },
+        "required": [
+          "email",
+          "displayName",
+          "role",
+          "countries",
+          "departments"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserCreateRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "description": "Unique without case sensitivity. Cannot change later."
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "SCOPED"
+            ]
+          },
+          "countries": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$"
+            },
+            "description": "Empty for ADMIN. At least one for SCOPED."
+          },
+          "departments": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "description": "Empty for ADMIN. At least one for SCOPED."
+          },
+          "previewToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "email",
+          "displayName",
+          "role",
+          "countries",
+          "departments",
+          "previewToken"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserProfilePreviewRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295,
+            "description": "hr_users.version the preview was made against."
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "displayName"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserProfileRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295,
+            "description": "hr_users.version the preview was made against."
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "previewToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "displayName",
+          "previewToken"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserPromotePreviewRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295,
+            "description": "hr_users.version the preview was made against."
+          }
+        },
+        "required": [
+          "expectedVersion"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserPromoteRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295,
+            "description": "hr_users.version the preview was made against."
+          },
+          "previewToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "previewToken"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserScopesPreviewRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295,
+            "description": "hr_users.version the preview was made against."
+          },
+          "countries": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$"
+            },
+            "description": "ISO country codes. Unknown codes return 422 INVALID_SCOPE."
+          },
+          "departments": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "description": "Exact department names. Unknown names return 422 INVALID_SCOPE."
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "countries",
+          "departments"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserScopesRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295,
+            "description": "hr_users.version the preview was made against."
+          },
+          "countries": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$"
+            },
+            "description": "ISO country codes. Unknown codes return 422 INVALID_SCOPE."
+          },
+          "departments": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "description": "Exact department names. Unknown names return 422 INVALID_SCOPE."
+          },
+          "previewToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "countries",
+          "departments",
+          "previewToken"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserDeactivatePreviewRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295,
+            "description": "hr_users.version the preview was made against."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserDeactivateRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295,
+            "description": "hr_users.version the preview was made against."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "previewToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "reason",
+          "previewToken"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserReactivatePreviewRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295,
+            "description": "hr_users.version the preview was made against."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserReactivateRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295,
+            "description": "hr_users.version the preview was made against."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "previewToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "reason",
+          "previewToken"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserPasswordRegenerationPreviewRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295,
+            "description": "hr_users.version the preview was made against."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserPasswordRegenerationRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4294967295,
+            "description": "hr_users.version the preview was made against."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "previewToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "reason",
+          "previewToken"
+        ],
+        "additionalProperties": false
+      },
+      "AccessSummary": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ALL_EMPLOYEES",
+              "SCOPED",
+              "NO_EMPLOYEES",
+              "INACTIVE"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "combinations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "country": {
+                  "type": "string"
+                },
+                "countryName": {
+                  "type": "string"
+                },
+                "department": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "country",
+                "countryName",
+                "department"
+              ],
+              "additionalProperties": false
+            },
+            "description": "The exact country x department cross-product. Empty for ALL_EMPLOYEES, NO_EMPLOYEES, and INACTIVE."
+          }
+        },
+        "required": [
+          "kind",
+          "text",
+          "combinations"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserView": {
+        "type": "object",
+        "properties": {
+          "hrUserId": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "SCOPED"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "INACTIVE"
+            ]
+          },
+          "countries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Always empty for ADMIN."
+          },
+          "departments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Always empty for ADMIN."
+          },
+          "accessSummary": {
+            "$ref": "#/components/schemas/AccessSummary"
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "hrUserId",
+          "displayName",
+          "email",
+          "role",
+          "status",
+          "countries",
+          "departments",
+          "accessSummary",
+          "version",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserDetail": {
+        "type": "object",
+        "properties": {
+          "hrUserId": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "SCOPED"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "INACTIVE"
+            ]
+          },
+          "countries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Always empty for ADMIN."
+          },
+          "departments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Always empty for ADMIN."
+          },
+          "accessSummary": {
+            "$ref": "#/components/schemas/AccessSummary"
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "accessibleEmployeeCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Employees the user can access now, from current employee data."
+          },
+          "noAccessMessage": {
+            "description": "\"This HR user currently has access to no employees.\" when the count is zero.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "hrUserId",
+          "displayName",
+          "email",
+          "role",
+          "status",
+          "countries",
+          "departments",
+          "accessSummary",
+          "version",
+          "createdAt",
+          "updatedAt",
+          "accessibleEmployeeCount",
+          "noAccessMessage"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserListResponse": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HrUserView"
+            }
+          },
+          "page": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "size": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalRows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "number",
+              "size",
+              "totalRows",
+              "totalPages"
+            ],
+            "additionalProperties": false
+          },
+          "emptyMessage": {
+            "type": "string",
+            "const": "No HR users match these filters."
+          }
+        },
+        "required": [
+          "users",
+          "page",
+          "emptyMessage"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserDetailResponse": {
+        "type": "object",
+        "properties": {
+          "hrUser": {
+            "$ref": "#/components/schemas/HrUserDetail"
+          }
+        },
+        "required": [
+          "hrUser"
+        ],
+        "additionalProperties": false
+      },
+      "HrAccessPreview": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "CREATE",
+              "PROFILE",
+              "PROMOTE",
+              "SCOPES",
+              "DEACTIVATE",
+              "REACTIVATE",
+              "REGENERATE_PASSWORD"
+            ]
+          },
+          "hrUserId": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for CREATE."
+          },
+          "email": {
+            "type": "string"
+          },
+          "expectedVersion": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for CREATE."
+          },
+          "changed": {
+            "type": "boolean",
+            "description": "False when the confirmation would change nothing (no version or audit event)."
+          },
+          "changedFields": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "displayName",
+                "role",
+                "status",
+                "countries",
+                "departments"
+              ]
+            }
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "ADMIN",
+                      "SCOPED"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ACTIVE",
+                      "INACTIVE"
+                    ]
+                  },
+                  "countries": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "departments": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "accessSummary": {
+                    "$ref": "#/components/schemas/AccessSummary"
+                  },
+                  "accessibleEmployeeCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "Estimated with current employee data and the scope policy."
+                  }
+                },
+                "required": [
+                  "displayName",
+                  "role",
+                  "status",
+                  "countries",
+                  "departments",
+                  "accessSummary",
+                  "accessibleEmployeeCount"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for CREATE."
+          },
+          "proposed": {
+            "type": "object",
+            "properties": {
+              "displayName": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "ADMIN",
+                  "SCOPED"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ACTIVE",
+                  "INACTIVE"
+                ]
+              },
+              "countries": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "departments": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "accessSummary": {
+                "$ref": "#/components/schemas/AccessSummary"
+              },
+              "accessibleEmployeeCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Estimated with current employee data and the scope policy."
+              }
+            },
+            "required": [
+              "displayName",
+              "role",
+              "status",
+              "countries",
+              "departments",
+              "accessSummary",
+              "accessibleEmployeeCount"
+            ],
+            "additionalProperties": false
+          },
+          "sessionsToRevoke": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "previewToken": {
+            "type": "string",
+            "description": "Five minutes. Bound to this actor, session, operation, target, version, and command."
+          },
+          "previewExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "operation",
+          "hrUserId",
+          "email",
+          "expectedVersion",
+          "changed",
+          "changedFields",
+          "current",
+          "proposed",
+          "sessionsToRevoke",
+          "reason",
+          "previewToken",
+          "previewExpiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "AccessAuditEvent": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "HR_USER_CREATED",
+              "COUNTRY_SCOPES_CHANGED",
+              "DEPARTMENT_SCOPES_CHANGED",
+              "HR_USER_ACTIVATED",
+              "HR_USER_DEACTIVATED",
+              "DISPLAY_NAME_CHANGED",
+              "SCOPES_REPLACED",
+              "HR_USER_PROMOTED",
+              "TEMPORARY_PASSWORD_REGENERATED"
+            ]
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "actor": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "hrUserId": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "displayName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "hrUserId",
+                  "displayName"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for system setup."
+          },
+          "target": {
+            "type": "object",
+            "properties": {
+              "hrUserId": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "hrUserId",
+              "displayName",
+              "email"
+            ],
+            "additionalProperties": false
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "displayName": {
+                    "description": "Null for events written before display names were audited.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "ADMIN",
+                      "SCOPED"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ACTIVE",
+                      "INACTIVE"
+                    ]
+                  },
+                  "countries": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "departments": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "displayName",
+                  "role",
+                  "status",
+                  "countries",
+                  "departments"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after": {
+            "type": "object",
+            "properties": {
+              "displayName": {
+                "description": "Null for events written before display names were audited.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "ADMIN",
+                  "SCOPED"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ACTIVE",
+                  "INACTIVE"
+                ]
+              },
+              "countries": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "departments": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "displayName",
+              "role",
+              "status",
+              "countries",
+              "departments"
+            ],
+            "additionalProperties": false
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resultingVersion": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null only for events written before migration 004."
+          },
+          "revokedSessionCount": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "occurredAt",
+          "actor",
+          "target",
+          "before",
+          "after",
+          "reason",
+          "resultingVersion",
+          "revokedSessionCount"
+        ],
+        "additionalProperties": false
+      },
+      "AccessAuditResponse": {
+        "type": "object",
+        "properties": {
+          "hrUserId": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessAuditEvent"
+            },
+            "description": "Newest first."
+          },
+          "page": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "size": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalRows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "number",
+              "size",
+              "totalRows",
+              "totalPages"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "hrUserId",
+          "events",
+          "page"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserChangeResult": {
+        "type": "object",
+        "properties": {
+          "hrUser": {
+            "description": "Current state (for a replay: the state now).",
+            "$ref": "#/components/schemas/HrUserDetail"
+          },
+          "changed": {
+            "type": "boolean"
+          },
+          "auditEvent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccessAuditEvent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The event this operation wrote; null when nothing changed."
+          },
+          "revokedSessionCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "hrUser",
+          "changed",
+          "auditEvent",
+          "revokedSessionCount"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserCreateResult": {
+        "type": "object",
+        "properties": {
+          "hrUser": {
+            "$ref": "#/components/schemas/HrUserDetail"
+          },
+          "auditEvent": {
+            "$ref": "#/components/schemas/AccessAuditEvent"
+          },
+          "temporaryPassword": {
+            "description": "Returned once, in the original successful response only. Null for an idempotent replay.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "credentialRecoveryRequired": {
+            "type": "boolean",
+            "description": "False when temporaryPassword is present. True for a replay: the account exists, and the Admin must regenerate a temporary password to get one."
+          },
+          "temporaryPasswordNotice": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "hrUser",
+          "auditEvent",
+          "temporaryPassword",
+          "credentialRecoveryRequired",
+          "temporaryPasswordNotice"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserPasswordRegenerationPreview": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "const": "REGENERATE_PASSWORD"
+          },
+          "target": {
+            "type": "object",
+            "properties": {
+              "hrUserId": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "ADMIN",
+                  "SCOPED"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ACTIVE",
+                  "INACTIVE"
+                ]
+              }
+            },
+            "required": [
+              "hrUserId",
+              "displayName",
+              "email",
+              "role",
+              "status"
+            ],
+            "additionalProperties": false
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "sessionsToRevoke": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "warning": {
+            "type": "string",
+            "const": "Confirming replaces this HR user's password. Every previous password and every active session stops working."
+          },
+          "reason": {
+            "type": "string"
+          },
+          "previewToken": {
+            "type": "string",
+            "description": "Five minutes. Bound to this actor, session, target, version, and reason."
+          },
+          "previewExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "operation",
+          "target",
+          "expectedVersion",
+          "sessionsToRevoke",
+          "warning",
+          "reason",
+          "previewToken",
+          "previewExpiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "HrUserPasswordRegenerationResult": {
+        "type": "object",
+        "properties": {
+          "hrUser": {
+            "$ref": "#/components/schemas/HrUserDetail"
+          },
+          "auditEvent": {
+            "$ref": "#/components/schemas/AccessAuditEvent"
+          },
+          "revokedSessionCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "temporaryPassword": {
+            "description": "The new temporary password, once. Null for an idempotent replay.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "credentialRecoveryRequired": {
+            "type": "boolean",
+            "description": "True for a replay: preview and confirm a new regeneration (new Idempotency-Key) to get a password."
+          },
+          "temporaryPasswordNotice": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "hrUser",
+          "auditEvent",
+          "revokedSessionCount",
+          "temporaryPassword",
+          "credentialRecoveryRequired",
+          "temporaryPasswordNotice"
         ],
         "additionalProperties": false
       }

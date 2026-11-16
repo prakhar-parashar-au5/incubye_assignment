@@ -4,6 +4,8 @@
 // from what the server accepts and returns.
 import { z } from 'zod';
 
+import { ACCESS_OPERATIONS } from '../access/access-command.js';
+import type { AccessOperationKind } from '../access/access-command.js';
 import { HR_STATUSES, ROLES } from '../access/access-policy.js';
 import { MAX_PASSWORD_LENGTH } from '../access/passwords.js';
 import { ADJUSTMENT_METHODS } from '../compensation/adjustment.js';
@@ -43,6 +45,22 @@ export const PATHS = Object.freeze({
   dashboardBreakdowns: `${API_PREFIX}/dashboard/breakdowns`,
   dashboardRecentChanges: `${API_PREFIX}/dashboard/recent-changes`,
   dashboardWithoutRecentAdjustment: `${API_PREFIX}/dashboard/without-recent-adjustment`,
+  hrUsers: `${API_PREFIX}/hr-users`,
+  hrUsersPreview: `${API_PREFIX}/hr-users/preview`,
+  hrUser: `${API_PREFIX}/hr-users/:hrUserId`,
+  hrUserAccessAudit: `${API_PREFIX}/hr-users/:hrUserId/access-audit`,
+  hrUserProfilePreview: `${API_PREFIX}/hr-users/:hrUserId/profile/preview`,
+  hrUserProfile: `${API_PREFIX}/hr-users/:hrUserId/profile`,
+  hrUserPromotePreview: `${API_PREFIX}/hr-users/:hrUserId/promote/preview`,
+  hrUserPromote: `${API_PREFIX}/hr-users/:hrUserId/promote`,
+  hrUserScopesPreview: `${API_PREFIX}/hr-users/:hrUserId/scopes/preview`,
+  hrUserScopes: `${API_PREFIX}/hr-users/:hrUserId/scopes`,
+  hrUserDeactivatePreview: `${API_PREFIX}/hr-users/:hrUserId/deactivate/preview`,
+  hrUserDeactivate: `${API_PREFIX}/hr-users/:hrUserId/deactivate`,
+  hrUserReactivatePreview: `${API_PREFIX}/hr-users/:hrUserId/reactivate/preview`,
+  hrUserReactivate: `${API_PREFIX}/hr-users/:hrUserId/reactivate`,
+  hrUserRegeneratePasswordPreview: `${API_PREFIX}/hr-users/:hrUserId/regenerate-temporary-password/preview`,
+  hrUserRegeneratePassword: `${API_PREFIX}/hr-users/:hrUserId/regenerate-temporary-password`,
 });
 
 /** Registry of schemas published as #/components/schemas/<id>. */
@@ -61,6 +79,10 @@ export const PUBLIC_ERROR_CODES = Object.freeze([
   'PENDING_REQUEST_EXISTS',
   'REQUEST_NOT_PENDING',
   'EMPLOYEE_INELIGIBLE',
+  'LAST_ACTIVE_ADMIN',
+  'EMAIL_TAKEN',
+  'INVALID_SCOPE',
+  'SELF_PASSWORD_REGENERATION_FORBIDDEN',
   'SERVICE_UNAVAILABLE',
   'INTERNAL_ERROR',
 ] as const);
@@ -149,6 +171,10 @@ export const PUBLIC_MESSAGES: Readonly<Record<PublicErrorCode, string>> = Object
   PENDING_REQUEST_EXISTS: 'This employee already has a pending salary change request.',
   REQUEST_NOT_PENDING: 'This salary change request is no longer pending.',
   EMPLOYEE_INELIGIBLE: 'This employee is not eligible for a compensation adjustment.',
+  LAST_ACTIVE_ADMIN: 'You cannot deactivate the last active Admin HR user. Activate or create another Admin first.',
+  EMAIL_TAKEN: 'An HR user with this email already exists.',
+  INVALID_SCOPE: 'The country or department scope is not valid for this HR user.',
+  SELF_PASSWORD_REGENERATION_FORBIDDEN: 'Ask another active Admin HR user to regenerate your temporary password.',
   SERVICE_UNAVAILABLE: 'The service is temporarily unavailable. Try again.',
   INTERNAL_ERROR: 'An unexpected error occurred.',
 });
@@ -773,7 +799,7 @@ export const DashboardSummaryResponse = z
           soonToJoinCount: z.number().int().nonnegative(),
           soonToJoinAnnualCashCompensation: Money,
           approvedFutureChangeCount: z.number().int().nonnegative(),
-          approvedFutureChangeAnnualCashImpact: z.string().regex(/^-?\d+\.\d{2}$/).describe('Signed: scheduled minus current annual cash.'),
+          approvedFutureChangeAnnualCashImpact: z.string().regex(/^-?\d+\.\d{2}$/).describe('Signed: scheduled minus selected annual cash (current for working employees, initial for soon-to-join employees).'),
           totalAnnualCashCommitment: z.string().regex(/^-?\d+\.\d{2}$/),
         })),
         upcomingChanges: z.object({
@@ -886,3 +912,268 @@ export const DashboardWithoutAdjustmentResponse = z
   })
   .register(contractRegistry, { id: 'DashboardWithoutAdjustmentResponse', description: 'Currently working employees only.' });
 export type DashboardWithoutAdjustmentResponse = z.infer<typeof DashboardWithoutAdjustmentResponse>;
+
+// ---------------------------------------------------------------------------
+// HR access management (Task 11). See docs_human/12-hr-access-management.md.
+// Admin HR only. Every write needs an Idempotency-Key, the expected HR user
+// version (when the user exists), and the exact confirmed preview.
+
+export const HR_ACCESS_OPERATIONS = ACCESS_OPERATIONS;
+export type HrAccessOperation = AccessOperationKind;
+export const HR_USER_SORT_FIELDS = Object.freeze(['updatedAt', 'name', 'email'] as const);
+export const HR_USER_LIST_STATUSES = Object.freeze(['ACTIVE', 'INACTIVE', 'ALL'] as const);
+export const ACCESS_AUDIT_ACTIONS = Object.freeze([
+  'HR_USER_CREATED', 'COUNTRY_SCOPES_CHANGED', 'DEPARTMENT_SCOPES_CHANGED', 'HR_USER_ACTIVATED', 'HR_USER_DEACTIVATED',
+  'DISPLAY_NAME_CHANGED', 'SCOPES_REPLACED', 'HR_USER_PROMOTED', 'TEMPORARY_PASSWORD_REGENERATED',
+] as const);
+export const ACCESS_SUMMARY_KINDS = Object.freeze(['ALL_EMPLOYEES', 'SCOPED', 'NO_EMPLOYEES', 'INACTIVE'] as const);
+export const CHANGEABLE_ACCESS_FIELDS = Object.freeze(['displayName', 'role', 'status', 'countries', 'departments'] as const);
+export const MAX_SCOPE_COUNTRIES = 10;
+export const MAX_SCOPE_DEPARTMENTS = 20;
+export const MAX_DEACTIVATION_REASON_LENGTH = 2000;
+export const MAX_REACTIVATION_REASON_LENGTH = 500;
+export const MAX_DISPLAY_NAME_LENGTH = 100;
+
+export const NO_SCOPE_ACCESS_MESSAGE = 'This scope grants access to no employees.' as const;
+export const NO_EMPLOYEE_ACCESS_USER_MESSAGE = 'This HR user currently has access to no employees.' as const;
+export const NO_HR_USERS_MESSAGE = 'No HR users match these filters.' as const;
+export const HR_USER_NOT_FOUND = 'HR user not found.' as const;
+export const HR_USER_STALE_MESSAGE = 'This HR user changed after your preview. Review the current state and preview again.' as const;
+export const TEMPORARY_PASSWORD_NOTICE = 'Share this temporary password through an approved channel. It is shown only once and no email was sent.' as const;
+export const TEMPORARY_PASSWORD_UNAVAILABLE = 'This HR user already exists. The temporary password was shown only in the original response and cannot be shown again. Regenerate a temporary password to get a new one.' as const;
+export const REGENERATED_PASSWORD_UNAVAILABLE = 'This regeneration already completed. Its temporary password cannot be shown again. Preview and confirm a new regeneration to get a new one.' as const;
+export const REGENERATION_WARNING = "Confirming replaces this HR user's password. Every previous password and every active session stops working." as const;
+export const MAX_REGENERATION_REASON_LENGTH = 2000;
+
+const ScopeCountries = z.array(z.string().regex(/^[A-Z]{2}$/)).max(MAX_SCOPE_COUNTRIES)
+  .refine((list) => new Set(list).size === list.length, 'countries must not repeat')
+  .describe('ISO country codes. Unknown codes return 422 INVALID_SCOPE.');
+const ScopeDepartments = z.array(z.string().min(1).max(100)).max(MAX_SCOPE_DEPARTMENTS)
+  .refine((list) => new Set(list).size === list.length, 'departments must not repeat')
+  .describe('Exact department names. Unknown names return 422 INVALID_SCOPE.');
+const ExpectedVersion = z.number().int().min(1).max(4_294_967_295).describe('hr_users.version the preview was made against.');
+const PreviewToken = z.string().min(1).max(4096);
+const DisplayName = z.string().trim().min(1).max(MAX_DISPLAY_NAME_LENGTH);
+const DeactivationReason = z.string().trim().min(1).max(MAX_DEACTIVATION_REASON_LENGTH);
+const ReactivationReason = z.string().trim().min(1).max(MAX_REACTIVATION_REASON_LENGTH);
+
+/** GET /hr-users. Repeated and unknown parameters are rejected. */
+export const HrUserListQuery = z
+  .strictObject({
+    q: z.string().max(MAX_SEARCH_LENGTH).transform((s) => s.trim() || undefined).optional()
+      .describe('Display name (partial, case-insensitive) or exact email (case-insensitive). Wildcards are literal.'),
+    role: z.enum(ROLES).optional(),
+    status: z.enum(HR_USER_LIST_STATUSES).default('ACTIVE').describe('ALL includes inactive users.'),
+    country: z.enum(COUNTRY_CODES).optional().describe('Users whose access includes this country. Admin HR matches every country.'),
+    department: z.enum(DEPARTMENTS).optional().describe('Users whose access includes this department. Admin HR matches every department.'),
+    sort: z.enum(HR_USER_SORT_FIELDS).default('updatedAt'),
+    direction: z.enum(SORT_DIRECTIONS).optional().describe('Default: desc for updatedAt, asc for name and email.'),
+    page: positiveInt(1_000_000).default(1),
+    pageSize: positiveInt(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
+  })
+  .transform((query) => Object.fromEntries(Object.entries(query).filter(([, v]) => v !== undefined)) as typeof query);
+export type HrUserListQuery = z.output<typeof HrUserListQuery>;
+
+export const AccessAuditQuery = z.strictObject({
+  page: positiveInt(1_000_000).default(1),
+  pageSize: positiveInt(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
+});
+export type AccessAuditQuery = z.output<typeof AccessAuditQuery>;
+
+// Preview bodies. Each confirmation is the same body plus previewToken.
+const createFields = {
+  email: z.email().max(254).describe('Unique without case sensitivity. Cannot change later.'),
+  displayName: DisplayName,
+  role: z.enum(ROLES),
+  countries: ScopeCountries.describe('Empty for ADMIN. At least one for SCOPED.'),
+  departments: ScopeDepartments.describe('Empty for ADMIN. At least one for SCOPED.'),
+};
+export const HrUserCreatePreviewRequest = z.strictObject(createFields).register(contractRegistry, { id: 'HrUserCreatePreviewRequest' });
+export const HrUserCreateRequest = z.strictObject({ ...createFields, previewToken: PreviewToken })
+  .register(contractRegistry, { id: 'HrUserCreateRequest', description: 'The exact previewed fields plus previewToken. Send with an Idempotency-Key header.' });
+export const HrUserProfilePreviewRequest = z.strictObject({ expectedVersion: ExpectedVersion, displayName: DisplayName })
+  .register(contractRegistry, { id: 'HrUserProfilePreviewRequest', description: 'Email and role cannot change here.' });
+export const HrUserProfileRequest = z.strictObject({ expectedVersion: ExpectedVersion, displayName: DisplayName, previewToken: PreviewToken })
+  .register(contractRegistry, { id: 'HrUserProfileRequest' });
+export const HrUserPromotePreviewRequest = z.strictObject({ expectedVersion: ExpectedVersion })
+  .register(contractRegistry, { id: 'HrUserPromotePreviewRequest', description: 'Scoped HR to Admin HR only. Demotion is not supported.' });
+export const HrUserPromoteRequest = z.strictObject({ expectedVersion: ExpectedVersion, previewToken: PreviewToken })
+  .register(contractRegistry, { id: 'HrUserPromoteRequest' });
+export const HrUserScopesPreviewRequest = z.strictObject({ expectedVersion: ExpectedVersion, countries: ScopeCountries, departments: ScopeDepartments })
+  .register(contractRegistry, { id: 'HrUserScopesPreviewRequest', description: 'Countries and departments are replaced together.' });
+export const HrUserScopesRequest = z.strictObject({ expectedVersion: ExpectedVersion, countries: ScopeCountries, departments: ScopeDepartments, previewToken: PreviewToken })
+  .register(contractRegistry, { id: 'HrUserScopesRequest' });
+export const HrUserDeactivatePreviewRequest = z.strictObject({ expectedVersion: ExpectedVersion, reason: DeactivationReason })
+  .register(contractRegistry, { id: 'HrUserDeactivatePreviewRequest' });
+export const HrUserDeactivateRequest = z.strictObject({ expectedVersion: ExpectedVersion, reason: DeactivationReason, previewToken: PreviewToken })
+  .register(contractRegistry, { id: 'HrUserDeactivateRequest' });
+export const HrUserReactivatePreviewRequest = z.strictObject({ expectedVersion: ExpectedVersion, reason: ReactivationReason })
+  .register(contractRegistry, { id: 'HrUserReactivatePreviewRequest' });
+export const HrUserReactivateRequest = z.strictObject({ expectedVersion: ExpectedVersion, reason: ReactivationReason, previewToken: PreviewToken })
+  .register(contractRegistry, { id: 'HrUserReactivateRequest' });
+const RegenerationReason = z.string().trim().min(1).max(MAX_REGENERATION_REASON_LENGTH);
+export const HrUserPasswordRegenerationPreviewRequest = z.strictObject({ expectedVersion: ExpectedVersion, reason: RegenerationReason })
+  .register(contractRegistry, { id: 'HrUserPasswordRegenerationPreviewRequest' });
+export const HrUserPasswordRegenerationRequest = z.strictObject({ expectedVersion: ExpectedVersion, reason: RegenerationReason, previewToken: PreviewToken })
+  .register(contractRegistry, { id: 'HrUserPasswordRegenerationRequest', description: 'The previewed body plus previewToken. Send with an Idempotency-Key header.' });
+
+/** Every command field an operation can carry, normalized. */
+export interface HrAccessCommand {
+  email?: string;
+  displayName?: string;
+  role?: (typeof ROLES)[number];
+  countries?: string[];
+  departments?: string[];
+  reason?: string;
+}
+
+export const AccessSummary = z
+  .object({
+    kind: z.enum(ACCESS_SUMMARY_KINDS),
+    text: z.string(),
+    combinations: z.array(z.object({ country: z.string(), countryName: z.string(), department: z.string() }))
+      .describe('The exact country x department cross-product. Empty for ALL_EMPLOYEES, NO_EMPLOYEES, and INACTIVE.'),
+  })
+  .register(contractRegistry, { id: 'AccessSummary', description: 'Country IN countries AND department IN departments.' });
+
+export const HrUserView = z
+  .object({
+    hrUserId: z.number().int().positive(),
+    displayName: z.string(),
+    email: z.string(),
+    role: z.enum(ROLES),
+    status: z.enum(HR_STATUSES),
+    countries: z.array(z.string()).describe('Always empty for ADMIN.'),
+    departments: z.array(z.string()).describe('Always empty for ADMIN.'),
+    accessSummary: AccessSummary,
+    version: z.number().int().positive(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+  })
+  .register(contractRegistry, { id: 'HrUserView', description: 'Never contains a password, hash, or session data.' });
+
+export const HrUserDetail = HrUserView.extend({
+  accessibleEmployeeCount: z.number().int().nonnegative().describe('Employees the user can access now, from current employee data.'),
+  noAccessMessage: z.string().nullable().describe(`"${NO_EMPLOYEE_ACCESS_USER_MESSAGE}" when the count is zero.`),
+}).register(contractRegistry, { id: 'HrUserDetail' });
+
+export const HrUserListResponse = z
+  .object({
+    users: z.array(HrUserView),
+    page: z.object({ number: z.number().int().positive(), size: z.number().int().positive(), totalRows: z.number().int().nonnegative(), totalPages: z.number().int().nonnegative() }),
+    emptyMessage: z.literal(NO_HR_USERS_MESSAGE),
+  })
+  .register(contractRegistry, { id: 'HrUserListResponse' });
+export type HrUserListResponse = z.infer<typeof HrUserListResponse>;
+
+export const HrUserDetailResponse = z.object({ hrUser: HrUserDetail }).register(contractRegistry, { id: 'HrUserDetailResponse' });
+export type HrUserDetailResponse = z.infer<typeof HrUserDetailResponse>;
+export type HrUserDetail = z.infer<typeof HrUserDetail>;
+
+const AccessStateView = z.object({
+  displayName: z.string(),
+  role: z.enum(ROLES),
+  status: z.enum(HR_STATUSES),
+  countries: z.array(z.string()),
+  departments: z.array(z.string()),
+  accessSummary: AccessSummary,
+  accessibleEmployeeCount: z.number().int().nonnegative().describe('Estimated with current employee data and the scope policy.'),
+});
+
+export const HrAccessPreview = z
+  .object({
+    operation: z.enum(HR_ACCESS_OPERATIONS),
+    hrUserId: z.number().int().positive().nullable().describe('Null for CREATE.'),
+    email: z.string(),
+    expectedVersion: z.number().int().positive().nullable().describe('Null for CREATE.'),
+    changed: z.boolean().describe('False when the confirmation would change nothing (no version or audit event).'),
+    changedFields: z.array(z.enum(CHANGEABLE_ACCESS_FIELDS)),
+    current: AccessStateView.nullable().describe('Null for CREATE.'),
+    proposed: AccessStateView,
+    sessionsToRevoke: z.number().int().nonnegative(),
+    reason: z.string().nullable(),
+    previewToken: z.string().describe('Five minutes. Bound to this actor, session, operation, target, version, and command.'),
+    previewExpiresAt: z.iso.datetime(),
+  })
+  .register(contractRegistry, { id: 'HrAccessPreview', description: 'Writes nothing. Editing any input requires a new preview.' });
+export type HrAccessPreview = z.infer<typeof HrAccessPreview>;
+
+const AuditStateView = z.object({
+  displayName: z.string().nullable().describe('Null for events written before display names were audited.'),
+  role: z.enum(ROLES),
+  status: z.enum(HR_STATUSES),
+  countries: z.array(z.string()),
+  departments: z.array(z.string()),
+});
+
+export const AccessAuditEvent = z
+  .object({
+    action: z.enum(ACCESS_AUDIT_ACTIONS),
+    occurredAt: z.iso.datetime(),
+    actor: z.object({ hrUserId: z.number().int().positive(), displayName: z.string() }).nullable().describe('Null for system setup.'),
+    target: z.object({ hrUserId: z.number().int().positive(), displayName: z.string(), email: z.string() }),
+    before: AuditStateView.nullable(),
+    after: AuditStateView,
+    reason: z.string().nullable(),
+    resultingVersion: z.number().int().positive().nullable().describe('Null only for events written before migration 004.'),
+    revokedSessionCount: z.number().int().nonnegative().nullable(),
+  })
+  .register(contractRegistry, { id: 'AccessAuditEvent', description: 'Immutable. Never contains passwords, hashes, tokens, session IDs, or cookies.' });
+export type AccessAuditEvent = z.infer<typeof AccessAuditEvent>;
+
+export const AccessAuditResponse = z
+  .object({
+    hrUserId: z.number().int().positive(),
+    events: z.array(AccessAuditEvent).describe('Newest first.'),
+    page: z.object({ number: z.number().int().positive(), size: z.number().int().positive(), totalRows: z.number().int().nonnegative(), totalPages: z.number().int().nonnegative() }),
+  })
+  .register(contractRegistry, { id: 'AccessAuditResponse' });
+export type AccessAuditResponse = z.infer<typeof AccessAuditResponse>;
+
+export const HrUserChangeResult = z
+  .object({
+    hrUser: HrUserDetail.describe('Current state (for a replay: the state now).'),
+    changed: z.boolean(),
+    auditEvent: AccessAuditEvent.nullable().describe('The event this operation wrote; null when nothing changed.'),
+    revokedSessionCount: z.number().int().nonnegative(),
+  })
+  .register(contractRegistry, { id: 'HrUserChangeResult' });
+export type HrUserChangeResult = z.infer<typeof HrUserChangeResult>;
+
+export const HrUserCreateResult = z
+  .object({
+    hrUser: HrUserDetail,
+    auditEvent: AccessAuditEvent,
+    temporaryPassword: z.string().nullable().describe('Returned once, in the original successful response only. Null for an idempotent replay.'),
+    credentialRecoveryRequired: z.boolean()
+      .describe('False when temporaryPassword is present. True for a replay: the account exists, and the Admin must regenerate a temporary password to get one.'),
+    temporaryPasswordNotice: z.string(),
+  })
+  .register(contractRegistry, { id: 'HrUserCreateResult', description: 'No email is sent.' });
+export type HrUserCreateResult = z.infer<typeof HrUserCreateResult>;
+
+export const HrUserPasswordRegenerationPreview = z
+  .object({
+    operation: z.literal('REGENERATE_PASSWORD'),
+    target: z.object({ hrUserId: z.number().int().positive(), displayName: z.string(), email: z.string(), role: z.enum(ROLES), status: z.enum(HR_STATUSES) }),
+    expectedVersion: z.number().int().positive(),
+    sessionsToRevoke: z.number().int().nonnegative(),
+    warning: z.literal(REGENERATION_WARNING),
+    reason: z.string(),
+    previewToken: z.string().describe('Five minutes. Bound to this actor, session, target, version, and reason.'),
+    previewExpiresAt: z.iso.datetime(),
+  })
+  .register(contractRegistry, { id: 'HrUserPasswordRegenerationPreview', description: 'Writes nothing. Contains no password.' });
+export type HrUserPasswordRegenerationPreview = z.infer<typeof HrUserPasswordRegenerationPreview>;
+
+export const HrUserPasswordRegenerationResult = z
+  .object({
+    hrUser: HrUserDetail,
+    auditEvent: AccessAuditEvent,
+    revokedSessionCount: z.number().int().nonnegative(),
+    temporaryPassword: z.string().nullable().describe('The new temporary password, once. Null for an idempotent replay.'),
+    credentialRecoveryRequired: z.boolean().describe('True for a replay: preview and confirm a new regeneration (new Idempotency-Key) to get a password.'),
+    temporaryPasswordNotice: z.string(),
+  })
+  .register(contractRegistry, { id: 'HrUserPasswordRegenerationResult', description: 'No email is sent. The previous password and every active session stop working.' });
+export type HrUserPasswordRegenerationResult = z.infer<typeof HrUserPasswordRegenerationResult>;
