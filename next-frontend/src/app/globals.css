@@ -1,0 +1,144 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * ACME Compensation Manager: calm HR operations palette (docs_human/09-frontend-directory.md).
+ * Light only. The scene is an HR office desk in daylight, so there is no dark theme.
+ */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Shell rail: the navy band shared by the sign-in page and the application shell. */
+  --color-rail: var(--rail);
+  --color-rail-foreground: var(--rail-foreground);
+  --color-rail-muted: var(--rail-muted);
+  --color-rail-line: var(--rail-line);
+  --color-rail-active: var(--rail-active);
+
+  /* Compensation and employment states. Always paired with a text label. */
+  --color-state-current: var(--state-current);
+  --color-state-upcoming: var(--state-upcoming);
+  --color-state-historical: var(--state-historical);
+
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+:root {
+  color-scheme: light;
+
+  --background: #f7f5f1; /* warm off-white ground */
+  --foreground: #18233a; /* dark navy ink */
+  --surface: #ffffff;
+  --line: #dcd7cd; /* warm hairline for rules and panels */
+
+  --card: #ffffff;
+  --card-foreground: #18233a;
+  --popover: #ffffff;
+  --popover-foreground: #18233a;
+
+  --primary: #2a57c0; /* the one restrained blue accent */
+  --primary-foreground: #ffffff;
+  --secondary: #ece8e0;
+  --secondary-foreground: #18233a;
+  --muted: #ece8e0;
+  --muted-foreground: #4a5467;
+  --accent: #e6ecf8;
+  --accent-foreground: #18233a;
+  --destructive: #b3261e; /* errors and destructive actions only */
+  --border: #dcd7cd;
+  --input: #8c877c; /* 3.4:1 against white, so field edges meet WCAG 1.4.11 */
+  --ring: #2a57c0;
+  --radius: 0.5rem;
+
+  --rail: #1a2740;
+  --rail-foreground: #eef1f6;
+  --rail-muted: #aeb8ca;
+  --rail-line: #33415c;
+  --rail-active: #2b3a58;
+
+  --state-current: #1d6e46;
+  --state-upcoming: #8a5a00;
+  --state-historical: #5f6673;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "kern" 1;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  ::selection {
+    background: #c9d6f3;
+    color: #18233a;
+  }
+  input,
+  textarea {
+    caret-color: var(--primary);
+  }
+  a,
+  button,
+  input,
+  label {
+    touch-action: manipulation;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  /* On the navy rail the blue ring is too dark; use the light ink instead. */
+  [data-surface="rail"] :focus-visible {
+    outline-color: var(--rail-foreground);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

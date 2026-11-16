@@ -1,0 +1,2002 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ACME Compensation API (frontend subset)",
+    "version": "1.0.0",
+    "description": "Backend API for the Next.js server. Browsers do not call it directly; no CORS is enabled."
+  },
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "login",
+        "summary": "Sign in and receive a two-hour session token",
+        "description": "Five failed attempts per caller and email address per 15 minutes; successful logins do not count.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "INVALID_CREDENTIALS: unknown email, wrong password, or inactive user (one response).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "VALIDATION_ERROR: body too large.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "getCurrentUser",
+        "summary": "Current HR user, scopes, and session expiry",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current state from the database.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentUserResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "summary": "Revoke the session (safe to repeat)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Session revoked, or already revoked."
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: missing or invalid token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/employees": {
+      "get": {
+        "operationId": "listEmployees",
+        "summary": "Search, filter, sort, and page the employees in the caller's scope",
+        "description": "Scope, filters, sorting, LIMIT, and OFFSET all run in MySQL. Totals count only employees in scope.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Employee ID (exact or prefix), first, last, or full name (partial, case-insensitive), or exact email (case-insensitive). \"%\", \"_\", and \"\\\" are literal.",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Tech",
+                "HR",
+                "Finance",
+                "Operations",
+                "Support"
+              ]
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "IN",
+                "US"
+              ]
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "description": "Currency of the selected compensation record.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INR",
+                "USD"
+              ]
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "JUNIOR",
+                "MID",
+                "SENIOR",
+                "LEAD",
+                "MANAGER"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SOON_TO_JOIN",
+                "CURRENTLY_WORKING",
+                "LEFT"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Salary sorts compare unrounded USD values computed in MySQL from the saved rate, and require comparisonCurrency=USD. Ties break on employee ID.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "employeeCode",
+                "department",
+                "country",
+                "level",
+                "hireDate",
+                "annualBaseSalary",
+                "annualCashCompensation"
+              ],
+              "default": "name"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "name": "comparisonCurrency",
+            "in": "query",
+            "required": false,
+            "description": "Required when sort is a salary field.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "USD"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page. A page after the last page has no rows and correct totals.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: invalid, unknown, or repeated parameter; salary sort without comparisonCurrency=USD; or salary sort with no saved INR rate.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/employees/{employeeCode}": {
+      "get": {
+        "operationId": "getEmployee",
+        "summary": "One employee with selected compensation and full compensation history",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employeeCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^ACME[0-9]{5}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The employee.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: unknown and out-of-scope employees return the same body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/employee-directory/options": {
+      "get": {
+        "operationId": "getDirectoryOptions",
+        "summary": "Filter and sort values available inside the caller's scope",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Values present in scope. Salary sorts are omitted when no rate is loaded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryOptionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/messages": {
+      "post": {
+        "operationId": "sendAssistantMessages",
+        "summary": "Ask the read-only compensation assistant",
+        "description": "Read-only. The server derives identity and scope from the Bearer token. Tools return permission-filtered cards; the answer text is model-written. At most 4 tool rounds and 45 seconds per request.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantMessagesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The answer, tool calls, cards, and limitations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantMessagesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: invalid conversation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ASSISTANT_UNAVAILABLE: no model configured, model timeout, or provider error. Other routes are unaffected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AssistantCard": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/EmployeeListCard"
+          },
+          {
+            "$ref": "#/components/schemas/CompensationSummaryCard"
+          },
+          {
+            "$ref": "#/components/schemas/RecentChangesCard"
+          },
+          {
+            "$ref": "#/components/schemas/NoticeCard"
+          }
+        ]
+      },
+      "AssistantMessagesRequest": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "minItems": 1,
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "user",
+                    "assistant"
+                  ]
+                },
+                "content": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                }
+              },
+              "required": [
+                "role",
+                "content"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "additionalProperties": false
+      },
+      "AssistantMessagesResponse": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string",
+            "description": "Model-written text. Treat figures in cards as authoritative."
+          },
+          "toolCalls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "completed",
+                    "rejected",
+                    "failed"
+                  ],
+                  "description": "rejected: invalid tool name or arguments, not executed."
+                }
+              },
+              "required": [
+                "name",
+                "status"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantCard"
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "answer",
+          "toolCalls",
+          "cards",
+          "limitations",
+          "generatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "AssistantMoney": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "description": "Exact decimal string."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "INR",
+              "USD"
+            ]
+          }
+        },
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "additionalProperties": false
+      },
+      "CompensationHistoryEntry": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "annualBaseSalary": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Exact decimal string with two decimal places."
+          },
+          "annualBonus": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Exact decimal string with two decimal places."
+          },
+          "annualCashCompensation": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Exact decimal string with two decimal places."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "INR",
+              "USD"
+            ]
+          },
+          "payFrequency": {
+            "type": "string",
+            "enum": [
+              "MONTHLY",
+              "ANNUAL"
+            ]
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "changeReason": {
+            "type": "string",
+            "enum": [
+              "INITIAL_IMPORT",
+              "PERFORMANCE",
+              "MARKET_ADJUSTMENT",
+              "PROMOTION",
+              "ROLE_CHANGE",
+              "CORRECTION"
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "annualBaseSalary",
+          "annualBonus",
+          "annualCashCompensation",
+          "currency",
+          "payFrequency",
+          "effectiveFrom",
+          "changeReason"
+        ],
+        "additionalProperties": false
+      },
+      "CompensationSummaryCard": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "compensation_summary"
+          },
+          "title": {
+            "type": "string"
+          },
+          "groupBy": {
+            "type": "string",
+            "enum": [
+              "DEPARTMENT",
+              "COUNTRY",
+              "CURRENCY"
+            ]
+          },
+          "metric": {
+            "type": "string",
+            "enum": [
+              "ANNUAL_BASE",
+              "ANNUAL_CASH"
+            ]
+          },
+          "population": {
+            "type": "string",
+            "const": "CURRENTLY_WORKING"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "group": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string",
+                  "enum": [
+                    "INR",
+                    "USD"
+                  ]
+                },
+                "employeeCount": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "total": {
+                  "$ref": "#/components/schemas/AssistantMoney"
+                },
+                "average": {
+                  "$ref": "#/components/schemas/AssistantMoney"
+                },
+                "minimum": {
+                  "$ref": "#/components/schemas/AssistantMoney"
+                },
+                "maximum": {
+                  "$ref": "#/components/schemas/AssistantMoney"
+                },
+                "usdEquivalent": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "string",
+                          "pattern": "^\\d+\\.\\d{2}$",
+                          "description": "Exact decimal string with two decimal places."
+                        },
+                        "average": {
+                          "type": "string",
+                          "pattern": "^\\d+\\.\\d{2}$",
+                          "description": "Exact decimal string with two decimal places."
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "average"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Context only, not an authoritative total."
+                }
+              },
+              "required": [
+                "group",
+                "currency",
+                "employeeCount",
+                "total",
+                "average",
+                "minimum",
+                "maximum",
+                "usdEquivalent"
+              ],
+              "additionalProperties": false
+            },
+            "description": "One row per group and native currency. Currencies are never added together."
+          },
+          "exchangeRate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExchangeRateContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "groupBy",
+          "metric",
+          "population",
+          "groups",
+          "exchangeRate"
+        ],
+        "additionalProperties": false
+      },
+      "CurrentUserResponse": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "ADMIN",
+                  "SCOPED"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ACTIVE",
+                  "INACTIVE"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "displayName",
+              "email",
+              "role",
+              "status"
+            ],
+            "additionalProperties": false
+          },
+          "scope": {
+            "type": "object",
+            "properties": {
+              "countries": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "departments": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "countries",
+              "departments"
+            ],
+            "additionalProperties": false
+          },
+          "session": {
+            "type": "object",
+            "properties": {
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "expiresAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "user",
+          "scope",
+          "session"
+        ],
+        "additionalProperties": false
+      },
+      "DirectoryOptionsResponse": {
+        "type": "object",
+        "properties": {
+          "departments": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "Tech",
+                "HR",
+                "Finance",
+                "Operations",
+                "Support"
+              ]
+            }
+          },
+          "countries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "IN",
+                    "US"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "INR",
+                "USD"
+              ]
+            }
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "JUNIOR",
+                "MID",
+                "SENIOR",
+                "LEAD",
+                "MANAGER"
+              ]
+            }
+          },
+          "statuses": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "SOON_TO_JOIN",
+                "CURRENTLY_WORKING",
+                "LEFT"
+              ]
+            }
+          },
+          "sortFields": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "name",
+                "employeeCode",
+                "department",
+                "country",
+                "level",
+                "hireDate",
+                "annualBaseSalary",
+                "annualCashCompensation"
+              ]
+            }
+          },
+          "comparisonCurrencies": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "USD"
+              ]
+            }
+          }
+        },
+        "required": [
+          "departments",
+          "countries",
+          "currencies",
+          "levels",
+          "statuses",
+          "sortFields",
+          "comparisonCurrencies"
+        ],
+        "additionalProperties": false
+      },
+      "DirectoryResponse": {
+        "type": "object",
+        "properties": {
+          "employees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DirectoryRow"
+            }
+          },
+          "page": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "size": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalRows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "number",
+              "size",
+              "totalRows",
+              "totalPages"
+            ],
+            "additionalProperties": false
+          },
+          "sort": {
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string",
+                "enum": [
+                  "name",
+                  "employeeCode",
+                  "department",
+                  "country",
+                  "level",
+                  "hireDate",
+                  "annualBaseSalary",
+                  "annualCashCompensation"
+                ]
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "asc",
+                  "desc"
+                ]
+              },
+              "comparison": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "currency": {
+                        "type": "string",
+                        "enum": [
+                          "USD"
+                        ]
+                      },
+                      "exchangeRate": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/components/schemas/ExchangeRateContext"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "currency",
+                      "exchangeRate"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Present for salary sorts. exchangeRate is null only when every row is USD (currency=USD filter)."
+              }
+            },
+            "required": [
+              "field",
+              "direction",
+              "comparison"
+            ],
+            "additionalProperties": false
+          },
+          "exchangeRate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExchangeRateContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Snapshot used for usdEquivalent values; null when no rate is loaded."
+          }
+        },
+        "required": [
+          "employees",
+          "page",
+          "sort",
+          "exchangeRate"
+        ],
+        "additionalProperties": false
+      },
+      "DirectoryRow": {
+        "type": "object",
+        "properties": {
+          "employeeCode": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string",
+            "enum": [
+              "Tech",
+              "HR",
+              "Finance",
+              "Operations",
+              "Support"
+            ]
+          },
+          "jobTitle": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "JUNIOR",
+              "MID",
+              "SENIOR",
+              "LEAD",
+              "MANAGER"
+            ]
+          },
+          "country": {
+            "type": "string",
+            "enum": [
+              "IN",
+              "US"
+            ]
+          },
+          "employmentStatus": {
+            "type": "string",
+            "enum": [
+              "SOON_TO_JOIN",
+              "CURRENTLY_WORKING",
+              "LEFT"
+            ]
+          },
+          "hireDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "compensation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SelectedCompensation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "employeeCode",
+          "firstName",
+          "lastName",
+          "email",
+          "department",
+          "jobTitle",
+          "level",
+          "country",
+          "employmentStatus",
+          "hireDate",
+          "compensation"
+        ],
+        "additionalProperties": false
+      },
+      "EmployeeDetailResponse": {
+        "type": "object",
+        "properties": {
+          "employee": {
+            "type": "object",
+            "properties": {
+              "employeeCode": {
+                "type": "string"
+              },
+              "firstName": {
+                "type": "string"
+              },
+              "lastName": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "department": {
+                "type": "string",
+                "enum": [
+                  "Tech",
+                  "HR",
+                  "Finance",
+                  "Operations",
+                  "Support"
+                ]
+              },
+              "jobTitle": {
+                "type": "string"
+              },
+              "level": {
+                "type": "string",
+                "enum": [
+                  "JUNIOR",
+                  "MID",
+                  "SENIOR",
+                  "LEAD",
+                  "MANAGER"
+                ]
+              },
+              "country": {
+                "type": "string",
+                "enum": [
+                  "IN",
+                  "US"
+                ]
+              },
+              "employmentStatus": {
+                "type": "string",
+                "enum": [
+                  "SOON_TO_JOIN",
+                  "CURRENTLY_WORKING",
+                  "LEFT"
+                ]
+              },
+              "hireDate": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              "employmentEndDate": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "version": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Employee record version, for later stale-edit checks."
+              }
+            },
+            "required": [
+              "employeeCode",
+              "firstName",
+              "lastName",
+              "email",
+              "department",
+              "jobTitle",
+              "level",
+              "country",
+              "employmentStatus",
+              "hireDate",
+              "employmentEndDate",
+              "version"
+            ],
+            "additionalProperties": false
+          },
+          "compensation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SelectedCompensation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "compensationHistory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompensationHistoryEntry"
+            },
+            "description": "Every record, ordered by effectiveFrom then version."
+          },
+          "exchangeRate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExchangeRateContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "employee",
+          "compensation",
+          "compensationHistory",
+          "exchangeRate"
+        ],
+        "additionalProperties": false
+      },
+      "EmployeeListCard": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "employee_list"
+          },
+          "title": {
+            "type": "string"
+          },
+          "employees": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "employeeCode": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "department": {
+                  "type": "string",
+                  "enum": [
+                    "Tech",
+                    "HR",
+                    "Finance",
+                    "Operations",
+                    "Support"
+                  ]
+                },
+                "jobTitle": {
+                  "type": "string"
+                },
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "JUNIOR",
+                    "MID",
+                    "SENIOR",
+                    "LEAD",
+                    "MANAGER"
+                  ]
+                },
+                "country": {
+                  "type": "string",
+                  "enum": [
+                    "IN",
+                    "US"
+                  ]
+                },
+                "employmentStatus": {
+                  "type": "string",
+                  "enum": [
+                    "SOON_TO_JOIN",
+                    "CURRENTLY_WORKING",
+                    "LEFT"
+                  ]
+                },
+                "compensation": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "CURRENT",
+                            "UPCOMING",
+                            "HISTORICAL"
+                          ]
+                        },
+                        "effectiveFrom": {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        "annualBaseSalary": {
+                          "$ref": "#/components/schemas/AssistantMoney"
+                        },
+                        "annualBonus": {
+                          "$ref": "#/components/schemas/AssistantMoney"
+                        },
+                        "annualCashCompensation": {
+                          "$ref": "#/components/schemas/AssistantMoney"
+                        },
+                        "usdEquivalent": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "annualBaseSalary": {
+                                  "type": "string",
+                                  "pattern": "^\\d+\\.\\d{2}$",
+                                  "description": "Exact decimal string with two decimal places."
+                                },
+                                "annualCashCompensation": {
+                                  "type": "string",
+                                  "pattern": "^\\d+\\.\\d{2}$",
+                                  "description": "Exact decimal string with two decimal places."
+                                }
+                              },
+                              "required": [
+                                "annualBaseSalary",
+                                "annualCashCompensation"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Display only, rounded half-up. Null when an INR record has no saved rate."
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "effectiveFrom",
+                        "annualBaseSalary",
+                        "annualBonus",
+                        "annualCashCompensation",
+                        "usdEquivalent"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "employeeCode",
+                "name",
+                "department",
+                "jobTitle",
+                "level",
+                "country",
+                "employmentStatus",
+                "compensation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "exchangeRate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExchangeRateContext"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the list was ranked or shown with USD equivalents."
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "employees",
+          "exchangeRate"
+        ],
+        "additionalProperties": false
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "VALIDATION_ERROR",
+                  "INVALID_CREDENTIALS",
+                  "UNAUTHENTICATED",
+                  "RATE_LIMITED",
+                  "NOT_FOUND",
+                  "ASSISTANT_UNAVAILABLE",
+                  "INTERNAL_ERROR"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "ExchangeRateContext": {
+        "type": "object",
+        "properties": {
+          "baseCurrency": {
+            "type": "string",
+            "const": "USD"
+          },
+          "quoteCurrency": {
+            "type": "string",
+            "const": "INR"
+          },
+          "rate": {
+            "type": "string",
+            "description": "Quote units per one base unit: 1 USD = rate INR."
+          },
+          "sourceName": {
+            "type": "string"
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "effectiveDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "retrievedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "baseCurrency",
+          "quoteCurrency",
+          "rate",
+          "sourceName",
+          "sourceUrl",
+          "effectiveDate",
+          "retrievedAt"
+        ],
+        "additionalProperties": false
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Signed JWT. Send as \"Authorization: Bearer <token>\"."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "ADMIN",
+                  "SCOPED"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "displayName",
+              "email",
+              "role"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "token",
+          "expiresAt",
+          "user"
+        ],
+        "additionalProperties": false
+      },
+      "NoticeCard": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "notice"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "level",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "RecentChangesCard": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "recent_changes"
+          },
+          "title": {
+            "type": "string"
+          },
+          "days": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Window length, measured back from the current time by recordedAt."
+          },
+          "totalMatching": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "employeeCode": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "department": {
+                  "type": "string",
+                  "enum": [
+                    "Tech",
+                    "HR",
+                    "Finance",
+                    "Operations",
+                    "Support"
+                  ]
+                },
+                "country": {
+                  "type": "string",
+                  "enum": [
+                    "IN",
+                    "US"
+                  ]
+                },
+                "version": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "recordedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                  "description": "When HR recorded the change (compensation_records.created_at, UTC). \"Recent\" is measured by this."
+                },
+                "effectiveFrom": {
+                  "type": "string",
+                  "format": "date",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                },
+                "changeReason": {
+                  "type": "string",
+                  "enum": [
+                    "INITIAL_IMPORT",
+                    "PERFORMANCE",
+                    "MARKET_ADJUSTMENT",
+                    "PROMOTION",
+                    "ROLE_CHANGE",
+                    "CORRECTION"
+                  ]
+                },
+                "annualBaseSalary": {
+                  "$ref": "#/components/schemas/AssistantMoney"
+                },
+                "annualBonus": {
+                  "$ref": "#/components/schemas/AssistantMoney"
+                },
+                "previous": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "annualBaseSalary": {
+                          "$ref": "#/components/schemas/AssistantMoney"
+                        },
+                        "annualBonus": {
+                          "$ref": "#/components/schemas/AssistantMoney"
+                        },
+                        "effectiveFrom": {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        }
+                      },
+                      "required": [
+                        "annualBaseSalary",
+                        "annualBonus",
+                        "effectiveFrom"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "annualBaseSalaryChange": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AssistantMoney"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Null when there is no previous record or the currency changed."
+                }
+              },
+              "required": [
+                "employeeCode",
+                "name",
+                "department",
+                "country",
+                "version",
+                "recordedAt",
+                "effectiveFrom",
+                "changeReason",
+                "annualBaseSalary",
+                "annualBonus",
+                "previous",
+                "annualBaseSalaryChange"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "days",
+          "totalMatching",
+          "changes"
+        ],
+        "additionalProperties": false
+      },
+      "SelectedCompensation": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "CURRENT",
+              "UPCOMING",
+              "HISTORICAL"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "annualBaseSalary": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Exact decimal string with two decimal places."
+          },
+          "annualBonus": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "Exact decimal string with two decimal places."
+          },
+          "annualCashCompensation": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{2}$",
+            "description": "annualBaseSalary + annualBonus, in the native currency."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "INR",
+              "USD"
+            ]
+          },
+          "payFrequency": {
+            "type": "string",
+            "enum": [
+              "MONTHLY",
+              "ANNUAL"
+            ]
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "usdEquivalent": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "annualBaseSalary": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d{2}$",
+                    "description": "Exact decimal string with two decimal places."
+                  },
+                  "annualCashCompensation": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d{2}$",
+                    "description": "Exact decimal string with two decimal places."
+                  }
+                },
+                "required": [
+                  "annualBaseSalary",
+                  "annualCashCompensation"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Display only: rounded half-up to cents. Null when an INR record has no saved rate."
+          }
+        },
+        "required": [
+          "state",
+          "version",
+          "annualBaseSalary",
+          "annualBonus",
+          "annualCashCompensation",
+          "currency",
+          "payFrequency",
+          "effectiveFrom",
+          "usdEquivalent"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
