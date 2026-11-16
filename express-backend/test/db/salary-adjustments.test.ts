@@ -20,7 +20,7 @@ import type { LogEntry } from '../../src/http/request-log.js';
 import { ensureReferenceData } from '../../src/seed/reference-data.js';
 import { selectRows } from '../support/db.js';
 import type { Row } from '../support/db.js';
-import { fakeDashboard, noModelAssistant } from '../support/http.js';
+import { fakeDashboard, fakeHrAccess, noModelAssistant } from '../support/http.js';
 import { must } from '../support/must.js';
 import { resetTestDatabase, testDatabaseUrl } from '../support/test-database.js';
 
@@ -47,6 +47,7 @@ function buildApp() {
     directory,
     ...noModelAssistant(directory),
     dashboard: fakeDashboard(),
+    hrAccess: fakeHrAccess(),
     salaryAdjustments: createSalaryAdjustmentService({ pool, clock, previewTokens: createPreviewTokens({ signingKey: SIGNING_KEY, clock }) }),
     logger: (entry) => logs.push(entry),
     clientIpSource: 'socket',

@@ -1,0 +1,20 @@
+# Review fix 11b statistics experiment, 2026-11-16T15:47:19Z. acme_test only. Each case: reset, migrate, seed 10,000, load 11b-dashboard-measurement-data.sql.
+
+## Case 1: measure immediately after the bulk load (npm run measure:dashboard -- --runs 3)
+index stats n_diff_pfx01: [{"error":"ER_TABLEACCESS_DENIED_ERROR"}]
+information_schema table_rows: [{"TABLE_ROWS":11008}]
+MySQL 8.4.13; employees=10000; compensation_records=11008 (non-import 1008); requests=0; runs=3
+summary (Admin): 8 statement(s); median 11446.7 ms, slowest 11509.0 ms over 3 runs
+without adjustment 12 months (Admin): 2 statement(s); median 26.2 ms, slowest 26.2 ms over 3 runs
+summary (Scoped): 8 statement(s); median 34.2 ms, slowest 35.2 ms over 3 runs
+without adjustment 12 months (Scoped): 2 statement(s); median 14.3 ms, slowest 14.6 ms over 3 runs
+
+## Case 2: same load, then ANALYZE TABLE compensation_records, employees, then measure (--runs 3)
+[["acme_test.compensation_records","OK"],["acme_test.employees","OK"]]
+index stats n_diff_pfx01: [{"error":"ER_TABLEACCESS_DENIED_ERROR"}]
+information_schema table_rows: [{"TABLE_ROWS":10851}]
+MySQL 8.4.13; employees=10000; compensation_records=11008 (non-import 1008); requests=0; runs=3
+summary (Admin): 8 statement(s); median 50.0 ms, slowest 51.5 ms over 3 runs
+without adjustment 12 months (Admin): 2 statement(s); median 26.1 ms, slowest 26.1 ms over 3 runs
+summary (Scoped): 8 statement(s); median 35.0 ms, slowest 37.1 ms over 3 runs
+without adjustment 12 months (Scoped): 2 statement(s); median 24.2 ms, slowest 27.8 ms over 3 runs

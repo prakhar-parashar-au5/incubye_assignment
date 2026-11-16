@@ -8,6 +8,8 @@ import type { CompensationInsights } from '../../src/assistant/compensation-insi
 import { createToolRegistry } from '../../src/assistant/tools.js';
 import { SalaryAdjustmentError } from '../../src/compensation/salary-adjustment-service.js';
 import type { SalaryAdjustmentService } from '../../src/compensation/salary-adjustment-service.js';
+import { HrAccessError } from '../../src/access/hr-access-service.js';
+import type { HrAccessService } from '../../src/access/hr-access-service.js';
 import type { DashboardService } from '../../src/dashboard/dashboard-service.js';
 import type { DirectoryService } from '../../src/directory/directory-repository.js';
 import { createApp } from '../../src/http/app.js';
@@ -135,6 +137,14 @@ export function fakeDashboard(): DashboardService {
   };
 }
 
+/** An HR access double: every HR user is unknown. Real behaviour: test/db/hr-access.test.ts. */
+export function fakeHrAccess(): HrAccessService {
+  const notFound = async (): Promise<never> => {
+    throw new HrAccessError('NOT_FOUND', { message: 'HR user not found.' });
+  };
+  return { list: notFound, get: notFound, audit: notFound, preview: notFound, create: notFound, change: notFound, previewPasswordRegeneration: notFound, regeneratePassword: notFound };
+}
+
 export interface TestApp {
   app: ReturnType<typeof createApp>;
   logs: LogEntry[];
@@ -156,6 +166,7 @@ export function buildTestApp(overrides: Partial<AppDependencies> = {}): TestApp 
     assistant: createAssistantService({ model: null, tools, logger: (entry) => logs.push(entry) }),
     salaryAdjustments: fakeSalaryAdjustments(),
     dashboard: fakeDashboard(),
+    hrAccess: fakeHrAccess(),
     logger: (entry) => logs.push(entry),
     clock: () => new Date(Date.now() + offsetMs),
     clientIpSource: 'socket',

@@ -1,0 +1,31 @@
+# Task 10 fifteen-run timing outputs, recovered in review fix 11b.
+# Captured 2026-11-16 19:07 local by npm run measure:dashboard (default --runs 15, no --plans) on acme_test with the Task 10 data (employees=10000, compensation_records=11019).
+# They were written to /tmp/acme-10-run1.txt and /tmp/acme-10-run2.txt and not saved in the workspace at the time. Copied here unchanged.
+
+## /tmp/acme-10-run1.txt
+summary (Admin): 8 statement(s); median 43.4 ms, slowest 50.8 ms over 15 runs
+breakdown DEPARTMENT, with median (Admin): 1 statement(s); median 37.3 ms, slowest 38.5 ms over 15 runs
+breakdown COUNTRY (Admin): 1 statement(s); median 33.3 ms, slowest 34.5 ms over 15 runs
+breakdown CURRENCY (Admin): 1 statement(s); median 34.6 ms, slowest 37.8 ms over 15 runs
+recent changes 90 days (Admin): 2 statement(s); median 3.5 ms, slowest 5.1 ms over 15 runs
+without adjustment 12 months (Admin): 2 statement(s); median 25.4 ms, slowest 26.9 ms over 15 runs
+summary (Scoped): 8 statement(s); median 35.5 ms, slowest 38.4 ms over 15 runs
+breakdown DEPARTMENT, with median (Scoped): 1 statement(s); median 21.2 ms, slowest 23.8 ms over 15 runs
+breakdown COUNTRY (Scoped): 1 statement(s); median 19.2 ms, slowest 22.1 ms over 15 runs
+breakdown CURRENCY (Scoped): 1 statement(s); median 19.4 ms, slowest 20.3 ms over 15 runs
+recent changes 90 days (Scoped): 2 statement(s); median 3.7 ms, slowest 5.7 ms over 15 runs
+without adjustment 12 months (Scoped): 2 statement(s); median 23.8 ms, slowest 53.5 ms over 15 runs
+
+## /tmp/acme-10-run2.txt
+summary (Admin): 8 statement(s); median 42.7 ms, slowest 55.7 ms over 15 runs
+breakdown DEPARTMENT, with median (Admin): 1 statement(s); median 37.8 ms, slowest 41.5 ms over 15 runs
+breakdown COUNTRY (Admin): 1 statement(s); median 33.3 ms, slowest 33.9 ms over 15 runs
+breakdown CURRENCY (Admin): 1 statement(s); median 35.0 ms, slowest 36.7 ms over 15 runs
+recent changes 90 days (Admin): 2 statement(s); median 3.7 ms, slowest 5.0 ms over 15 runs
+without adjustment 12 months (Admin): 2 statement(s); median 25.3 ms, slowest 26.0 ms over 15 runs
+summary (Scoped): 8 statement(s); median 35.7 ms, slowest 37.9 ms over 15 runs
+breakdown DEPARTMENT, with median (Scoped): 1 statement(s); median 21.0 ms, slowest 23.3 ms over 15 runs
+breakdown COUNTRY (Scoped): 1 statement(s); median 19.3 ms, slowest 20.4 ms over 15 runs
+breakdown CURRENCY (Scoped): 1 statement(s); median 19.5 ms, slowest 26.7 ms over 15 runs
+recent changes 90 days (Scoped): 2 statement(s); median 3.7 ms, slowest 4.6 ms over 15 runs
+without adjustment 12 months (Scoped): 2 statement(s); median 22.8 ms, slowest 24.3 ms over 15 runs

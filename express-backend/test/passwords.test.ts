@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { hashPassword, verifyPassword } from '../src/access/passwords.js';
+import { TEMPORARY_PASSWORD_ALPHABET, TEMPORARY_PASSWORD_LENGTH, generateTemporaryPassword, hashPassword, verifyPassword } from '../src/access/passwords.js';
 import { thrown } from './support/thrown.js';
 
 // Synthetic test value, not a real credential.
@@ -57,5 +57,25 @@ describe('verifyPassword', () => {
   test('a malformed stored hash fails without exposing the password', async () => {
     assert.equal(await verifyPassword('not-a-hash', PASSWORD), false);
     assert.equal(await verifyPassword(null, PASSWORD), false);
+  });
+});
+
+describe('generateTemporaryPassword', () => {
+  // Detects: short, fixed, or low-variety temporary passwords.
+  test('is at least 12 characters from the approved alphabet, and never repeats', () => {
+    const samples = Array.from({ length: 2000 }, () => generateTemporaryPassword());
+    for (const password of samples) {
+      assert.equal(password.length, TEMPORARY_PASSWORD_LENGTH);
+      assert.ok(password.length >= 12);
+      assert.ok([...password].every((c) => TEMPORARY_PASSWORD_ALPHABET.includes(c)), password);
+    }
+    assert.equal(new Set(samples).size, samples.length);
+    // 40,000 symbols drawn uniformly from 56: every symbol appears, and none
+    // is wildly over- or under-represented (expected about 714 each).
+    const counts = new Map<string, number>();
+    for (const c of samples.join('')) counts.set(c, (counts.get(c) ?? 0) + 1);
+    assert.equal(counts.size, TEMPORARY_PASSWORD_ALPHABET.length);
+    for (const n of counts.values()) assert.ok(n > 500 && n < 950, String(n));
+    assert.doesNotMatch(TEMPORARY_PASSWORD_ALPHABET, /[0O1lI]/);
   });
 });

@@ -307,7 +307,7 @@ describe('access audit', () => {
     });
     assert.deepEqual(await auditRows(id), [{
       actor: adminId, action: 'HR_USER_CREATED', before_: null,
-      after_: { role: 'SCOPED', status: 'ACTIVE', countries: ['IN', 'US'], departments: ['Tech'] },
+      after_: { displayName: 'Audited Person', role: 'SCOPED', status: 'ACTIVE', countries: ['IN', 'US'], departments: ['Tech'] },
     }]);
   });
 
@@ -323,13 +323,13 @@ describe('access audit', () => {
     assert.deepEqual(rows.slice(1), [
       {
         actor: adminId, action: 'COUNTRY_SCOPES_CHANGED',
-        before_: { role: 'SCOPED', status: 'ACTIVE', countries: ['IN'], departments: ['Tech'] },
-        after_: { role: 'SCOPED', status: 'ACTIVE', countries: ['US'], departments: ['Tech'] },
+        before_: { displayName: 'Scope Change', role: 'SCOPED', status: 'ACTIVE', countries: ['IN'], departments: ['Tech'] },
+        after_: { displayName: 'Scope Change', role: 'SCOPED', status: 'ACTIVE', countries: ['US'], departments: ['Tech'] },
       },
       {
         actor: adminId, action: 'DEPARTMENT_SCOPES_CHANGED',
-        before_: { role: 'SCOPED', status: 'ACTIVE', countries: ['US'], departments: ['Tech'] },
-        after_: { role: 'SCOPED', status: 'ACTIVE', countries: ['US'], departments: ['Finance', 'Support'] },
+        before_: { displayName: 'Scope Change', role: 'SCOPED', status: 'ACTIVE', countries: ['US'], departments: ['Tech'] },
+        after_: { displayName: 'Scope Change', role: 'SCOPED', status: 'ACTIVE', countries: ['US'], departments: ['Finance', 'Support'] },
       },
     ]);
     const [{ version }] = await query('SELECT version FROM hr_users WHERE id = ?', [id]);
@@ -372,7 +372,7 @@ describe('access audit', () => {
         assert.ok(!text.includes(token));
         for (const sid of sessionIds) assert.ok(!text.includes(String(sid)));
         const keys = Object.keys(JSON.parse(text)).sort();
-        assert.deepEqual(keys, ['countries', 'departments', 'role', 'status']);
+        assert.deepEqual(keys, ['countries', 'departments', 'displayName', 'role', 'status']);
       }
     }
   });

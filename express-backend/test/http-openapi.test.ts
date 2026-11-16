@@ -14,7 +14,7 @@ const get = (value: unknown, ...keys: string[]): unknown =>
 
 describe('OpenAPI contract', () => {
   // Detects: an endpoint missing from, or added to, the published contract.
-  test('documents exactly the twenty-one endpoints', () => {
+  test('documents exactly the thirty-eight endpoints', () => {
     const paths = get(doc, 'paths') as Json;
     const operations = Object.entries(paths).flatMap(([path, item]) => Object.keys(item as Json).map((m) => `${m.toUpperCase()} ${path}`));
     assert.deepEqual(operations.sort(), [
@@ -26,6 +26,9 @@ describe('OpenAPI contract', () => {
       'GET /api/v1/employee-directory/options',
       'GET /api/v1/employees',
       'GET /api/v1/employees/{employeeCode}',
+      'GET /api/v1/hr-users',
+      'GET /api/v1/hr-users/{hrUserId}',
+      'GET /api/v1/hr-users/{hrUserId}/access-audit',
       'GET /api/v1/openapi.json',
       'GET /api/v1/salary-adjustment-requests',
       'GET /api/v1/salary-adjustment-requests/{requestId}',
@@ -36,9 +39,23 @@ describe('OpenAPI contract', () => {
       'POST /api/v1/employees/{employeeCode}/salary-adjustment-requests',
       'POST /api/v1/employees/{employeeCode}/salary-adjustments',
       'POST /api/v1/employees/{employeeCode}/salary-adjustments/preview',
+      'POST /api/v1/hr-users',
+      'POST /api/v1/hr-users/preview',
+      'POST /api/v1/hr-users/{hrUserId}/deactivate',
+      'POST /api/v1/hr-users/{hrUserId}/deactivate/preview',
+      'POST /api/v1/hr-users/{hrUserId}/profile',
+      'POST /api/v1/hr-users/{hrUserId}/profile/preview',
+      'POST /api/v1/hr-users/{hrUserId}/promote',
+      'POST /api/v1/hr-users/{hrUserId}/promote/preview',
+      'POST /api/v1/hr-users/{hrUserId}/reactivate',
+      'POST /api/v1/hr-users/{hrUserId}/reactivate/preview',
+      'POST /api/v1/hr-users/{hrUserId}/regenerate-temporary-password',
+      'POST /api/v1/hr-users/{hrUserId}/regenerate-temporary-password/preview',
+      'POST /api/v1/hr-users/{hrUserId}/scopes/preview',
       'POST /api/v1/mcp',
       'POST /api/v1/salary-adjustment-requests/{requestId}/approve',
       'POST /api/v1/salary-adjustment-requests/{requestId}/cancel',
+      'PUT /api/v1/hr-users/{hrUserId}/scopes',
     ]);
     assert.equal(get(doc, 'openapi'), '3.1.0');
   });
@@ -179,6 +196,75 @@ describe('OpenAPI contract', () => {
     assert.ok((get(group, 'required') as string[]).includes('medianAnnualCashCompensation'));
   });
 
+  // Detects: HR access operations documented without auth, Idempotency-Key,
+  // expected-version bodies, or the approved error codes.
+  test('HR access-management operations document auth, idempotency, bodies, and errors', () => {
+    const base = '/api/v1/hr-users';
+    const writes: [string, string, string, string][] = [
+      ['post', base, 'HrUserCreateRequest', 'HrUserCreateResult'],
+      ['post', `${base}/{hrUserId}/profile`, 'HrUserProfileRequest', 'HrUserChangeResult'],
+      ['post', `${base}/{hrUserId}/promote`, 'HrUserPromoteRequest', 'HrUserChangeResult'],
+      ['put', `${base}/{hrUserId}/scopes`, 'HrUserScopesRequest', 'HrUserChangeResult'],
+      ['post', `${base}/{hrUserId}/deactivate`, 'HrUserDeactivateRequest', 'HrUserChangeResult'],
+      ['post', `${base}/{hrUserId}/reactivate`, 'HrUserReactivateRequest', 'HrUserChangeResult'],
+      ['post', `${base}/{hrUserId}/regenerate-temporary-password`, 'HrUserPasswordRegenerationRequest', 'HrUserPasswordRegenerationResult'],
+    ];
+    const previews: [string, string][] = [
+      [`${base}/preview`, 'HrUserCreatePreviewRequest'], [`${base}/{hrUserId}/profile/preview`, 'HrUserProfilePreviewRequest'],
+      [`${base}/{hrUserId}/promote/preview`, 'HrUserPromotePreviewRequest'], [`${base}/{hrUserId}/scopes/preview`, 'HrUserScopesPreviewRequest'],
+      [`${base}/{hrUserId}/deactivate/preview`, 'HrUserDeactivatePreviewRequest'], [`${base}/{hrUserId}/reactivate/preview`, 'HrUserReactivatePreviewRequest'],
+    ];
+    const ref = (op: unknown, ...keys: string[]) => get(op, ...keys, 'content', 'application/json', 'schema', '$ref');
+    for (const [method, path, requestSchema, responseSchema] of writes) {
+      const op = get(doc, 'paths', path, method);
+      assert.deepEqual(get(op, 'security'), [{ bearerAuth: [] }], path);
+      assert.equal(ref(op, 'requestBody'), `#/components/schemas/${requestSchema}`, path);
+      const success = path === base ? '201' : '200';
+      assert.equal(ref(op, 'responses', success), `#/components/schemas/${responseSchema}`, path);
+      const headers = ((get(op, 'parameters') as Json[]).filter((p) => p.in === 'header')).map((p) => [p.name, p.required]);
+      assert.deepEqual(headers, [['Idempotency-Key', true]], path);
+      for (const code of ['400', '401', '403', '409', '500', '503']) assert.ok(Object.keys(get(op, 'responses') as Json).includes(code), `${path} ${code}`);
+    }
+    for (const [path, requestSchema] of previews) {
+      const op = get(doc, 'paths', path, 'post');
+      assert.equal(ref(op, 'requestBody'), `#/components/schemas/${requestSchema}`, path);
+      assert.equal(ref(op, 'responses', '200'), '#/components/schemas/HrAccessPreview', path);
+      assert.ok(((get(op, 'parameters') as Json[] | undefined) ?? []).every((p) => p.in !== 'header'), path);
+    }
+    for (const id of ['HrUserProfileRequest', 'HrUserPromoteRequest', 'HrUserScopesRequest', 'HrUserDeactivateRequest', 'HrUserReactivateRequest']) {
+      const schema = get(doc, 'components', 'schemas', id);
+      assert.equal(get(schema, 'additionalProperties'), false, id);
+      assert.ok((get(schema, 'required') as string[]).includes('expectedVersion'), id);
+      assert.ok((get(schema, 'required') as string[]).includes('previewToken'), id);
+    }
+    assert.equal(get(doc, 'components', 'schemas', 'HrUserCreateRequest', 'properties', 'password'), undefined);
+    // Review fix 11a: regeneration preview, and results the frontend can tell apart.
+    const regenPreview = get(doc, 'paths', `${base}/{hrUserId}/regenerate-temporary-password/preview`, 'post');
+    assert.equal(ref(regenPreview, 'requestBody'), '#/components/schemas/HrUserPasswordRegenerationPreviewRequest');
+    assert.equal(ref(regenPreview, 'responses', '200'), '#/components/schemas/HrUserPasswordRegenerationPreview');
+    assert.equal(get(doc, 'components', 'schemas', 'HrUserPasswordRegenerationPreview', 'properties', 'temporaryPassword'), undefined);
+    for (const id of ['HrUserCreateResult', 'HrUserPasswordRegenerationResult']) {
+      assert.ok((get(doc, 'components', 'schemas', id, 'required') as string[]).includes('credentialRecoveryRequired'), id);
+      assert.equal(get(doc, 'components', 'schemas', id, 'properties', 'credentialRecoveryRequired', 'type'), 'boolean', id);
+    }
+    for (const id of ['HrUserPasswordRegenerationPreviewRequest', 'HrUserPasswordRegenerationRequest']) {
+      const schema = get(doc, 'components', 'schemas', id);
+      assert.equal(get(schema, 'additionalProperties'), false, id);
+      assert.deepEqual([get(schema, 'properties', 'reason', 'minLength'), get(schema, 'properties', 'reason', 'maxLength')], [1, 2000], id);
+    }
+    assert.ok((get(doc, 'components', 'schemas', 'AccessAuditEvent', 'properties', 'action', 'enum') as string[]).includes('TEMPORARY_PASSWORD_REGENERATED'));
+    // Review fix 11b: self-regeneration is documented as its own 409.
+    for (const path of [`${base}/{hrUserId}/regenerate-temporary-password/preview`, `${base}/{hrUserId}/regenerate-temporary-password`]) {
+      assert.match(String(get(doc, 'paths', path, 'post', 'responses', '409', 'description')), /SELF_PASSWORD_REGENERATION_FORBIDDEN/, path);
+    }
+    assert.doesNotMatch(JSON.stringify(doc), /\$argon2id\$|"example"/);
+    const listParams = (get(doc, 'paths', base, 'get', 'parameters') as Json[]).map((p) => p.name);
+    assert.deepEqual(listParams, ['q', 'role', 'status', 'country', 'department', 'sort', 'direction', 'page', 'pageSize']);
+    assert.ok(Object.keys(get(doc, 'paths', `${base}/{hrUserId}/scopes`, 'put', 'responses') as Json).includes('422'));
+    assert.ok(Object.keys(get(doc, 'paths', `${base}/{hrUserId}/deactivate`, 'post', 'responses') as Json).includes('409'));
+    assert.deepEqual(get(doc, 'components', 'schemas', 'HrUserView', 'properties', 'password_hash'), undefined);
+  });
+
   // Detects: an assistant contract that drifts from the shared frontend contract.
   test('assistant request and response schemas follow the shared contract', () => {
     const op = get(doc, 'paths', '/api/v1/assistant/messages', 'post');
@@ -207,7 +293,7 @@ describe('OpenAPI contract', () => {
     assert.deepEqual(get(doc, 'components', 'schemas', 'ErrorResponse', 'properties', 'error', 'properties', 'code', 'enum'), [
       'VALIDATION_ERROR', 'INVALID_CREDENTIALS', 'UNAUTHENTICATED', 'RATE_LIMITED', 'NOT_FOUND', 'ASSISTANT_UNAVAILABLE',
       'FORBIDDEN', 'STALE_VERSION', 'DUPLICATE_OPERATION', 'PENDING_REQUEST_EXISTS', 'REQUEST_NOT_PENDING', 'EMPLOYEE_INELIGIBLE',
-      'SERVICE_UNAVAILABLE', 'INTERNAL_ERROR',
+      'LAST_ACTIVE_ADMIN', 'EMAIL_TAKEN', 'INVALID_SCOPE', 'SELF_PASSWORD_REGENERATION_FORBIDDEN', 'SERVICE_UNAVAILABLE', 'INTERNAL_ERROR',
     ]);
   });
 
@@ -229,8 +315,8 @@ describe('OpenAPI contract', () => {
     const paths = get(doc, 'paths') as Json;
     for (const [path, item] of Object.entries(paths)) {
       for (const method of Object.keys(item as Json)) {
-        const url = path.replace('{employeeCode}', 'ACME00001').replace('{requestId}', '00000000-0000-4000-8000-000000000000');
-        const call = method === 'post' ? request(app).post(url) : request(app).get(url);
+        const url = path.replace('{employeeCode}', 'ACME00001').replace('{requestId}', '00000000-0000-4000-8000-000000000000').replace('{hrUserId}', '1');
+        const call = method === 'post' ? request(app).post(url) : method === 'put' ? request(app).put(url) : request(app).get(url);
         const res = await call.set('Authorization', `Bearer ${FAKE_TOKEN}`).send({});
         // Routed operations may answer 404 for a missing resource; only the
         // unmatched-route handler says "Route not found."

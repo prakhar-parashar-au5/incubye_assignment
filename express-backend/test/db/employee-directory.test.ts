@@ -21,7 +21,7 @@ import type { LogEntry } from '../../src/http/request-log.js';
 import { seedDatabase } from '../../src/seed/seed-database.js';
 import { createSourceWorkbook } from '../../src/source-workbook/source-workbook.js';
 import { selectRows } from '../support/db.js';
-import { fakeDashboard, fakeSalaryAdjustments, noModelAssistant } from '../support/http.js';
+import { fakeDashboard, fakeHrAccess, fakeSalaryAdjustments, noModelAssistant } from '../support/http.js';
 import type { Row } from '../support/db.js';
 import { must } from '../support/must.js';
 import { resetTestDatabase, testDatabaseUrl } from '../support/test-database.js';
@@ -63,7 +63,7 @@ function buildApp(exchangeRate: ExchangeRateSnapshot | null = RATE) {
   return createApp({
     auth: createAuthService({ pool, tokens, clock }),
     directory,
-    ...noModelAssistant(directory), salaryAdjustments: fakeSalaryAdjustments(), dashboard: fakeDashboard(),
+    ...noModelAssistant(directory), salaryAdjustments: fakeSalaryAdjustments(), dashboard: fakeDashboard(), hrAccess: fakeHrAccess(),
     logger: (entry) => logs.push(entry),
     clientIpSource: 'socket',
   });

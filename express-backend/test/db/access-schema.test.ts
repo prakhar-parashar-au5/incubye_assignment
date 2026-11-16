@@ -55,13 +55,19 @@ after(async () => {
 
 describe('access schema: structure', () => {
   // Detects: a missing access table, or a later table added early.
-  test('migration 002 creates the five approved access tables (003 adds two salary tables)', async () => {
+  test('access tables remain present after later migrations', async () => {
     const rows = await query(
       `SELECT table_name AS name, engine AS engine FROM information_schema.tables
        WHERE table_schema = DATABASE() ORDER BY table_name`,
     );
     assert.deepEqual(rows.map((r) => `${r.name}:${r.engine}`), [
       'access_audit_events:InnoDB',
+      'ai_conversations:InnoDB',
+      'ai_messages:InnoDB',
+      'ai_model_calls:InnoDB',
+      'ai_tool_calls:InnoDB',
+      'ai_trace_reviews:InnoDB',
+      'ai_traces:InnoDB',
       'compensation_change_requests:InnoDB',
       'compensation_records:InnoDB',
       'countries:InnoDB',
@@ -72,6 +78,7 @@ describe('access schema: structure', () => {
       'hr_user_department_scopes:InnoDB',
       'hr_users:InnoDB',
       'job_titles:InnoDB',
+      'mcp_tool_calls:InnoDB',
       'salary_bands:InnoDB',
       'schema_migrations:InnoDB',
     ]);
@@ -79,7 +86,7 @@ describe('access schema: structure', () => {
 
   test('records every migration', async () => {
     const repeat = await runMigrations({ databaseUrl: DATABASE_URL });
-    assert.deepEqual(repeat, { applied: [], alreadyApplied: ['001_initial_schema.sql', '002_hr_access_control.sql', '003_salary_adjustments.sql'] });
+    assert.deepEqual(repeat, { applied: [], alreadyApplied: ['001_initial_schema.sql', '002_hr_access_control.sql', '003_salary_adjustments.sql', '004_hr_access_management.sql', '005_ai_observability.sql', '006_temporary_password_regeneration.sql'] });
   });
 
   // Detects: missing composite primary keys or lookup indexes.
@@ -97,6 +104,7 @@ describe('access schema: structure', () => {
       'access_audit_events.idx_access_audit_actor (actor_hr_user_id,created_at)',
       'access_audit_events.idx_access_audit_target (target_hr_user_id,created_at)',
       'access_audit_events.PRIMARY UNIQUE (id)',
+      'access_audit_events.uk_access_audit_operation_key UNIQUE (actor_hr_user_id,operation_idempotency_key)',
       'hr_sessions.idx_hr_sessions_user (hr_user_id)',
       'hr_sessions.PRIMARY UNIQUE (id)',
       'hr_user_country_scopes.idx_hr_country_scopes_country (country_code)',

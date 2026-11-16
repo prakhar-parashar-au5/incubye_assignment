@@ -80,7 +80,7 @@ describe('salary adjustment schema', () => {
     assert.ok(tables.includes('salary_bands') && tables.includes('compensation_change_requests'));
     assert.deepEqual(tables.filter((t) => /audit/i.test(t)), ['access_audit_events']);
     const repeat = await runMigrations({ databaseUrl: DATABASE_URL });
-    assert.deepEqual(repeat, { applied: [], alreadyApplied: ['001_initial_schema.sql', '002_hr_access_control.sql', '003_salary_adjustments.sql'] });
+    assert.deepEqual(repeat, { applied: [], alreadyApplied: ['001_initial_schema.sql', '002_hr_access_control.sql', '003_salary_adjustments.sql', '004_hr_access_management.sql', '005_ai_observability.sql', '006_temporary_password_regeneration.sql'] });
   });
 
   // Detects: missing approved columns on compensation_records.

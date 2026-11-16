@@ -35,7 +35,7 @@ import { createApp } from '../../src/http/app.js';
 import type { LogEntry } from '../../src/http/request-log.js';
 import { ensureReferenceData } from '../../src/seed/reference-data.js';
 import { selectRows } from '../support/db.js';
-import { fakeSalaryAdjustments, noModelAssistant } from '../support/http.js';
+import { fakeHrAccess, fakeSalaryAdjustments, noModelAssistant } from '../support/http.js';
 import { must } from '../support/must.js';
 import { resetTestDatabase, testDatabaseUrl } from '../support/test-database.js';
 
@@ -64,6 +64,7 @@ function buildApp(exchangeRate: ExchangeRateSnapshot | null = RATE) {
     ...noModelAssistant(directory),
     salaryAdjustments: fakeSalaryAdjustments(),
     dashboard: createDashboardService({ pool, exchangeRate, clock }),
+    hrAccess: fakeHrAccess(),
     logger: (entry) => logs.push(entry),
     clientIpSource: 'socket',
   });

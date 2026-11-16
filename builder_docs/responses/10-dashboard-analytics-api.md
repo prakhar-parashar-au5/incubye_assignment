@@ -142,7 +142,9 @@ This gives 10,000 employees, 11,019 compensation records (1,019 non-import), and
 
 The later `test:db` run reset `acme_test`, so the measurement rows are gone.
 
-**Timings,** 15 runs each, median / slowest in ms, across two clean runs:
+> **Correction (review fix 11b).** The saved `10-dashboard-measurements.txt` is the `--plans` run with `--runs 3`; its timing lines say "over 3 runs". The fifteen-run figures in the table below came from two separate runs without `--plans`. Their outputs were written only to `/tmp` and were not saved in the workspace, so this report's evidence did not match its claim. Those two outputs are now saved unchanged in `10-dashboard-timings-15-runs.txt`. Fresh fifteen-run measurements after the 11b commitment fix are in `11b-dashboard-measurements.txt`.
+
+**Timings,** 15 runs each, median / slowest in ms, across two clean runs (outputs: `10-dashboard-timings-15-runs.txt`):
 
 | Query | Admin | Scoped HR |
 |---|---|---|
