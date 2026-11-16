@@ -29,7 +29,18 @@ describe("generated frontend contract", () => {
       "login",
       "logout",
       "sendAssistantMessages",
-    ]);
+      "previewSalaryAdjustment",
+      "applySalaryAdjustment",
+      "submitSalaryAdjustmentRequest",
+      "listSalaryAdjustmentRequests",
+      "getSalaryAdjustmentRequest",
+      "approveSalaryAdjustmentRequest",
+      "cancelSalaryAdjustmentRequest",
+      "getDashboardSummary",
+      "getDashboardBreakdown",
+      "getDashboardRecentChanges",
+      "getDashboardWithoutRecentAdjustment",
+    ].sort());
     expect(Object.keys(contract.components.schemas).sort()).toEqual([
       "AssistantCard",
       "AssistantMessagesRequest",
@@ -38,6 +49,16 @@ describe("generated frontend contract", () => {
       "CompensationHistoryEntry",
       "CompensationSummaryCard",
       "CurrentUserResponse",
+      "DashboardAccess",
+      "DashboardBreakdownGroup",
+      "DashboardBreakdownResponse",
+      "DashboardFilterNote",
+      "DashboardRecentChange",
+      "DashboardRecentChangesResponse",
+      "DashboardSummaryResponse",
+      "DashboardUpcomingChange",
+      "DashboardUsdComparison",
+      "DashboardWithoutAdjustmentResponse",
       "DirectoryOptionsResponse",
       "DirectoryResponse",
       "DirectoryRow",
@@ -50,7 +71,17 @@ describe("generated frontend contract", () => {
       "NoticeCard",
       "RecentChangesCard",
       "SelectedCompensation",
-    ]);
+      "CompensationRecordView",
+      "SalaryAdjustmentCommand",
+      "SalaryAdjustmentConfirmation",
+      "SalaryAdjustmentPreview",
+      "SalaryAdjustmentResult",
+      "SalaryRequestApproval",
+      "SalaryRequestCancellation",
+      "SalaryRequestList",
+      "SalaryRequestResponse",
+      "SalaryRequestView",
+    ].sort());
   });
 
   it("generates the login, current-user, and error types the client relies on", () => {
@@ -67,6 +98,19 @@ describe("generated frontend contract", () => {
       | "NOT_FOUND"
       | "INTERNAL_ERROR"
       | "ASSISTANT_UNAVAILABLE"
+      | "FORBIDDEN"
+      | "STALE_VERSION"
+      | "DUPLICATE_OPERATION"
+      | "PENDING_REQUEST_EXISTS"
+      | "REQUEST_NOT_PENDING"
+      | "EMPLOYEE_INELIGIBLE"
+      // Shared error enum: these three come from the HR-access operations, which are not in the
+      // frontend allowlist. No allowlisted operation documents them.
+      | "LAST_ACTIVE_ADMIN"
+      | "EMAIL_TAKEN"
+      | "INVALID_SCOPE"
+      | "SELF_PASSWORD_REGENERATION_FORBIDDEN"
+      | "SERVICE_UNAVAILABLE"
     >();
     expectTypeOf<paths["/api/v1/auth/login"]["post"]>().toEqualTypeOf<operations["login"]>();
     expectTypeOf<keyof paths>().toEqualTypeOf<
@@ -77,6 +121,17 @@ describe("generated frontend contract", () => {
       | "/api/v1/employees/{employeeCode}"
       | "/api/v1/employee-directory/options"
       | "/api/v1/assistant/messages"
+      | "/api/v1/employees/{employeeCode}/salary-adjustments/preview"
+      | "/api/v1/employees/{employeeCode}/salary-adjustments"
+      | "/api/v1/employees/{employeeCode}/salary-adjustment-requests"
+      | "/api/v1/salary-adjustment-requests"
+      | "/api/v1/salary-adjustment-requests/{requestId}"
+      | "/api/v1/salary-adjustment-requests/{requestId}/approve"
+      | "/api/v1/salary-adjustment-requests/{requestId}/cancel"
+      | "/api/v1/dashboard/summary"
+      | "/api/v1/dashboard/breakdowns"
+      | "/api/v1/dashboard/recent-changes"
+      | "/api/v1/dashboard/without-recent-adjustment"
     >();
     type Money = components["schemas"]["SelectedCompensation"]["annualBaseSalary"];
     expectTypeOf<Money>().toEqualTypeOf<string>();

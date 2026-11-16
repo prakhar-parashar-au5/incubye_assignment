@@ -174,10 +174,11 @@ test("desktop uses the rail and mobile uses the compact header", async ({ page }
     await expect(rail).toBeHidden();
     await expect(mobileMenu).toBeVisible();
   }
-  // Future sections are listed but are not links or buttons.
-  for (const label of ["Dashboard", "Salary Reviews", "HR Access"]) {
+  // Future sections are listed but are not links or buttons. Dashboard is built (Task 04).
+  for (const label of ["Salary Reviews", "HR Access"]) {
     await expect(page.getByRole("link", { name: label })).toHaveCount(0);
     await expect(page.getByRole("button", { name: label })).toHaveCount(0);
   }
+  await expect(page.locator('nav[aria-label="Main"] a[href="/dashboard"]').first()).toHaveText("Dashboard");
   await page.screenshot({ path: testInfo.outputPath(`employees-${testInfo.project.name}.png`), fullPage: true });
 });

@@ -14,6 +14,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "";
 const demoPassword = process.env.E2E_DEMO_PASSWORD ?? "";
+// Optional: a real backend started without its saved exchange-rate file (dashboard missing-rate
+// journey). See builder_docs/frontend-builder/responses/04-dashboard-ui.md for how it is run.
+const noRateApiBaseUrl = process.env.E2E_NO_RATE_API_BASE_URL ?? "";
 if (!apiBaseUrl || !demoPassword) {
   throw new Error("Set E2E_API_BASE_URL and E2E_DEMO_PASSWORD to run the browser tests.");
 }
@@ -67,5 +70,35 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 60_000,
     },
+    // Dashboard partial failure and the no-analytics-call check: a test-only proxy in front of
+    // the real backend that fails only the breakdown endpoint and counts dashboard requests.
+    {
+      command: "node tests/e2e/support/failing-dashboard-proxy.ts",
+      port: 3907,
+      env: { E2E_API_BASE_URL: apiBaseUrl },
+      reuseExistingServer: false,
+      timeout: 30_000,
+    },
+    {
+      command: "npx next start -p 3908",
+      url: "http://localhost:3908/sign-in",
+      env: { ...serverEnv, API_BASE_URL: "http://127.0.0.1:3907" },
+      reuseExistingServer: false,
+      timeout: 60_000,
+    },
+    // Missing exchange rate: only when the person running the tests provides a real backend
+    // started without its saved rate file (E2E_NO_RATE_API_BASE_URL). Otherwise those journeys
+    // are skipped and say why.
+    ...(noRateApiBaseUrl
+      ? [
+          {
+            command: "npx next start -p 3904",
+            url: "http://localhost:3904/sign-in",
+            env: { ...serverEnv, API_BASE_URL: noRateApiBaseUrl },
+            reuseExistingServer: false,
+            timeout: 60_000,
+          },
+        ]
+      : []),
   ],
 });
