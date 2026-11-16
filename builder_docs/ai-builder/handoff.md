@@ -488,4 +488,11 @@ Task 02 has returned its correction report:
 builder_docs/ai-builder/responses/02-observability-storage-review-fixes.md
 ```
 
-There is no approved implementation task after Task 02 yet. Stop and wait for planner review. Do not start live assistant integration, MCP integration, Admin HTTP routes, or frontend work.
+The next approved tasks are staged:
+
+```text
+builder_docs/ai-builder/tasks/03-persistent-recorded-assistant.md
+builder_docs/ai-builder/tasks/04-mcp-and-admin-observability-api.md
+```
+
+Task 03 starts only after the planner creates Checkpoint A from the accepted dashboard baseline. Task 04 starts only after Task 03 is accepted. Until then, stop and do not change implementation.

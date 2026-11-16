@@ -357,33 +357,34 @@ semantic-review/2026-11-16-200606-pr-backend-11.md
 
 ### Backend Task 11a: temporary-password recovery
 
-Status: `IMPLEMENTED - FOLLOW-UP REQUIRED`
+Status: `ACCEPTED AFTER TASK 11B`
 
-Task 11a fixed the original lost-create-response recovery gap. Independent review found two remaining issues: self-regeneration can lock out the actor, and sign-in can race password replacement and insert a session after revocation.
+Task 11a fixed the original lost-create-response recovery gap. Task 11b then closed self-regeneration lockout and sign-in/password-replacement concurrency.
 
-Review:
+Reviews:
 
 ```text
 semantic-review/2026-11-16-205936-pr-backend-11a.md
+semantic-review/2026-11-16-212453-pr-backend-11b.md
 ```
 
-### Current backend task: 11b final review fixes
+### Backend Task 11b: final review fixes
 
-Status: `READY`
+Status: `ACCEPTED - COMMIT REQUIRED`
 
-Instructions:
-
-```text
-builder_docs/parent_instructions/11b-backend-final-review-fixes.md
-```
-
-Expected response:
+Response:
 
 ```text
 builder_docs/responses/11b-backend-final-review-fixes.md
 ```
 
-This task also fixes the confirmed soon-to-join dashboard commitment gap and adds missing dashboard failure coverage. The builder must stop after these bounded corrections.
+Independent verification passed: 388 fast tests, 51 focused real-MySQL tests covering dashboard commitment and HR access, and the production build.
+
+### Current backend task
+
+Status: `NONE - STANDBY FOR FRONTEND INTEGRATION`
+
+The backend builder must not start another implementation task. Dashboard and HR-access APIs are complete. Wait for the dashboard frontend review or computer-use tester to report a concrete backend contract or behavior issue.
 
 ## Response requirements
 

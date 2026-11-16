@@ -96,7 +96,7 @@ semantic-review/2026-11-16-205936-pr-frontend-03b.md
 
 ### Frontend Task 04a: Dashboard shape
 
-Status: `COMPLETE - IMPLEMENTATION NOT STARTED`
+Status: `COMPLETE`
 
 Response:
 
@@ -104,27 +104,30 @@ Response:
 builder_docs/frontend-builder/responses/04a-dashboard-shape.md
 ```
 
-The dashboard analytics backend and OpenAPI are available, but dashboard implementation waits until Task 03b is accepted.
+## Frontend Task 04: Compensation dashboard UI
 
-## Current task
+Status: `ACCEPTED - COMMIT REQUIRED`
 
-### Frontend Task 04: Compensation dashboard UI
-
-Status: `READY`
-
-Instructions:
+Instructions and response:
 
 ```text
 builder_docs/frontend-builder/tasks/04-dashboard-ui.md
-```
-
-Expected response:
-
-```text
 builder_docs/frontend-builder/responses/04-dashboard-ui.md
 ```
 
-The builder may implement against the stable dashboard OpenAPI now. Final browser validation must use the corrected Backend Task 11b build. Do not start HR-access or AI-trace UI work.
+Independent review passed the generated-contract check, lint, type checking, 192 tests, production build, and source review. Builder evidence reports 93 passing Playwright journeys and 5 intentional skips against Backend Task 11b.
+
+Review:
+
+```text
+semantic-review/2026-11-16-220122-pr-frontend-04.md
+```
+
+## Current task
+
+Status: `NONE - WAIT FOR CHECKPOINT A`
+
+Do not start HR-access or AI-observability frontend implementation until the parallel worktree checkpoint is created.
 
 ## Communication rules
 
