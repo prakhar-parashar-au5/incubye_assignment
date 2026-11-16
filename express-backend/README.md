@@ -178,3 +178,41 @@ npm run openapi:generate      # rewrites openapi/openapi.json from the Zod contr
 - **Browser access.** No CORS and no cookies: the Next.js server calls this API and owns the browser cookie.
 - **Logs.** JSON lines with request ID, method, path without the query string, status, and duration only.
 - **Shutdown.** On `SIGTERM`/`SIGINT` the server stops accepting connections, closes the MySQL pool, and exits. It is forced to exit after 10 s.
+
+## Local databases
+
+One local MySQL 8 container (`npm run db:up`, port `127.0.0.1:3317`, tmpfs storage) holds two databases:
+
+| Database | Use | Reset by |
+|---|---|---|
+| `acme_dev` | Local frontend/backend preview | Only your explicit `db:seed -- --replace` |
+| `acme_test` | Destructive integration tests (`npm run test:db`) | Every test run (tables dropped and recreated) |
+
+`acme_test` comes from `MYSQL_DATABASE`. `acme_dev` and the `acme` user's grant on it come from `db/docker-init/01-create-acme-dev.sql`, which MySQL runs on a fresh, empty data directory. The grant is limited to exactly `acme_dev` (`acme\_dev`, because `_` is a wildcard in grants). The database suite refuses any database whose name does not end in `_test`, so it cannot reset `acme_dev`.
+
+Every command takes its database from an injected `DATABASE_URL`. Nothing reads a `.env` file, and the project Compose commands set `COMPOSE_DISABLE_ENV_FILE=1`. The server never migrates or seeds on startup.
+
+Preview database (local-only, fixed credentials):
+
+```sh
+DEV='mysql://acme:acme_local@127.0.0.1:3317/acme_dev'
+DATABASE_URL=$DEV npm run db:migrate
+APP_ENV=development DATABASE_URL=$DEV npm run db:seed -- --replace     # destructive: replaces employee data in acme_dev
+APP_ENV=demo DATABASE_URL=$DEV DEMO_MEERA_PASSWORD=... DEMO_ROHAN_PASSWORD=... npm run db:seed-demo-users
+DATABASE_URL=$DEV JWT_SIGNING_KEY=... npm start                       # or: npx tsx src/server.ts
+```
+
+Destructive integration tests:
+
+```sh
+DATABASE_URL='mysql://acme:acme_local@127.0.0.1:3317/acme_test' npm run test:db
+```
+
+A container created before `db/docker-init/` existed has no `acme_dev`. Either recreate it (`npm run db:down && npm run db:up`; tmpfs data, including `acme_test` and any preview data, is lost), or add the database to the running container without recreating it:
+
+```sh
+docker exec acme-take-home-mysql mysql -uroot -pacme_local_root \
+  -e "CREATE DATABASE IF NOT EXISTS acme_dev CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci; GRANT ALL PRIVILEGES ON \`acme\\_dev\`.* TO 'acme'@'%';"
+```
+
+Then migrate and seed `acme_dev` as above.

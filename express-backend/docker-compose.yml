@@ -1,6 +1,10 @@
-# Local MySQL 8 for schema integration tests only.
-# The credentials below are fixed, local-only test values, not secrets.
-# The port is bound to 127.0.0.1, and data lives in tmpfs (lost on restart).
+# Local MySQL 8 with two databases:
+#   acme_dev   local frontend/backend preview (migrate and seed explicitly)
+#   acme_test  destructive integration tests (tests reset its tables)
+# The credentials below are fixed, local-only values, not secrets.
+# The port is bound to 127.0.0.1, and data lives in tmpfs (lost on restart;
+# the init script runs again on every fresh start).
+# Use the project commands (npm run db:up / db:down), which disable .env loading.
 name: acme-take-home
 
 services:
@@ -16,6 +20,9 @@ services:
       MYSQL_DATABASE: acme_test
       MYSQL_USER: acme
       MYSQL_PASSWORD: acme_local
+    volumes:
+      # Creates acme_dev and grants acme access (db/docker-init/01-create-acme-dev.sql).
+      - ./db/docker-init:/docker-entrypoint-initdb.d:ro
     ports:
       - "127.0.0.1:3317:3306"
     tmpfs:
