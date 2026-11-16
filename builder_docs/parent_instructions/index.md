@@ -275,7 +275,9 @@ The builder must stop after the authentication endpoints, OpenAPI contract, rate
 
 ### Task 07: Employee directory API
 
-Status: `READY`
+Status: `ACCEPTED AND COMMITTED`
+
+Independent planner verification passed: strict type check, lint, 284 fast tests, 174 real-MySQL tests, production build, official exchange-rate evidence, and measured queries.
 
 Instructions:
 
@@ -301,31 +303,87 @@ The builder must stop after the directory, options, detail, currency conversion,
 
 ## Next planned task
 
-### Task 08: Next.js sign-in and employee directory
+### Backend Task 08: Read-only AI assistant and MCP adapter
 
-Status: `NOT READY`
+Status: `ACCEPTED - COMMIT REQUIRED`
+
+Independent planner verification passed after review fixes: strict type check, lint, 332 fast tests, targeted real-MySQL assistant tests, and production build.
 
 Instructions:
 
 ```text
-builder_docs/parent_instructions/08-frontend-directory.md
+builder_docs/parent_instructions/08-ai-assistant-mcp.md
 ```
 
-Supporting documents:
+Shared contract:
 
 ```text
-docs_human/09-frontend-directory.md
-docs/20-frontend-architecture.md
-docs/21-frontend-test-plan.md
+builder_docs/shared/ai-assistant-contract.md
 ```
 
 Expected response:
 
 ```text
-builder_docs/responses/08-frontend-directory.md
+builder_docs/responses/08-ai-assistant-mcp.md
 ```
 
-Task 08 cannot start until the employee directory API passes review and Task 07 is committed.
+The backend builder must not start this task until Task 07 is committed. The old parent task `08-frontend-directory.md` is superseded by the separate frontend-builder lane.
+
+## Latest backend status
+
+### Tasks 09 and 09a: Salary adjustments
+
+Status: `IMPLEMENTED - WORKING TREE`
+
+The backend salary workflow and idempotency correction are complete pending the current combined review and commit sequence.
+
+### Task 10: Dashboard analytics API
+
+Status: `IMPLEMENTED - WORKING TREE`
+
+The dashboard read APIs and OpenAPI contract are available to the frontend builder.
+
+### Task 11: HR access-management API
+
+Status: `NEEDS REVIEW FIX`
+
+Independent review found one recoverability gap: a successful create with a lost HTTP response leaves the generated temporary password unavailable, while the account remains active and no recovery operation exists.
+
+Review:
+
+```text
+semantic-review/2026-11-16-200606-pr-backend-11.md
+```
+
+### Backend Task 11a: temporary-password recovery
+
+Status: `IMPLEMENTED - FOLLOW-UP REQUIRED`
+
+Task 11a fixed the original lost-create-response recovery gap. Independent review found two remaining issues: self-regeneration can lock out the actor, and sign-in can race password replacement and insert a session after revocation.
+
+Review:
+
+```text
+semantic-review/2026-11-16-205936-pr-backend-11a.md
+```
+
+### Current backend task: 11b final review fixes
+
+Status: `READY`
+
+Instructions:
+
+```text
+builder_docs/parent_instructions/11b-backend-final-review-fixes.md
+```
+
+Expected response:
+
+```text
+builder_docs/responses/11b-backend-final-review-fixes.md
+```
+
+This task also fixes the confirmed soon-to-join dashboard commitment gap and adds missing dashboard failure coverage. The builder must stop after these bounded corrections.
 
 ## Response requirements
 

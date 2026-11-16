@@ -73,35 +73,58 @@ builder_docs/frontend-builder/responses/02a-tester-review-fixes.md
 
 Result: directory, employee detail, assistant UI, mobile layouts, and tester corrections are complete.
 
-## Blocked implementation task
+## Frontend Task 03: Salary adjustment UI
 
-### Frontend Task 03: Salary adjustment UI
+Status: `ACCEPTED AFTER REVIEW FIXES`
 
-Status: `BLOCKED UNTIL BACKEND TASK 09`
-
-Instructions:
+Implementation and correction responses:
 
 ```text
-builder_docs/frontend-builder/tasks/03-salary-adjustments-ui.md
+builder_docs/frontend-builder/responses/03-salary-adjustments-ui.md
+builder_docs/frontend-builder/responses/03b-salary-review-fixes.md
 ```
+
+Independent review accepted Task 03b after verifying the complete approval context and truthful persisted-state outcome notices.
+
+Review:
+
+```text
+semantic-review/2026-11-16-205936-pr-frontend-03b.md
+```
+
+## Completed shape task
+
+### Frontend Task 04a: Dashboard shape
+
+Status: `COMPLETE - IMPLEMENTATION NOT STARTED`
+
+Response:
+
+```text
+builder_docs/frontend-builder/responses/04a-dashboard-shape.md
+```
+
+The dashboard analytics backend and OpenAPI are available, but dashboard implementation waits until Task 03b is accepted.
 
 ## Current task
 
-### Frontend Task 04a: Dashboard shape
+### Frontend Task 04: Compensation dashboard UI
 
 Status: `READY`
 
 Instructions:
 
 ```text
-builder_docs/frontend-builder/tasks/04a-dashboard-shape.md
+builder_docs/frontend-builder/tasks/04-dashboard-ui.md
 ```
 
 Expected response:
 
 ```text
-builder_docs/frontend-builder/responses/04a-dashboard-shape.md
+builder_docs/frontend-builder/responses/04-dashboard-ui.md
 ```
+
+The builder may implement against the stable dashboard OpenAPI now. Final browser validation must use the corrected Backend Task 11b build. Do not start HR-access or AI-trace UI work.
 
 ## Communication rules
 
