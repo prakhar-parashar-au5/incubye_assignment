@@ -32,7 +32,7 @@ tester_docs/parent_instructions/
 
 Do not run Git commands.
 
-## Current task
+## Completed task
 
 ### Tester Task 01: HR browser review
 
@@ -50,17 +50,37 @@ Instructions:
 tester_docs/parent_instructions/01-hr-browser-review.md
 ```
 
-Expected response:
+Response:
 
 ```text
 tester_docs/responses/01-hr-browser-review.md
 ```
 
+## Current task
+
+### Tester Task 02: Full HR workflow computer-use review
+
+Status: `READY`
+
+Instructions:
+
+```text
+tester_docs/parent_instructions/02-full-hr-workflow-computer-use.md
+```
+
+Expected response:
+
+```text
+tester_docs/responses/02-full-hr-workflow-computer-use.md
+```
+
 Evidence folder:
 
 ```text
-tester_docs/evidence/01-hr-browser-review/
+tester_docs/evidence/02-full-hr-workflow/
 ```
+
+Use the visible browser only. Test Admin and Scoped HR in separate sessions, exercise the complete directory, salary, and live assistant workflows, record every mutation, and do not inspect or modify implementation code.
 
 ## Reporting rule
 
