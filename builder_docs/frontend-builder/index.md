@@ -37,7 +37,9 @@ Do not run Git commands. Do not commit or push.
 
 ### Frontend Task 01: Foundation and authentication shell
 
-Status: `READY`
+Status: `ACCEPTED AND COMMITTED`
+
+Independent planner verification passed: generated contract check, lint, type check, 52 tests, production build, and rendered sign-in inspection. Builder evidence reports 17 passing Playwright journeys and one intentional skip.
 
 Instructions:
 
@@ -51,13 +53,55 @@ Expected response:
 builder_docs/frontend-builder/responses/01-foundation-auth.md
 ```
 
-## Future task
+### Frontend Task 02: Directory and assistant
 
-Frontend Task 02 will integrate the employee directory and detail APIs after backend Task 07 is accepted and committed.
+Status: `ACCEPTED AND COMMITTED`
 
-Status: `NOT READY`
+Instructions and review fixes:
 
-Do not implement directory data against an assumed response shape.
+```text
+builder_docs/frontend-builder/tasks/02-directory-and-assistant.md
+builder_docs/frontend-builder/tasks/02a-tester-review-fixes.md
+```
+
+Responses:
+
+```text
+builder_docs/frontend-builder/responses/02-directory-and-assistant.md
+builder_docs/frontend-builder/responses/02a-tester-review-fixes.md
+```
+
+Result: directory, employee detail, assistant UI, mobile layouts, and tester corrections are complete.
+
+## Blocked implementation task
+
+### Frontend Task 03: Salary adjustment UI
+
+Status: `BLOCKED UNTIL BACKEND TASK 09`
+
+Instructions:
+
+```text
+builder_docs/frontend-builder/tasks/03-salary-adjustments-ui.md
+```
+
+## Current task
+
+### Frontend Task 04a: Dashboard shape
+
+Status: `READY`
+
+Instructions:
+
+```text
+builder_docs/frontend-builder/tasks/04a-dashboard-shape.md
+```
+
+Expected response:
+
+```text
+builder_docs/frontend-builder/responses/04a-dashboard-shape.md
+```
 
 ## Communication rules
 
