@@ -1,6 +1,6 @@
 # Frontend Task 03: Salary adjustment and approval UI
 
-**Status:** BLOCKED UNTIL BACKEND TASK 09 IS ACCEPTED
+**Status:** READY. Backend Task 09 response and OpenAPI are available. Regenerate the contract before implementation and again after any backend review fix.
 
 ## Goal
 

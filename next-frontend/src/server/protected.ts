@@ -33,5 +33,7 @@ export function identityOf(user: HrUser) {
     name: user.displayName,
     role: ROLE_LABELS[user.role],
     scope: scopeSummary(user.role, user.countries, user.departments),
+    // Presentation only (which navigation link to show); the backend authorizes every action.
+    isAdmin: user.role === 'ADMIN',
   };
 }

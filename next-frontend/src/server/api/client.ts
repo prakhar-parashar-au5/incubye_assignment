@@ -20,7 +20,28 @@ import {
   type LoginRequest,
   type LoginResponse,
   type PublicErrorCode,
+  type ErrorResponse,
+  type SalaryAdjustmentCommand,
+  type SalaryAdjustmentPreview,
+  type SalaryAdjustmentResult,
+  type SalaryRequestApproval,
+  type SalaryRequestList,
+  type SalaryRequestResponse,
+  isSalaryAdjustmentPreview,
+  isSalaryAdjustmentResult,
+  isSalaryRequestApproval,
+  isSalaryRequestList,
+  isSalaryRequestResponse,
+  isDashboardBreakdownResponse,
+  isDashboardRecentChangesResponse,
+  isDashboardSummaryResponse,
+  isDashboardWithoutAdjustmentResponse,
+  type DashboardBreakdownResponse,
+  type DashboardRecentChangesResponse,
+  type DashboardSummaryResponse,
+  type DashboardWithoutAdjustmentResponse,
 } from '@/server/api/contract';
+import type { DashboardApiQueries } from '@/lib/dashboard-url';
 import type { DirectoryQuery } from '@/lib/directory-url';
 
 // The only module that talks to the Express API. It runs on the Next.js server only: the
@@ -40,7 +61,12 @@ export type ApiFailureKind =
   /** API_BASE_URL or API_TIMEOUT_MS is missing or invalid. */
   | 'CONFIGURATION';
 
-export type ApiResult<T> = { ok: true; data: T } | { ok: false; kind: ApiFailureKind; status?: number };
+export type ApiErrorReason = NonNullable<ErrorResponse['error']['reason']>;
+
+export type ApiResult<T> =
+  | { ok: true; data: T }
+  /** `reason` is the backend's optional public detail for some VALIDATION_ERROR responses. */
+  | { ok: false; kind: ApiFailureKind; status?: number; reason?: ApiErrorReason };
 
 type Env = Readonly<Record<string, string | undefined>>;
 type Logger = (entry: Record<string, string | number | readonly string[]>) => void;
@@ -62,6 +88,8 @@ type RequestSpec<T> = {
   expectNoContent?: boolean;
   validate?: (value: unknown) => value is T;
   timeout?: 'default' | 'assistant';
+  /** Extra request headers, for example Idempotency-Key. Never logged. */
+  headers?: Record<string, string>;
 };
 
 export function createApiClient(options: ApiClientOptions = {}) {
@@ -70,9 +98,10 @@ export function createApiClient(options: ApiClientOptions = {}) {
   const log = options.logger ?? defaultLogger;
 
   async function request<T>(spec: RequestSpec<T>): Promise<ApiResult<T>> {
-    const fail = (kind: ApiFailureKind, status?: number): ApiResult<T> => {
-      log({ event: 'api_request_failed', operation: spec.operation, kind, ...(status ? { status } : {}) });
-      return status ? { ok: false, kind, status } : { ok: false, kind };
+    const fail = (kind: ApiFailureKind, status?: number, reason?: ApiErrorReason): ApiResult<T> => {
+      log({ event: 'api_request_failed', operation: spec.operation, kind, ...(status ? { status } : {}), ...(reason ? { reason } : {}) });
+      const failure: ApiResult<T> = status ? { ok: false, kind, status } : { ok: false, kind };
+      return reason ? { ...failure, reason } : failure;
     };
 
     let config;
@@ -87,7 +116,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
     }
 
     const url = new URL(spec.path.replace(/^\//, ''), config.apiBaseUrl);
-    const headers: Record<string, string> = { Accept: 'application/json' };
+    const headers: Record<string, string> = { ...spec.headers, Accept: 'application/json' };
     if (spec.body !== undefined) headers['Content-Type'] = 'application/json';
     if (spec.token) headers.Authorization = `Bearer ${spec.token}`;
 
@@ -124,7 +153,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
     }
 
     if (!response.ok) {
-      if (isErrorResponse(payload)) return fail(payload.error.code, response.status);
+      if (isErrorResponse(payload)) return fail(payload.error.code, response.status, payload.error.reason);
       return fail(response.status >= 500 ? 'UNAVAILABLE' : 'INVALID_RESPONSE', response.status);
     }
     if (spec.validate && !spec.validate(payload)) return fail('INVALID_RESPONSE', response.status);
@@ -193,6 +222,82 @@ export function createApiClient(options: ApiClientOptions = {}) {
         timeout: 'assistant',
       });
     },
+    previewSalaryAdjustment(token: string, employeeCode: string, command: SalaryAdjustmentCommand) {
+      return request<SalaryAdjustmentPreview>({
+        operation: 'previewSalaryAdjustment',
+        method: 'POST',
+        path: `/api/v1/employees/${encodeURIComponent(employeeCode)}/salary-adjustments/preview`,
+        token,
+        body: command,
+        validate: isSalaryAdjustmentPreview,
+      });
+    },
+    applySalaryAdjustment(token: string, employeeCode: string, confirmation: SalaryAdjustmentConfirmationBody, idempotencyKey: string) {
+      return request<SalaryAdjustmentResult>({
+        operation: 'applySalaryAdjustment',
+        method: 'POST',
+        path: `/api/v1/employees/${encodeURIComponent(employeeCode)}/salary-adjustments`,
+        token,
+        body: confirmation,
+        headers: { 'Idempotency-Key': idempotencyKey },
+        validate: isSalaryAdjustmentResult,
+      });
+    },
+    submitSalaryAdjustmentRequest(token: string, employeeCode: string, confirmation: SalaryAdjustmentConfirmationBody, idempotencyKey: string) {
+      return request<SalaryRequestResponse>({
+        operation: 'submitSalaryAdjustmentRequest',
+        method: 'POST',
+        path: `/api/v1/employees/${encodeURIComponent(employeeCode)}/salary-adjustment-requests`,
+        token,
+        body: confirmation,
+        headers: { 'Idempotency-Key': idempotencyKey },
+        validate: isSalaryRequestResponse,
+      });
+    },
+    listSalaryAdjustmentRequests(token: string, query: Record<string, string | number | undefined>) {
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(query)) {
+        if (value !== undefined && value !== '') params.set(key, String(value));
+      }
+      const search = params.toString();
+      return request<SalaryRequestList>({
+        operation: 'listSalaryAdjustmentRequests',
+        method: 'GET',
+        path: `/api/v1/salary-adjustment-requests${search ? `?${search}` : ''}`,
+        token,
+        validate: isSalaryRequestList,
+      });
+    },
+    getSalaryAdjustmentRequest(token: string, requestId: string) {
+      return request<SalaryRequestResponse>({
+        operation: 'getSalaryAdjustmentRequest',
+        method: 'GET',
+        path: `/api/v1/salary-adjustment-requests/${encodeURIComponent(requestId)}`,
+        token,
+        validate: isSalaryRequestResponse,
+      });
+    },
+    approveSalaryAdjustmentRequest(token: string, requestId: string, idempotencyKey: string) {
+      return request<SalaryRequestApproval>({
+        operation: 'approveSalaryAdjustmentRequest',
+        method: 'POST',
+        path: `/api/v1/salary-adjustment-requests/${encodeURIComponent(requestId)}/approve`,
+        token,
+        headers: { 'Idempotency-Key': idempotencyKey },
+        validate: isSalaryRequestApproval,
+      });
+    },
+    cancelSalaryAdjustmentRequest(token: string, requestId: string, note: string, idempotencyKey: string) {
+      return request<SalaryRequestResponse>({
+        operation: 'cancelSalaryAdjustmentRequest',
+        method: 'POST',
+        path: `/api/v1/salary-adjustment-requests/${encodeURIComponent(requestId)}/cancel`,
+        token,
+        body: { note },
+        headers: { 'Idempotency-Key': idempotencyKey },
+        validate: isSalaryRequestResponse,
+      });
+    },
     getDirectoryOptions(token: string) {
       return request<DirectoryOptionsResponse>({
         operation: 'getDirectoryOptions',
@@ -202,8 +307,56 @@ export function createApiClient(options: ApiClientOptions = {}) {
         validate: isDirectoryOptionsResponse,
       });
     },
+    getDashboardSummary(token: string, query: DashboardApiQueries['summary']) {
+      return request<DashboardSummaryResponse>({
+        operation: 'getDashboardSummary',
+        method: 'GET',
+        path: `/api/v1/dashboard/summary${querySuffix(query)}`,
+        token,
+        validate: isDashboardSummaryResponse,
+      });
+    },
+    getDashboardBreakdown(token: string, query: DashboardApiQueries['breakdown']) {
+      return request<DashboardBreakdownResponse>({
+        operation: 'getDashboardBreakdown',
+        method: 'GET',
+        path: `/api/v1/dashboard/breakdowns${querySuffix(query)}`,
+        token,
+        validate: isDashboardBreakdownResponse,
+      });
+    },
+    getDashboardRecentChanges(token: string, query: DashboardApiQueries['recent']) {
+      return request<DashboardRecentChangesResponse>({
+        operation: 'getDashboardRecentChanges',
+        method: 'GET',
+        path: `/api/v1/dashboard/recent-changes${querySuffix(query)}`,
+        token,
+        validate: isDashboardRecentChangesResponse,
+      });
+    },
+    getDashboardWithoutRecentAdjustment(token: string, query: DashboardApiQueries['without']) {
+      return request<DashboardWithoutAdjustmentResponse>({
+        operation: 'getDashboardWithoutRecentAdjustment',
+        method: 'GET',
+        path: `/api/v1/dashboard/without-recent-adjustment${querySuffix(query)}`,
+        token,
+        validate: isDashboardWithoutAdjustmentResponse,
+      });
+    },
   };
 }
+
+/** `?a=1&b=2` from defined, non-empty values; the backend rejects empty and repeated keys. */
+function querySuffix(query: Readonly<Record<string, string | number | undefined>>): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== '') params.set(key, String(value));
+  }
+  const search = params.toString();
+  return search ? `?${search}` : '';
+}
+
+type SalaryAdjustmentConfirmationBody = { previewToken: string; adjustment: SalaryAdjustmentCommand };
 
 export type ApiClient = ReturnType<typeof createApiClient>;
 

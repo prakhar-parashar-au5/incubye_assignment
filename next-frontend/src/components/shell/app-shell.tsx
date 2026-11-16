@@ -7,28 +7,32 @@ import { ScopeRecord } from "@/components/shell/scope-record";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { ADMIN_QUEUE_HREF } from "@/lib/salary";
 import { signOut } from "@/server/actions/auth";
 
-// Application shell: a navy rail on desktop, a compact navy header on mobile. Employees
-// and Assistant are built; the other sections are listed as plain text marked "Coming later",
-// never as controls.
+// Application shell: a navy rail on desktop, a compact navy header on mobile. Dashboard,
+// Employees, Salary requests, and Assistant are built; the other sections are listed as plain
+// text marked "Coming later", never as controls.
 
-export type ShellIdentity = { name: string; role: string; scope: string };
+export type ShellIdentity = { name: string; role: string; scope: string; isAdmin: boolean };
 
-const LATER_SECTIONS = ["Dashboard", "Salary Reviews", "HR Access"] as const;
+const LATER_SECTIONS = ["HR Access"] as const;
 
-export type ShellSection = "employees" | "assistant";
+export type ShellSection = "dashboard" | "employees" | "requests" | "assistant";
 
-const SECTIONS: { id: ShellSection; label: string; href: string }[] = [
+// Admin HR opens the approval queue (pending, oldest first); Scoped HR opens their request list.
+const sections = (isAdmin: boolean): { id: ShellSection; label: string; href: string }[] => [
+  { id: "dashboard", label: "Dashboard", href: "/dashboard" },
   { id: "employees", label: "Employees", href: "/employees" },
+  { id: "requests", label: "Salary requests", href: isAdmin ? ADMIN_QUEUE_HREF : "/salary-requests" },
   { id: "assistant", label: "Assistant", href: "/assistant" },
 ];
 
-function Navigation({ className, current }: { className?: string; current: ShellSection }) {
+function Navigation({ className, current, isAdmin }: { className?: string; current: ShellSection; isAdmin: boolean }) {
   return (
     <nav aria-label="Main" className={className}>
       <ul className="space-y-0.5 text-[0.875rem]">
-        {SECTIONS.map((section) => (
+        {sections(isAdmin).map((section) => (
           <li key={section.id}>
             <Link
               href={section.href}
@@ -94,7 +98,7 @@ export function AppShell({
         className="sticky top-0 hidden h-dvh flex-col gap-8 overflow-y-auto bg-rail px-4 py-7 text-rail-foreground lg:flex"
       >
         <ProductMark className="px-2" />
-        <Navigation className="flex-1" current={current} />
+        <Navigation className="flex-1" current={current} isAdmin={identity?.isAdmin ?? false} />
         <div className="space-y-4 px-2">
           <Identity identity={identity} />
           <SignOutForm />
@@ -111,7 +115,7 @@ export function AppShell({
               Menu
             </summary>
             <div className="absolute inset-x-0 z-20 mt-3 space-y-6 border-t border-rail-line bg-rail px-4 pt-4 pb-6 shadow-[0_12px_24px_-12px_rgba(16,24,40,0.45)]">
-              <Navigation current={current} />
+              <Navigation current={current} isAdmin={identity?.isAdmin ?? false} />
               <SignOutForm />
             </div>
           </details>
@@ -130,7 +134,7 @@ export function AppShell({
   );
 }
 
-export function AppShellSkeleton({ children }: { children: ReactNode }) {
+export function AppShellSkeleton({ children }: { children: ReactNode; current?: ShellSection }) {
   const bar = "animate-none bg-rail-active";
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">

@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Info } from "lucide-react";
 
 import { CompensationStateLabel, Money } from "@/components/directory/money";
 import { AppShell, AppShellSkeleton } from "@/components/shell/app-shell";
 import { ServiceUnavailable, UnexpectedResponse } from "@/components/shell/page-states";
+import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { SalaryRequestView } from "@/lib/salary";
+import { cn } from "@/lib/utils";
 import type { components } from "@/generated/api";
 import { safeReturnPath } from "@/lib/directory-url";
 import {
@@ -50,16 +53,22 @@ async function EmployeeDetail({
   params: PageProps<"/employees/[employeeCode]">["params"];
   searchParams: PageProps<"/employees/[employeeCode]">["searchParams"];
 }) {
-  const [{ employeeCode }, { from }, { session, token }] = await Promise.all([params, searchParams, loadSessionAndToken()]);
-  const returnPath = safeReturnPath(from);
-  const result = token ? await api().getEmployee(token, employeeCode) : null;
+  const [{ employeeCode }, { from, applied }, { session, token }] = await Promise.all([params, searchParams, loadSessionAndToken()]);
+  const returnPath = safeReturnPath(from, ["/employees", "/salary-requests", "/dashboard"]);
+  const appliedVersion = typeof applied === "string" && /^[1-9][0-9]{0,6}$/.test(applied) ? Number(applied) : null;
+  const client = api();
+  const [result, pending] = await Promise.all([
+    token ? client.getEmployee(token, employeeCode) : Promise.resolve(null),
+    token ? client.listSalaryAdjustmentRequests(token, { q: employeeCode, status: "PENDING", pageSize: 1 }) : Promise.resolve(null),
+  ]);
 
   const user = requireUser(session);
-  redirectIfUnauthenticated(result && !result.ok ? result.kind : undefined);
+  redirectIfUnauthenticated(result && !result.ok ? result.kind : undefined, pending && !pending.ok ? pending.kind : undefined);
   // Unknown and out-of-scope employees get the same backend 404, and the same page here.
   if (result && !result.ok && result.kind === "NOT_FOUND") notFound();
 
   const back = <BackLink href={returnPath} />;
+  const adjustSearch = returnPath.startsWith("/employees?") ? `?from=${encodeURIComponent(returnPath)}` : "";
   if (!user) {
     return (
       <AppShell identity={null}>
@@ -83,7 +92,24 @@ async function EmployeeDetail({
   return (
     <AppShell identity={identityOf(user)}>
       {back}
-      <EmployeeRecord detail={result.data} />
+      <EmployeeRecord
+        detail={result.data}
+        appliedVersion={appliedVersion}
+        actions={
+          <CompensationActions
+            role={user.role}
+            employeeCode={result.data.employee.employeeCode}
+            eligible={result.data.employee.employmentStatus !== "LEFT" && result.data.compensation !== null}
+            adjustHref={`/employees/${encodeURIComponent(result.data.employee.employeeCode)}/adjust${adjustSearch}`}
+            pending={
+              pending?.ok
+                ? (pending.data.requests.find((request) => request.employee.employeeCode === result.data.employee.employeeCode) ?? null)
+                : null
+            }
+            pendingUnknown={!pending || !pending.ok}
+          />
+        }
+      />
     </AppShell>
   );
 }
@@ -92,8 +118,52 @@ function BackLink({ href }: { href: string }) {
   return (
     <Link href={href} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline">
       <ArrowLeft aria-hidden="true" className="size-4" />
-      Back to employees
+      {href.startsWith("/salary-requests") ? "Back to salary requests" : href.startsWith("/dashboard") ? "Back to dashboard" : "Back to employees"}
     </Link>
+  );
+}
+
+function CompensationActions({
+  role,
+  employeeCode,
+  eligible,
+  adjustHref,
+  pending,
+  pendingUnknown,
+}: {
+  role: "ADMIN" | "SCOPED";
+  employeeCode: string;
+  eligible: boolean;
+  adjustHref: string;
+  pending: SalaryRequestView | null;
+  pendingUnknown: boolean;
+}) {
+  if (!eligible) {
+    return <p className="text-sm text-muted-foreground">This employee is not eligible for a compensation adjustment.</p>;
+  }
+  const label = role === "ADMIN" ? "Adjust compensation" : "Request compensation change";
+  const pendingNote = pending ? (
+    <p className="flex items-start gap-2 text-sm">
+      <span aria-hidden="true" className="mt-1.5 size-2 shrink-0 rounded-full bg-state-upcoming" />
+      <span>
+        A salary change request from {pending.requestedBy.displayName} is waiting for approval.{" "}
+        <Link href={`/salary-requests/${pending.requestId}`} className="font-medium text-primary underline underline-offset-4">
+          View request
+        </Link>
+      </span>
+    </p>
+  ) : null;
+  // Scoped HR cannot submit a second pending request, so the action is not offered.
+  const showAction = role === "ADMIN" || (!pending && !pendingUnknown);
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+      {showAction ? (
+        <Link href={adjustHref} className={buttonVariants({ size: "lg" })} data-employee={employeeCode}>
+          {label}
+        </Link>
+      ) : null}
+      {pendingNote}
+    </div>
   );
 }
 
@@ -114,10 +184,11 @@ function compensationHeading(detail: Detail): string {
   return "Current compensation";
 }
 
-function EmployeeRecord({ detail }: { detail: Detail }) {
+function EmployeeRecord({ detail, appliedVersion, actions }: { detail: Detail; appliedVersion: number | null; actions: ReactNode }) {
   const { employee, compensation, compensationHistory, exchangeRate } = detail;
   // Newest first: the backend returns oldest first (effectiveFrom, then version).
   const history = [...compensationHistory].reverse();
+  const appliedEntry = appliedVersion === null ? null : (compensationHistory.find((entry) => entry.version === appliedVersion) ?? null);
   return (
     <article className="mt-5 flex max-w-5xl flex-col gap-8" aria-labelledby="employee-name">
       <header>
@@ -139,6 +210,21 @@ function EmployeeRecord({ detail }: { detail: Detail }) {
           </div>
         </dl>
       </header>
+
+      {/* `applied` is only a highlight hint from the adjust page. The notice states what the
+          history records, in the same words for anyone who opens the link, and never claims that
+          this browser made the change. */}
+      {appliedEntry ? (
+        <p role="status" className="flex max-w-3xl items-start gap-2 rounded-md border border-[#c3d0ec] bg-accent px-3.5 py-2.5 text-sm">
+          <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-primary" />
+          <span>
+            Compensation version {appliedEntry.version} is highlighted in the history: {CHANGE_REASON_LABELS[appliedEntry.changeReason]},
+            effective {formatDate(appliedEntry.effectiveFrom)}.
+          </span>
+        </p>
+      ) : null}
+
+      <section aria-label="Compensation actions">{actions}</section>
 
       <section aria-labelledby="employment-heading">
         <h2 id="employment-heading" className="text-[0.9375rem] font-semibold">
@@ -262,7 +348,7 @@ function EmployeeRecord({ detail }: { detail: Detail }) {
         <p className="mt-1 text-[0.8125rem] text-muted-foreground">Newest first. Records are never edited; each change adds a version.</p>
         <ol className="mt-3 divide-y divide-line rounded-md border border-line bg-surface md:hidden" aria-label="Compensation history, newest first">
           {history.map((entry) => (
-            <li key={entry.version} className="px-4 py-3 text-[0.8125rem]">
+            <li key={entry.version} className={cn("px-4 py-3 text-[0.8125rem]", entry.version === appliedVersion && "bg-[#eef7f1]")}>
               <p className="flex justify-between gap-3 font-medium">
                 <span>{formatDate(entry.effectiveFrom)}</span>
                 <span className="text-muted-foreground">
@@ -303,7 +389,11 @@ function EmployeeRecord({ detail }: { detail: Detail }) {
             </thead>
             <tbody>
               {history.map((entry) => (
-                <tr key={entry.version} className="border-b border-line last:border-b-0">
+                <tr
+                  key={entry.version}
+                  aria-current={entry.version === appliedVersion ? "true" : undefined}
+                  className={cn("border-b border-line last:border-b-0", entry.version === appliedVersion && "bg-[#eef7f1]")}
+                >
                   <td className="px-3 py-2.5 whitespace-nowrap">{formatDate(entry.effectiveFrom)}</td>
                   <td className="px-3 py-2.5 tabular-nums">{entry.version}</td>
                   <td className="px-3 py-2.5">{CHANGE_REASON_LABELS[entry.changeReason]}</td>

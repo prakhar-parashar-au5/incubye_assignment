@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 
 // A native <select> styled to match Input. Native controls keep platform keyboard behaviour and
 // the mobile pickers people already know.
-export function NativeSelect({ className, ...props }: React.ComponentProps<"select">) {
+export function NativeSelect({ className, wrapperClassName, ...props }: React.ComponentProps<"select"> & { wrapperClassName?: string }) {
   return (
-    <span className="relative inline-flex w-full">
+    <span className={cn("relative inline-flex w-full", wrapperClassName)}>
       <select
         className={cn(
           "h-10 w-full min-w-0 appearance-none rounded-md border border-input bg-surface py-1 pr-9 pl-3 text-base text-foreground transition-[border-color] duration-150 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",

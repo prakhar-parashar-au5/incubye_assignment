@@ -30,6 +30,19 @@ const OPERATION_IDS = [
   'getDirectoryOptions',
   // Read-only compensation assistant (backend Task 08)
   'sendAssistantMessages',
+  // Salary adjustments and approval requests (backend Task 09)
+  'previewSalaryAdjustment',
+  'applySalaryAdjustment',
+  'submitSalaryAdjustmentRequest',
+  'listSalaryAdjustmentRequests',
+  'getSalaryAdjustmentRequest',
+  'approveSalaryAdjustmentRequest',
+  'cancelSalaryAdjustmentRequest',
+  // Compensation dashboard, read-only (backend Task 10)
+  'getDashboardSummary',
+  'getDashboardBreakdown',
+  'getDashboardRecentChanges',
+  'getDashboardWithoutRecentAdjustment',
 ];
 
 function collectRefs(value, found) {

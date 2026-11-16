@@ -36,9 +36,8 @@ A compensation ledger rather than a payroll system or HR suite. Native currency 
 
 ## Capabilities and Constraints
 
-- Delivered so far: authentication API (login, current user, logout); employee directory, detail, and options API (backend Task 07) and their frontend (Frontend Task 02, Part A).
-- In progress: read-only compensation assistant (backend contract pending; `builder_docs/shared/ai-assistant-contract.md`). The frontend must not assume its response shape before the backend OpenAPI includes it.
-- Later: dashboard analytics, salary reviews, HR access management, spreadsheet import, Raise Advisor.
+- Delivered so far: authentication API (login, current user, logout); employee directory, detail, and options API (backend Task 07) and their frontend (Frontend Task 02, Part A); read-only compensation assistant (Frontend Task 02, Part B); salary adjustments: preview, Admin direct apply, Scoped HR requests, and the Admin approval queue with approve and cancel (backend Task 09, Frontend Task 03); the read-only compensation dashboard (backend Tasks 10 and 11b, Frontend Task 04).
+- Later: HR access management, spreadsheet import, Raise Advisor.
 - Excluded: payroll payments, tax, currency conversion for payment, autonomous AI mutation, MCP.
 - Terminology: "Admin HR", "Scoped HR", "employee ID" (stable code), "annual base salary", "annual cash compensation", "Current / Upcoming / Historical", "Last recorded compensation".
 

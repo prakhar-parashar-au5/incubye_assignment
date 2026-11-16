@@ -68,19 +68,20 @@ export function hasFilters(query: DirectoryQuery): boolean {
 }
 
 /**
- * The directory address a detail page may link back to. Only a same-site /employees path is
- * accepted; anything else, including protocol-relative and absolute URLs, becomes /employees.
+ * A same-site path a detail page may link back to. Only the listed list pages are accepted
+ * (by default the directory); anything else, including protocol-relative and absolute URLs,
+ * becomes the fallback.
  */
-export function safeReturnPath(raw: unknown): string {
-  if (typeof raw !== "string" || raw.length > 2000 || !raw.startsWith("/employees") || raw.startsWith("//")) {
-    return "/employees";
+export function safeReturnPath(raw: unknown, allowed: readonly string[] = ["/employees"], fallback = "/employees"): string {
+  if (typeof raw !== "string" || raw.length > 2000 || raw.startsWith("//") || !allowed.some((path) => raw.startsWith(path))) {
+    return fallback;
   }
   let url: URL;
   try {
     url = new URL(raw, "http://return.invalid");
   } catch {
-    return "/employees";
+    return fallback;
   }
-  if (url.origin !== "http://return.invalid" || url.pathname !== "/employees") return "/employees";
-  return `/employees${url.search}`;
+  if (url.origin !== "http://return.invalid" || !allowed.includes(url.pathname)) return fallback;
+  return `${url.pathname}${url.search}`;
 }

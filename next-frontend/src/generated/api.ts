@@ -130,6 +130,220 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/employees/{employeeCode}/salary-adjustments/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview one salary adjustment (writes nothing)
+         * @description Returns exact old and new values, the salary band, warnings, and a five-minute preview token. confirmationMode is DIRECT_APPLY for Admin HR and SUBMIT_REQUEST for Scoped HR.
+         */
+        post: operations["previewSalaryAdjustment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/employees/{employeeCode}/salary-adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: apply the exact previewed adjustment
+         * @description Creates one immutable compensation version and marks any pending request STALE, in one transaction.
+         */
+        post: operations["applySalaryAdjustment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/employees/{employeeCode}/salary-adjustment-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Scoped HR: submit the exact previewed adjustment for approval
+         * @description Creates one PENDING request and no compensation record.
+         */
+        post: operations["submitSalaryAdjustmentRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/salary-adjustment-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Requests for employees in the caller's current scope (all for Admin HR) */
+        get: operations["listSalaryAdjustmentRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/salary-adjustment-requests/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One request */
+        get: operations["getSalaryAdjustmentRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/salary-adjustment-requests/{requestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: approve the exact request
+         * @description Rechecks requester status and scope, eligibility, salary band, effective date, future changes, and compensation version. A failed recheck caused by changed state marks the request STALE.
+         */
+        post: operations["approveSalaryAdjustmentRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/salary-adjustment-requests/{requestId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: cancel a pending request with a note
+         * @description Changes no compensation.
+         */
+        post: operations["cancelSalaryAdjustmentRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Top dashboard figures
+         * @description Headcount by status, current spending and upcoming commitment by native currency, request counts, recent-change and without-adjustment counts, and an optional USD comparison. Every figure uses the caller's current scope; an empty scope returns access.hasEmployeeAccess = false and no figures.
+         */
+        get: operations["getDashboardSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/breakdowns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One compensation breakdown
+         * @description Count, totals, average, median, minimum, and maximum annual cash per group and native currency. Average and median round half-up to cents. Every figure uses the caller's current scope; an empty scope returns access.hasEmployeeAccess = false and no figures.
+         */
+        get: operations["getDashboardBreakdown"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/recent-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recently recorded compensation changes
+         * @description Newest record first. INITIAL_IMPORT is excluded; a future-effective change recorded in the period is included. Every figure uses the caller's current scope; an empty scope returns access.hasEmployeeAccess = false and no figures.
+         */
+        get: operations["getDashboardRecentChanges"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/without-recent-adjustment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Working employees without a recorded adjustment
+         * @description No recorded salary adjustment since import or during the selected period. The initial import is not an adjustment. Every figure uses the caller's current scope; an empty scope returns access.hasEmployeeAccess = false and no figures.
+         */
+        get: operations["getDashboardWithoutRecentAdjustment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -181,6 +395,31 @@ export interface components {
             /** @enum {string} */
             changeReason: "INITIAL_IMPORT" | "PERFORMANCE" | "MARKET_ADJUSTMENT" | "PROMOTION" | "ROLE_CHANGE" | "CORRECTION";
         };
+        CompensationRecordView: {
+            version: number;
+            /** @description Exact decimal string with two decimal places. */
+            annualBaseSalary: string;
+            /** @description Exact decimal string with two decimal places. */
+            annualBonus: string;
+            /** @description Exact decimal string with two decimal places. */
+            annualCashCompensation: string;
+            /** @enum {string} */
+            currency: "INR" | "USD";
+            /** @enum {string} */
+            payFrequency: "MONTHLY" | "ANNUAL";
+            /** Format: date */
+            effectiveFrom: string;
+            /** @enum {string} */
+            changeReason: "INITIAL_IMPORT" | "PERFORMANCE" | "MARKET_ADJUSTMENT" | "PROMOTION" | "ROLE_CHANGE" | "CORRECTION";
+            changeNote: string | null;
+            changedBy: {
+                displayName: string;
+                email: string;
+            } | null;
+            sourceRequestId: string | null;
+            /** Format: date-time */
+            recordedAt: string;
+        };
         CompensationSummaryCard: {
             /** @constant */
             type: "compensation_summary";
@@ -229,6 +468,332 @@ export interface components {
                 /** Format: date-time */
                 expiresAt: string;
             };
+        };
+        DashboardAccess: {
+            /** @description False for an empty scope: no figures are returned and the UI shows the no-access message. */
+            hasEmployeeAccess: boolean;
+            message: string | null;
+            scope: {
+                /** @enum {string} */
+                kind: "ALL" | "SCOPED";
+                countries: string[];
+                departments: string[];
+            };
+        };
+        DashboardBreakdownGroup: {
+            /** @description Department name, country code, currency, level, or employment status. */
+            group: string;
+            label: string;
+            /** @enum {string} */
+            currency: "INR" | "USD";
+            /** @enum {string} */
+            basis: "CURRENT_SPENDING" | "FUTURE_COMMITMENT" | "COUNT_ONLY";
+            employeeCount: number;
+            annualBaseSalary: string | null;
+            annualCashCompensation: string | null;
+            averageAnnualCashCompensation: string | null;
+            medianAnnualCashCompensation: string | null;
+            minimumAnnualCashCompensation: string | null;
+            maximumAnnualCashCompensation: string | null;
+            usdEquivalent: {
+                /** @description Exact decimal string with two decimal places. */
+                annualBaseSalary: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualCashCompensation: string;
+            } | null;
+        };
+        DashboardBreakdownResponse: {
+            /**
+             * Format: date
+             * @description UTC business date used for current and upcoming compensation.
+             */
+            asOf: string;
+            /** Format: date-time */
+            generatedAt: string;
+            access: components["schemas"]["DashboardAccess"];
+            filters: {
+                department: ("Tech" | "HR" | "Finance" | "Operations" | "Support") | null;
+                country: ("IN" | "US") | null;
+                currency: ("INR" | "USD") | null;
+                level: ("JUNIOR" | "MID" | "SENIOR" | "LEAD" | "MANAGER") | null;
+                employmentStatus: ("SOON_TO_JOIN" | "CURRENTLY_WORKING" | "LEFT") | null;
+            };
+            /** @enum {string} */
+            breakdown: "DEPARTMENT" | "COUNTRY" | "CURRENCY" | "LEVEL" | "EMPLOYMENT_STATUS";
+            /** @description Which employees the groups cover. */
+            population: string;
+            groups: components["schemas"]["DashboardBreakdownGroup"][];
+            notApplied: components["schemas"]["DashboardFilterNote"][];
+            usdComparison: components["schemas"]["DashboardUsdComparison"];
+        };
+        DashboardFilterNote: {
+            /** @enum {string} */
+            filter: "department" | "country" | "currency" | "level" | "employmentStatus";
+            reason: string;
+        };
+        DashboardRecentChange: {
+            employee: {
+                employeeCode: string;
+                name: string;
+                /** @enum {string} */
+                department: "Tech" | "HR" | "Finance" | "Operations" | "Support";
+                /** @enum {string} */
+                country: "IN" | "US";
+            };
+            /** @enum {string} */
+            currency: "INR" | "USD";
+            previous: {
+                /** @description Exact decimal string with two decimal places. */
+                annualBaseSalary: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualBonus: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualCashCompensation: string;
+            } | null;
+            new: {
+                /** @description Exact decimal string with two decimal places. */
+                annualBaseSalary: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualBonus: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualCashCompensation: string;
+            };
+            /** @enum {string} */
+            changeReason: "INITIAL_IMPORT" | "PERFORMANCE" | "MARKET_ADJUSTMENT" | "PROMOTION" | "ROLE_CHANGE" | "CORRECTION";
+            /** Format: date-time */
+            recordedAt: string;
+            /** Format: date */
+            effectiveFrom: string;
+            effectiveInFuture: boolean;
+            changedBy: {
+                displayName: string;
+            } | null;
+            requestId: string | null;
+        };
+        DashboardRecentChangesResponse: {
+            /**
+             * Format: date
+             * @description UTC business date used for current and upcoming compensation.
+             */
+            asOf: string;
+            /** Format: date-time */
+            generatedAt: string;
+            access: components["schemas"]["DashboardAccess"];
+            filters: {
+                department: ("Tech" | "HR" | "Finance" | "Operations" | "Support") | null;
+                country: ("IN" | "US") | null;
+                currency: ("INR" | "USD") | null;
+                level: ("JUNIOR" | "MID" | "SENIOR" | "LEAD" | "MANAGER") | null;
+                employmentStatus: ("SOON_TO_JOIN" | "CURRENTLY_WORKING" | "LEFT") | null;
+            };
+            periodDays: number;
+            /** @constant */
+            emptyMessage: "No compensation changes were recorded in this period.";
+            changes: components["schemas"]["DashboardRecentChange"][];
+            page: {
+                number: number;
+                size: number;
+                totalRows: number;
+                totalPages: number;
+            };
+            notApplied: components["schemas"]["DashboardFilterNote"][];
+        };
+        DashboardSummaryResponse: {
+            /**
+             * Format: date
+             * @description UTC business date used for current and upcoming compensation.
+             */
+            asOf: string;
+            /** Format: date-time */
+            generatedAt: string;
+            access: components["schemas"]["DashboardAccess"];
+            filters: {
+                department: ("Tech" | "HR" | "Finance" | "Operations" | "Support") | null;
+                country: ("IN" | "US") | null;
+                currency: ("INR" | "USD") | null;
+                level: ("JUNIOR" | "MID" | "SENIOR" | "LEAD" | "MANAGER") | null;
+                employmentStatus: ("SOON_TO_JOIN" | "CURRENTLY_WORKING" | "LEFT") | null;
+            };
+            /** @description Null when the HR user has no employee access. */
+            figures: {
+                headcount: {
+                    currentlyWorking: number;
+                    soonToJoin: number;
+                    left: number;
+                    notApplied: components["schemas"]["DashboardFilterNote"][];
+                };
+                currentSpending: {
+                    /** @constant */
+                    population: "CURRENTLY_WORKING";
+                    /** @description One row per native currency present. Never summed across currencies. */
+                    byCurrency: {
+                        /** @enum {string} */
+                        currency: "INR" | "USD";
+                        employeeCount: number;
+                        /** @description Exact decimal string with two decimal places. */
+                        annualBaseSalary: string;
+                        /** @description Exact decimal string with two decimal places. */
+                        annualCashCompensation: string;
+                        /** @description Comparison only. */
+                        usdEquivalent: {
+                            /** @description Exact decimal string with two decimal places. */
+                            annualBaseSalary: string;
+                            /** @description Exact decimal string with two decimal places. */
+                            annualCashCompensation: string;
+                        } | null;
+                    }[];
+                    notApplied: components["schemas"]["DashboardFilterNote"][];
+                };
+                upcomingCommitment: {
+                    definition: string;
+                    byCurrency: {
+                        /** @enum {string} */
+                        currency: "INR" | "USD";
+                        soonToJoinCount: number;
+                        /** @description Exact decimal string with two decimal places. */
+                        soonToJoinAnnualCashCompensation: string;
+                        approvedFutureChangeCount: number;
+                        /** @description Signed: scheduled minus selected annual cash (current for working employees, initial for soon-to-join employees). */
+                        approvedFutureChangeAnnualCashImpact: string;
+                        totalAnnualCashCommitment: string;
+                    }[];
+                    upcomingChanges: {
+                        total: number;
+                        /** @description Soonest first, at most 10. */
+                        items: components["schemas"]["DashboardUpcomingChange"][];
+                    };
+                    notApplied: components["schemas"]["DashboardFilterNote"][];
+                };
+                requests: {
+                    pending: number;
+                    stale: number;
+                    notApplied: components["schemas"]["DashboardFilterNote"][];
+                };
+                recentChanges: {
+                    periodDays: number;
+                    count: number;
+                    notApplied: components["schemas"]["DashboardFilterNote"][];
+                };
+                withoutRecentAdjustment: {
+                    months: number;
+                    /** @constant */
+                    definition: "No recorded salary adjustment since import or during the selected period.";
+                    count: number;
+                    notApplied: components["schemas"]["DashboardFilterNote"][];
+                };
+                usdComparison: {
+                    available: boolean;
+                    /** @description Present when no saved exchange rate is loaded. Native figures are unaffected. */
+                    unavailableReason: string | null;
+                    exchangeRate: components["schemas"]["ExchangeRateContext"] | null;
+                    /** @description For example "1 USD = 93.9100 INR" (INR per one US dollar). */
+                    quoteDescription: string | null;
+                    /** @description USD equivalents are informational; native amounts are authoritative. */
+                    disclaimer: string;
+                    /** @description Sum of per-currency USD equivalents. Informational only. */
+                    currentSpending: {
+                        /** @description Exact decimal string with two decimal places. */
+                        annualBaseSalary: string;
+                        /** @description Exact decimal string with two decimal places. */
+                        annualCashCompensation: string;
+                    } | null;
+                };
+            } | null;
+        };
+        DashboardUpcomingChange: {
+            employee: {
+                employeeCode: string;
+                name: string;
+                /** @enum {string} */
+                department: "Tech" | "HR" | "Finance" | "Operations" | "Support";
+                /** @enum {string} */
+                country: "IN" | "US";
+                /** @enum {string} */
+                employmentStatus: "SOON_TO_JOIN" | "CURRENTLY_WORKING" | "LEFT";
+            };
+            /** @enum {string} */
+            currency: "INR" | "USD";
+            previous: {
+                /** @description Exact decimal string with two decimal places. */
+                annualBaseSalary: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualBonus: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualCashCompensation: string;
+            } | null;
+            scheduled: {
+                /** @description Exact decimal string with two decimal places. */
+                annualBaseSalary: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualBonus: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualCashCompensation: string;
+            };
+            /** Format: date */
+            effectiveFrom: string;
+            /** @enum {string} */
+            changeReason: "INITIAL_IMPORT" | "PERFORMANCE" | "MARKET_ADJUSTMENT" | "PROMOTION" | "ROLE_CHANGE" | "CORRECTION";
+            approvedBy: {
+                displayName: string;
+            } | null;
+            requestId: string | null;
+        };
+        DashboardUsdComparison: {
+            available: boolean;
+            /** @description Present when no saved exchange rate is loaded. Native figures are unaffected. */
+            unavailableReason: string | null;
+            exchangeRate: components["schemas"]["ExchangeRateContext"] | null;
+            /** @description For example "1 USD = 93.9100 INR" (INR per one US dollar). */
+            quoteDescription: string | null;
+            /** @description USD equivalents are informational; native amounts are authoritative. */
+            disclaimer: string;
+        };
+        DashboardWithoutAdjustmentResponse: {
+            /**
+             * Format: date
+             * @description UTC business date used for current and upcoming compensation.
+             */
+            asOf: string;
+            /** Format: date-time */
+            generatedAt: string;
+            access: components["schemas"]["DashboardAccess"];
+            filters: {
+                department: ("Tech" | "HR" | "Finance" | "Operations" | "Support") | null;
+                country: ("IN" | "US") | null;
+                currency: ("INR" | "USD") | null;
+                level: ("JUNIOR" | "MID" | "SENIOR" | "LEAD" | "MANAGER") | null;
+                employmentStatus: ("SOON_TO_JOIN" | "CURRENTLY_WORKING" | "LEFT") | null;
+            };
+            months: number;
+            /** @constant */
+            definition: "No recorded salary adjustment since import or during the selected period.";
+            employees: {
+                employee: {
+                    employeeCode: string;
+                    name: string;
+                    /** @enum {string} */
+                    department: "Tech" | "HR" | "Finance" | "Operations" | "Support";
+                    /** @enum {string} */
+                    country: "IN" | "US";
+                    /** @enum {string} */
+                    level: "JUNIOR" | "MID" | "SENIOR" | "LEAD" | "MANAGER";
+                };
+                /** @enum {string} */
+                currency: "INR" | "USD";
+                /** @description Exact decimal string with two decimal places. */
+                annualBaseSalary: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualCashCompensation: string;
+                /** @description Latest non-import record before the period, or null (none since import). */
+                lastRecordedAdjustmentAt: string | null;
+            }[];
+            page: {
+                number: number;
+                size: number;
+                totalRows: number;
+                totalPages: number;
+            };
+            notApplied: components["schemas"]["DashboardFilterNote"][];
         };
         DirectoryOptionsResponse: {
             departments: ("Tech" | "HR" | "Finance" | "Operations" | "Support")[];
@@ -349,8 +914,13 @@ export interface components {
         ErrorResponse: {
             error: {
                 /** @enum {string} */
-                code: "VALIDATION_ERROR" | "INVALID_CREDENTIALS" | "UNAUTHENTICATED" | "RATE_LIMITED" | "NOT_FOUND" | "ASSISTANT_UNAVAILABLE" | "INTERNAL_ERROR";
+                code: "VALIDATION_ERROR" | "INVALID_CREDENTIALS" | "UNAUTHENTICATED" | "RATE_LIMITED" | "NOT_FOUND" | "ASSISTANT_UNAVAILABLE" | "FORBIDDEN" | "STALE_VERSION" | "DUPLICATE_OPERATION" | "PENDING_REQUEST_EXISTS" | "REQUEST_NOT_PENDING" | "EMPLOYEE_INELIGIBLE" | "LAST_ACTIVE_ADMIN" | "EMAIL_TAKEN" | "INVALID_SCOPE" | "SELF_PASSWORD_REGENERATION_FORBIDDEN" | "SERVICE_UNAVAILABLE" | "INTERNAL_ERROR";
                 message: string;
+                /**
+                 * @description Present on some VALIDATION_ERROR responses so the client can show the right state.
+                 * @enum {string}
+                 */
+                reason?: "PREVIEW_EXPIRED" | "PREVIEW_INVALID" | "PREVIEW_MISMATCH" | "PERCENTAGE_RANGE" | "INVALID_AMOUNT" | "NEGATIVE_RESULT" | "NO_CHANGE" | "ZERO_BONUS_PERCENTAGE" | "BASE_NOT_POSITIVE" | "SALARY_BAND" | "PAST_EFFECTIVE_DATE" | "EFFECTIVE_BEFORE_CURRENT" | "FUTURE_CHANGE_EXISTS" | "NOTE_REQUIRED" | "IDEMPOTENCY_KEY_REQUIRED";
             };
         };
         ExchangeRateContext: {
@@ -427,6 +997,208 @@ export interface components {
                 /** @description Null when there is no previous record or the currency changed. */
                 annualBaseSalaryChange: components["schemas"]["AssistantMoney"] | null;
             }[];
+        };
+        SalaryAdjustmentCommand: {
+            /** @enum {string} */
+            target: "BASE_SALARY" | "ANNUAL_BONUS";
+            /** @enum {string} */
+            method: "PERCENTAGE_INCREASE" | "PERCENTAGE_DECREASE" | "FIXED_INCREASE" | "FIXED_DECREASE" | "REPLACEMENT";
+            /** @description Percentages: whole number (increase 1..200, decrease 1..50). Amounts: at most two decimals. */
+            value: string;
+            /**
+             * Format: date
+             * @description Today (UTC business date) or later.
+             */
+            effectiveFrom: string;
+            /** @enum {string} */
+            reason: "PERFORMANCE" | "MARKET_ADJUSTMENT" | "PROMOTION" | "ROLE_CHANGE" | "CORRECTION";
+            /** @description Required for CORRECTION. Blank is treated as no note. Do not include sensitive personal data. */
+            note?: string | null;
+        };
+        SalaryAdjustmentConfirmation: {
+            previewToken: string;
+            /** @description The exact command that was previewed. */
+            adjustment: components["schemas"]["SalaryAdjustmentCommand"];
+        };
+        SalaryAdjustmentPreview: {
+            employee: {
+                employeeCode: string;
+                name: string;
+                email: string;
+                /** @enum {string} */
+                department: "Tech" | "HR" | "Finance" | "Operations" | "Support";
+                jobTitle: string;
+                /** @enum {string} */
+                level: "JUNIOR" | "MID" | "SENIOR" | "LEAD" | "MANAGER";
+                /** @enum {string} */
+                country: "IN" | "US";
+                /** @enum {string} */
+                employmentStatus: "SOON_TO_JOIN" | "CURRENTLY_WORKING" | "LEFT";
+            };
+            adjustment: {
+                /** @enum {string} */
+                target: "BASE_SALARY" | "ANNUAL_BONUS";
+                /** @enum {string} */
+                method: "PERCENTAGE_INCREASE" | "PERCENTAGE_DECREASE" | "FIXED_INCREASE" | "FIXED_DECREASE" | "REPLACEMENT";
+                /** @description Normalized: amounts with two decimals. */
+                value: string;
+                /** Format: date */
+                effectiveFrom: string;
+                /** @enum {string} */
+                reason: "PERFORMANCE" | "MARKET_ADJUSTMENT" | "PROMOTION" | "ROLE_CHANGE" | "CORRECTION";
+                note: string | null;
+            };
+            /** @enum {string} */
+            currency: "INR" | "USD";
+            current: {
+                /** @description Version of the record the adjustment is calculated from. */
+                compensationVersion: number;
+                /** @enum {string} */
+                state: "CURRENT" | "UPCOMING" | "HISTORICAL";
+                /** Format: date */
+                effectiveFrom: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualBaseSalary: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualBonus: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualCashCompensation: string;
+            };
+            proposed: {
+                /** @description Exact decimal string with two decimal places. */
+                annualBaseSalary: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualBonus: string;
+                /** @description Exact decimal string with two decimal places. */
+                annualCashCompensation: string;
+            };
+            change: {
+                /** @description Signed change of the adjusted target. */
+                amount: string;
+                /** @enum {string} */
+                direction: "INCREASE" | "DECREASE";
+                /** @description Signed, two decimals. Null when the current value is zero. */
+                percentage: string | null;
+                /** @description Signed change in annual cash compensation: the annual budget impact. */
+                annualCashImpact: string;
+            };
+            salaryBand: {
+                /** @enum {string} */
+                currency: "INR" | "USD";
+                /** @description Exact decimal string with two decimal places. */
+                minAnnualBaseSalary: string;
+                /** @description Exact decimal string with two decimal places. */
+                maxAnnualBaseSalary: string;
+                /** @description Exact decimal string with two decimal places. */
+                maxAnnualBonus: string;
+                minPercentageIncrease: number;
+                maxPercentageIncrease: number;
+                minPercentageDecrease: number;
+                maxPercentageDecrease: number;
+            };
+            /** @description Invalid adjustments are rejected with VALIDATION_ERROR and a reason. */
+            validation: {
+                /** @constant */
+                valid: true;
+            };
+            warnings: {
+                /** @description An approved future change keeps its scheduled absolute amounts. */
+                futureChange: {
+                    /** Format: date */
+                    effectiveFrom: string;
+                    /** @description Exact decimal string with two decimal places. */
+                    annualBaseSalary: string;
+                    /** @description Exact decimal string with two decimal places. */
+                    annualBonus: string;
+                    message: string;
+                } | null;
+                /** @description Admin preview only: applying makes the pending request STALE. */
+                pendingRequestWillBecomeStale: boolean;
+            };
+            expectedCompensationVersion: number;
+            /** @enum {string} */
+            confirmationMode: "DIRECT_APPLY" | "SUBMIT_REQUEST";
+            previewToken: string;
+            /** Format: date-time */
+            previewExpiresAt: string;
+        };
+        SalaryAdjustmentResult: {
+            employeeCode: string;
+            compensation: components["schemas"]["CompensationRecordView"];
+        };
+        SalaryRequestApproval: {
+            request: components["schemas"]["SalaryRequestView"];
+            compensation: components["schemas"]["CompensationRecordView"];
+        };
+        SalaryRequestCancellation: {
+            /** @description Required cancellation reason. */
+            note: string;
+        };
+        SalaryRequestList: {
+            requests: components["schemas"]["SalaryRequestView"][];
+            page: {
+                number: number;
+                size: number;
+                totalRows: number;
+                totalPages: number;
+            };
+        };
+        SalaryRequestResponse: {
+            request: components["schemas"]["SalaryRequestView"];
+        };
+        SalaryRequestView: {
+            /** Format: uuid */
+            requestId: string;
+            /** @enum {string} */
+            status: "PENDING" | "APPROVED" | "CANCELLED" | "STALE";
+            employee: {
+                employeeCode: string;
+                name: string;
+                email: string;
+                /** @enum {string} */
+                department: "Tech" | "HR" | "Finance" | "Operations" | "Support";
+                jobTitle: string;
+                /** @enum {string} */
+                level: "JUNIOR" | "MID" | "SENIOR" | "LEAD" | "MANAGER";
+                /** @enum {string} */
+                country: "IN" | "US";
+                /** @enum {string} */
+                employmentStatus: "SOON_TO_JOIN" | "CURRENTLY_WORKING" | "LEFT";
+            };
+            requestedBy: {
+                displayName: string;
+                email: string;
+            };
+            adjustment: {
+                /** @enum {string} */
+                target: "BASE_SALARY" | "ANNUAL_BONUS";
+                /** @enum {string} */
+                method: "PERCENTAGE_INCREASE" | "PERCENTAGE_DECREASE" | "FIXED_INCREASE" | "FIXED_DECREASE" | "REPLACEMENT";
+                value: string;
+                /** @enum {string} */
+                currency: "INR" | "USD";
+                /** @description Exact decimal string with two decimal places. */
+                previousValue: string;
+                /** @description Exact decimal string with two decimal places. */
+                proposedValue: string;
+                /** Format: date */
+                effectiveFrom: string;
+                /** @enum {string} */
+                reason: "PERFORMANCE" | "MARKET_ADJUSTMENT" | "PROMOTION" | "ROLE_CHANGE" | "CORRECTION";
+                note: string | null;
+            };
+            requestedAgainstVersion: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description The Admin who approved or cancelled. Null while pending and for STALE. */
+            decidedBy: {
+                displayName: string;
+                email: string;
+            } | null;
+            decidedAt: string | null;
+            /** @description Cancellation note or stale reason. */
+            decisionNote: string | null;
+            resultingCompensationVersion: number | null;
         };
         SelectedCompensation: {
             /** @enum {string} */
@@ -804,6 +1576,879 @@ export interface operations {
                 };
             };
             /** @description ASSISTANT_UNAVAILABLE: no model configured, model timeout, or provider error. Other routes are unaffected. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    previewSalaryAdjustment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                employeeCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SalaryAdjustmentCommand"];
+            };
+        };
+        responses: {
+            /** @description A valid adjustment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalaryAdjustmentPreview"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND: unknown and out-of-scope employees return the same body. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description PENDING_REQUEST_EXISTS (Scoped HR). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EMPLOYEE_INELIGIBLE */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    applySalaryAdjustment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                employeeCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SalaryAdjustmentConfirmation"];
+            };
+        };
+        responses: {
+            /** @description The new compensation version (or the original result for a replay). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalaryAdjustmentResult"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: Scoped HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION (fetch and confirm a fresh preview) or DUPLICATE_OPERATION. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EMPLOYEE_INELIGIBLE */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    submitSalaryAdjustmentRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                employeeCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SalaryAdjustmentConfirmation"];
+            };
+        };
+        responses: {
+            /** @description The pending request (or the original request for a replay). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalaryRequestResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: Admin HR applies directly. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION, PENDING_REQUEST_EXISTS, or DUPLICATE_OPERATION. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EMPLOYEE_INELIGIBLE */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listSalaryAdjustmentRequests: {
+        parameters: {
+            query?: {
+                /** @description Employee ID (exact or prefix), name (partial), or exact email. */
+                q?: string;
+                /** @description Admin HR only; Scoped HR receives VALIDATION_ERROR. */
+                department?: "Tech" | "HR" | "Finance" | "Operations" | "Support";
+                status?: "PENDING" | "APPROVED" | "CANCELLED" | "STALE";
+                sort?: "createdAt";
+                direction?: "asc" | "desc";
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page, sorted by creation time. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalaryRequestList"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getSalaryAdjustmentRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalaryRequestResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND: unknown and out-of-scope requests return the same body. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    approveSalaryAdjustmentRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The approved request and the new compensation version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalaryRequestApproval"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: Scoped HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION (request marked stale), REQUEST_NOT_PENDING, or DUPLICATE_OPERATION. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EMPLOYEE_INELIGIBLE (request marked stale). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    cancelSalaryAdjustmentRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SalaryRequestCancellation"];
+            };
+        };
+        responses: {
+            /** @description The cancelled request. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalaryRequestResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: Scoped HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description REQUEST_NOT_PENDING or DUPLICATE_OPERATION. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Safe to retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getDashboardSummary: {
+        parameters: {
+            query?: {
+                department?: "Tech" | "HR" | "Finance" | "Operations" | "Support";
+                country?: "IN" | "US";
+                /** @description Currency of the selected compensation record, change, or request. */
+                currency?: "INR" | "USD";
+                level?: "JUNIOR" | "MID" | "SENIOR" | "LEAD" | "MANAGER";
+                /** @description Sections that cover currently working employees only report a non-working value in notApplied instead of ignoring it. */
+                employmentStatus?: "SOON_TO_JOIN" | "CURRENTLY_WORKING" | "LEFT";
+                /** @description Recent changes: compensation records created in the last N days (measured back from now). Effective date is not used. */
+                periodDays?: "7" | "30" | "90";
+                /** @description Without recent adjustment: no non-import record created in the last N months. */
+                noAdjustmentMonths?: "3" | "6" | "12" | "24";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Permission-filtered analytics. Native currencies are never combined. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSummaryResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR: unknown, repeated, or unsupported query value. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getDashboardBreakdown: {
+        parameters: {
+            query?: {
+                department?: "Tech" | "HR" | "Finance" | "Operations" | "Support";
+                country?: "IN" | "US";
+                /** @description Currency of the selected compensation record, change, or request. */
+                currency?: "INR" | "USD";
+                level?: "JUNIOR" | "MID" | "SENIOR" | "LEAD" | "MANAGER";
+                /** @description Sections that cover currently working employees only report a non-working value in notApplied instead of ignoring it. */
+                employmentStatus?: "SOON_TO_JOIN" | "CURRENTLY_WORKING" | "LEFT";
+                breakdown?: "DEPARTMENT" | "COUNTRY" | "CURRENCY" | "LEVEL" | "EMPLOYMENT_STATUS";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Permission-filtered analytics. Native currencies are never combined. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardBreakdownResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR: unknown, repeated, or unsupported query value. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getDashboardRecentChanges: {
+        parameters: {
+            query?: {
+                department?: "Tech" | "HR" | "Finance" | "Operations" | "Support";
+                country?: "IN" | "US";
+                /** @description Currency of the selected compensation record, change, or request. */
+                currency?: "INR" | "USD";
+                level?: "JUNIOR" | "MID" | "SENIOR" | "LEAD" | "MANAGER";
+                /** @description Sections that cover currently working employees only report a non-working value in notApplied instead of ignoring it. */
+                employmentStatus?: "SOON_TO_JOIN" | "CURRENTLY_WORKING" | "LEFT";
+                /** @description Recent changes: compensation records created in the last N days (measured back from now). Effective date is not used. */
+                periodDays?: "7" | "30" | "90";
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Permission-filtered analytics. Native currencies are never combined. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardRecentChangesResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR: unknown, repeated, or unsupported query value. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getDashboardWithoutRecentAdjustment: {
+        parameters: {
+            query?: {
+                department?: "Tech" | "HR" | "Finance" | "Operations" | "Support";
+                country?: "IN" | "US";
+                /** @description Currency of the selected compensation record, change, or request. */
+                currency?: "INR" | "USD";
+                level?: "JUNIOR" | "MID" | "SENIOR" | "LEAD" | "MANAGER";
+                /** @description Sections that cover currently working employees only report a non-working value in notApplied instead of ignoring it. */
+                employmentStatus?: "SOON_TO_JOIN" | "CURRENTLY_WORKING" | "LEFT";
+                /** @description Without recent adjustment: no non-import record created in the last N months. */
+                noAdjustmentMonths?: "3" | "6" | "12" | "24";
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Permission-filtered analytics. Native currencies are never combined. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithoutAdjustmentResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR: unknown, repeated, or unsupported query value. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE */
             503: {
                 headers: {
                     [name: string]: unknown;
