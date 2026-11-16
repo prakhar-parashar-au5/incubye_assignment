@@ -15,6 +15,10 @@ import {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
   MAX_SEARCH_LENGTH,
+  DASHBOARD_BREAKDOWNS,
+  DASHBOARD_LIST_MAX_PAGE_SIZE,
+  DASHBOARD_NO_ADJUSTMENT_MONTHS,
+  DASHBOARD_PERIOD_DAYS,
   PATHS,
   REQUEST_STATUSES,
   SORT_DIRECTIONS,
@@ -71,6 +75,39 @@ const SALARY_REQUEST_LIST_PARAMETERS = [
   queryParam('page', { type: 'integer', minimum: 1, maximum: 1_000_000, default: 1 }),
   queryParam('pageSize', { type: 'integer', minimum: 1, maximum: MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE }),
 ];
+const DASHBOARD_FILTER_PARAMETERS = [
+  queryParam('department', { type: 'string', enum: [...DEPARTMENTS] }),
+  queryParam('country', { type: 'string', enum: [...COUNTRY_CODES] }),
+  queryParam('currency', { type: 'string', enum: [...CURRENCIES] }, 'Currency of the selected compensation record, change, or request.'),
+  queryParam('level', { type: 'string', enum: [...LEVELS] }),
+  queryParam('employmentStatus', { type: 'string', enum: [...EMPLOYMENT_STATUSES] },
+    'Sections that cover currently working employees only report a non-working value in notApplied instead of ignoring it.'),
+];
+const PERIOD_DAYS_PARAMETER = queryParam('periodDays', { type: 'string', enum: [...DASHBOARD_PERIOD_DAYS], default: '30' },
+  'Recent changes: compensation records created in the last N days (measured back from now). Effective date is not used.');
+const NO_ADJUSTMENT_MONTHS_PARAMETER = queryParam('noAdjustmentMonths', { type: 'string', enum: [...DASHBOARD_NO_ADJUSTMENT_MONTHS], default: '12' },
+  'Without recent adjustment: no non-import record created in the last N months.');
+const DASHBOARD_PAGE_PARAMETERS = [
+  queryParam('page', { type: 'integer', minimum: 1, maximum: 1_000_000, default: 1 }),
+  queryParam('pageSize', { type: 'integer', minimum: 1, maximum: DASHBOARD_LIST_MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE }),
+];
+const DASHBOARD_ERRORS = {
+  400: error('VALIDATION_ERROR: unknown, repeated, or unsupported query value.'),
+  401: error('UNAUTHENTICATED'),
+  500: error('INTERNAL_ERROR'),
+  503: error('SERVICE_UNAVAILABLE'),
+};
+const dashboardOperation = (operationId: string, summary: string, schema: string, parameters: unknown[], description: string) => ({
+  get: {
+    operationId,
+    summary,
+    description: `${description} Every figure uses the caller's current scope; an empty scope returns access.hasEmployeeAccess = false and no figures.`,
+    security: [{ bearerAuth: [] }],
+    parameters,
+    responses: { 200: json(schema, 'Permission-filtered analytics. Native currencies are never combined.'), ...DASHBOARD_ERRORS },
+  },
+});
+
 const SALARY_COMMON_ERRORS = {
   400: error('VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED.'),
   401: error('UNAUTHENTICATED'),
@@ -329,6 +366,18 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           },
         },
       },
+      [PATHS.dashboardSummary]: dashboardOperation('getDashboardSummary', 'Top dashboard figures', 'DashboardSummaryResponse',
+        [...DASHBOARD_FILTER_PARAMETERS, PERIOD_DAYS_PARAMETER, NO_ADJUSTMENT_MONTHS_PARAMETER],
+        'Headcount by status, current spending and upcoming commitment by native currency, request counts, recent-change and without-adjustment counts, and an optional USD comparison.'),
+      [PATHS.dashboardBreakdowns]: dashboardOperation('getDashboardBreakdown', 'One compensation breakdown', 'DashboardBreakdownResponse',
+        [...DASHBOARD_FILTER_PARAMETERS, queryParam('breakdown', { type: 'string', enum: [...DASHBOARD_BREAKDOWNS], default: 'DEPARTMENT' })],
+        'Count, totals, average, median, minimum, and maximum annual cash per group and native currency. Average and median round half-up to cents.'),
+      [PATHS.dashboardRecentChanges]: dashboardOperation('getDashboardRecentChanges', 'Recently recorded compensation changes', 'DashboardRecentChangesResponse',
+        [...DASHBOARD_FILTER_PARAMETERS, PERIOD_DAYS_PARAMETER, ...DASHBOARD_PAGE_PARAMETERS],
+        'Newest record first. INITIAL_IMPORT is excluded; a future-effective change recorded in the period is included.'),
+      [PATHS.dashboardWithoutRecentAdjustment]: dashboardOperation('getDashboardWithoutRecentAdjustment', 'Working employees without a recorded adjustment', 'DashboardWithoutAdjustmentResponse',
+        [...DASHBOARD_FILTER_PARAMETERS, NO_ADJUSTMENT_MONTHS_PARAMETER, ...DASHBOARD_PAGE_PARAMETERS],
+        'No recorded salary adjustment since import or during the selected period. The initial import is not an adjustment.'),
       [PATHS.mcp]: {
         post: {
           operationId: 'mcp',

@@ -22,6 +22,7 @@
     "generate:workbook": "tsx scripts/generate-workbook.ts",
     "openapi:generate": "tsx scripts/generate-openapi.ts",
     "measure:directory": "tsx scripts/measure-directory.ts",
+    "measure:dashboard": "tsx scripts/measure-dashboard.ts",
     "eval:assistant": "tsx scripts/eval-assistant.ts",
     "start": "node dist/src/server.js"
   },

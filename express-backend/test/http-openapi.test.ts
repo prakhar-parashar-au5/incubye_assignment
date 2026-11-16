@@ -14,11 +14,15 @@ const get = (value: unknown, ...keys: string[]): unknown =>
 
 describe('OpenAPI contract', () => {
   // Detects: an endpoint missing from, or added to, the published contract.
-  test('documents exactly the seventeen endpoints', () => {
+  test('documents exactly the twenty-one endpoints', () => {
     const paths = get(doc, 'paths') as Json;
     const operations = Object.entries(paths).flatMap(([path, item]) => Object.keys(item as Json).map((m) => `${m.toUpperCase()} ${path}`));
     assert.deepEqual(operations.sort(), [
       'GET /api/v1/auth/me',
+      'GET /api/v1/dashboard/breakdowns',
+      'GET /api/v1/dashboard/recent-changes',
+      'GET /api/v1/dashboard/summary',
+      'GET /api/v1/dashboard/without-recent-adjustment',
       'GET /api/v1/employee-directory/options',
       'GET /api/v1/employees',
       'GET /api/v1/employees/{employeeCode}',
@@ -146,6 +150,33 @@ describe('OpenAPI contract', () => {
     const listParams = (get(op('/api/v1/salary-adjustment-requests', 'get'), 'parameters') as Json[]).map((p) => p.name);
     assert.deepEqual(listParams, ['q', 'department', 'status', 'sort', 'direction', 'page', 'pageSize']);
     assert.ok((get(doc, 'components', 'schemas', 'ErrorResponse', 'properties', 'error', 'properties', 'reason', 'enum') as string[]).includes('PREVIEW_EXPIRED'));
+  });
+
+  // Detects: dashboard endpoints documented without auth, strict parameters, or schemas.
+  test('dashboard operations document Bearer auth, their exact parameters, and response schemas', () => {
+    const expected: Record<string, [string, string[]]> = {
+      '/api/v1/dashboard/summary': ['DashboardSummaryResponse', ['department', 'country', 'currency', 'level', 'employmentStatus', 'periodDays', 'noAdjustmentMonths']],
+      '/api/v1/dashboard/breakdowns': ['DashboardBreakdownResponse', ['department', 'country', 'currency', 'level', 'employmentStatus', 'breakdown']],
+      '/api/v1/dashboard/recent-changes': ['DashboardRecentChangesResponse', ['department', 'country', 'currency', 'level', 'employmentStatus', 'periodDays', 'page', 'pageSize']],
+      '/api/v1/dashboard/without-recent-adjustment': ['DashboardWithoutAdjustmentResponse', ['department', 'country', 'currency', 'level', 'employmentStatus', 'noAdjustmentMonths', 'page', 'pageSize']],
+    };
+    for (const [path, [schema, params]] of Object.entries(expected)) {
+      const op = get(doc, 'paths', path, 'get');
+      assert.deepEqual(get(op, 'security'), [{ bearerAuth: [] }], path);
+      assert.equal(get(op, 'responses', '200', 'content', 'application/json', 'schema', '$ref'), `#/components/schemas/${schema}`, path);
+      assert.deepEqual(Object.keys(get(op, 'responses') as Json).sort(), ['200', '400', '401', '500', '503'], path);
+      const parameters = get(op, 'parameters') as Json[];
+      assert.deepEqual(parameters.map((p) => p.name), params, path);
+      for (const p of parameters) assert.equal(p.in, 'query');
+    }
+    const byName = (path: string) => Object.fromEntries((get(doc, 'paths', path, 'get', 'parameters') as Json[]).map((p) => [p.name, p.schema]));
+    assert.deepEqual(get(byName('/api/v1/dashboard/summary'), 'periodDays', 'enum'), ['7', '30', '90']);
+    assert.equal(get(byName('/api/v1/dashboard/summary'), 'periodDays', 'default'), '30');
+    assert.deepEqual(get(byName('/api/v1/dashboard/summary'), 'noAdjustmentMonths', 'enum'), ['3', '6', '12', '24']);
+    assert.deepEqual(get(byName('/api/v1/dashboard/breakdowns'), 'breakdown', 'enum'), ['DEPARTMENT', 'COUNTRY', 'CURRENCY', 'LEVEL', 'EMPLOYMENT_STATUS']);
+    const group = get(doc, 'components', 'schemas', 'DashboardBreakdownGroup');
+    assert.deepEqual(get(group, 'properties', 'basis', 'enum'), ['CURRENT_SPENDING', 'FUTURE_COMMITMENT', 'COUNT_ONLY']);
+    assert.ok((get(group, 'required') as string[]).includes('medianAnnualCashCompensation'));
   });
 
   // Detects: an assistant contract that drifts from the shared frontend contract.

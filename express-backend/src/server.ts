@@ -11,6 +11,7 @@ import { createOpenAiModelAdapter } from './assistant/openai-model.js';
 import { createToolRegistry } from './assistant/tools.js';
 import { createPreviewTokens } from './compensation/preview-token.js';
 import { createSalaryAdjustmentService } from './compensation/salary-adjustment-service.js';
+import { createDashboardService } from './dashboard/dashboard-service.js';
 import { createPool } from './db/connection.js';
 import { createDirectoryService } from './directory/directory-repository.js';
 import { loadExchangeRate } from './directory/exchange-rate.js';
@@ -53,6 +54,7 @@ const app = createApp({
   tools,
   assistant: createAssistantService({ model, tools, logger: stdoutLogger }),
   salaryAdjustments: createSalaryAdjustmentService({ pool, previewTokens: createPreviewTokens({ signingKey: config.jwtSigningKey }) }),
+  dashboard: createDashboardService({ pool, exchangeRate }),
   logger: stdoutLogger,
   clientIpSource: config.clientIpSource,
 });

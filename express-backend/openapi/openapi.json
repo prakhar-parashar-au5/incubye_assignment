@@ -1439,6 +1439,668 @@
         }
       }
     },
+    "/api/v1/dashboard/summary": {
+      "get": {
+        "operationId": "getDashboardSummary",
+        "summary": "Top dashboard figures",
+        "description": "Headcount by status, current spending and upcoming commitment by native currency, request counts, recent-change and without-adjustment counts, and an optional USD comparison. Every figure uses the caller's current scope; an empty scope returns access.hasEmployeeAccess = false and no figures.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Tech",
+                "HR",
+                "Finance",
+                "Operations",
+                "Support"
+              ]
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "IN",
+                "US"
+              ]
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "description": "Currency of the selected compensation record, change, or request.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INR",
+                "USD"
+              ]
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "JUNIOR",
+                "MID",
+                "SENIOR",
+                "LEAD",
+                "MANAGER"
+              ]
+            }
+          },
+          {
+            "name": "employmentStatus",
+            "in": "query",
+            "required": false,
+            "description": "Sections that cover currently working employees only report a non-working value in notApplied instead of ignoring it.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SOON_TO_JOIN",
+                "CURRENTLY_WORKING",
+                "LEFT"
+              ]
+            }
+          },
+          {
+            "name": "periodDays",
+            "in": "query",
+            "required": false,
+            "description": "Recent changes: compensation records created in the last N days (measured back from now). Effective date is not used.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7",
+                "30",
+                "90"
+              ],
+              "default": "30"
+            }
+          },
+          {
+            "name": "noAdjustmentMonths",
+            "in": "query",
+            "required": false,
+            "description": "Without recent adjustment: no non-import record created in the last N months.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "3",
+                "6",
+                "12",
+                "24"
+              ],
+              "default": "12"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permission-filtered analytics. Native currencies are never combined.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummaryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: unknown, repeated, or unsupported query value.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/breakdowns": {
+      "get": {
+        "operationId": "getDashboardBreakdown",
+        "summary": "One compensation breakdown",
+        "description": "Count, totals, average, median, minimum, and maximum annual cash per group and native currency. Average and median round half-up to cents. Every figure uses the caller's current scope; an empty scope returns access.hasEmployeeAccess = false and no figures.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Tech",
+                "HR",
+                "Finance",
+                "Operations",
+                "Support"
+              ]
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "IN",
+                "US"
+              ]
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "description": "Currency of the selected compensation record, change, or request.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INR",
+                "USD"
+              ]
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "JUNIOR",
+                "MID",
+                "SENIOR",
+                "LEAD",
+                "MANAGER"
+              ]
+            }
+          },
+          {
+            "name": "employmentStatus",
+            "in": "query",
+            "required": false,
+            "description": "Sections that cover currently working employees only report a non-working value in notApplied instead of ignoring it.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SOON_TO_JOIN",
+                "CURRENTLY_WORKING",
+                "LEFT"
+              ]
+            }
+          },
+          {
+            "name": "breakdown",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DEPARTMENT",
+                "COUNTRY",
+                "CURRENCY",
+                "LEVEL",
+                "EMPLOYMENT_STATUS"
+              ],
+              "default": "DEPARTMENT"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permission-filtered analytics. Native currencies are never combined.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardBreakdownResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: unknown, repeated, or unsupported query value.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/recent-changes": {
+      "get": {
+        "operationId": "getDashboardRecentChanges",
+        "summary": "Recently recorded compensation changes",
+        "description": "Newest record first. INITIAL_IMPORT is excluded; a future-effective change recorded in the period is included. Every figure uses the caller's current scope; an empty scope returns access.hasEmployeeAccess = false and no figures.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Tech",
+                "HR",
+                "Finance",
+                "Operations",
+                "Support"
+              ]
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "IN",
+                "US"
+              ]
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "description": "Currency of the selected compensation record, change, or request.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INR",
+                "USD"
+              ]
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "JUNIOR",
+                "MID",
+                "SENIOR",
+                "LEAD",
+                "MANAGER"
+              ]
+            }
+          },
+          {
+            "name": "employmentStatus",
+            "in": "query",
+            "required": false,
+            "description": "Sections that cover currently working employees only report a non-working value in notApplied instead of ignoring it.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SOON_TO_JOIN",
+                "CURRENTLY_WORKING",
+                "LEFT"
+              ]
+            }
+          },
+          {
+            "name": "periodDays",
+            "in": "query",
+            "required": false,
+            "description": "Recent changes: compensation records created in the last N days (measured back from now). Effective date is not used.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7",
+                "30",
+                "90"
+              ],
+              "default": "30"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permission-filtered analytics. Native currencies are never combined.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardRecentChangesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: unknown, repeated, or unsupported query value.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/without-recent-adjustment": {
+      "get": {
+        "operationId": "getDashboardWithoutRecentAdjustment",
+        "summary": "Working employees without a recorded adjustment",
+        "description": "No recorded salary adjustment since import or during the selected period. The initial import is not an adjustment. Every figure uses the caller's current scope; an empty scope returns access.hasEmployeeAccess = false and no figures.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Tech",
+                "HR",
+                "Finance",
+                "Operations",
+                "Support"
+              ]
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "IN",
+                "US"
+              ]
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "description": "Currency of the selected compensation record, change, or request.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INR",
+                "USD"
+              ]
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "JUNIOR",
+                "MID",
+                "SENIOR",
+                "LEAD",
+                "MANAGER"
+              ]
+            }
+          },
+          {
+            "name": "employmentStatus",
+            "in": "query",
+            "required": false,
+            "description": "Sections that cover currently working employees only report a non-working value in notApplied instead of ignoring it.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SOON_TO_JOIN",
+                "CURRENTLY_WORKING",
+                "LEFT"
+              ]
+            }
+          },
+          {
+            "name": "noAdjustmentMonths",
+            "in": "query",
+            "required": false,
+            "description": "Without recent adjustment: no non-import record created in the last N months.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "3",
+                "6",
+                "12",
+                "24"
+              ],
+              "default": "12"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permission-filtered analytics. Native currencies are never combined.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardWithoutAdjustmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: unknown, repeated, or unsupported query value.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/mcp": {
       "post": {
         "operationId": "mcp",
@@ -3926,6 +4588,1712 @@
         "required": [
           "requests",
           "page"
+        ],
+        "additionalProperties": false
+      },
+      "DashboardFilterNote": {
+        "type": "object",
+        "properties": {
+          "filter": {
+            "type": "string",
+            "enum": [
+              "department",
+              "country",
+              "currency",
+              "level",
+              "employmentStatus"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "filter",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "DashboardAccess": {
+        "type": "object",
+        "properties": {
+          "hasEmployeeAccess": {
+            "type": "boolean",
+            "description": "False for an empty scope: no figures are returned and the UI shows the no-access message."
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "ALL",
+                  "SCOPED"
+                ]
+              },
+              "countries": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "departments": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "countries",
+              "departments"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "hasEmployeeAccess",
+          "message",
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "DashboardUsdComparison": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "unavailableReason": {
+            "description": "Present when no saved exchange rate is loaded. Native figures are unaffected.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exchangeRate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExchangeRateContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quoteDescription": {
+            "description": "For example \"1 USD = 93.9100 INR\" (INR per one US dollar).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "disclaimer": {
+            "type": "string",
+            "description": "USD equivalents are informational; native amounts are authoritative."
+          }
+        },
+        "required": [
+          "available",
+          "unavailableReason",
+          "exchangeRate",
+          "quoteDescription",
+          "disclaimer"
+        ],
+        "additionalProperties": false
+      },
+      "DashboardUpcomingChange": {
+        "type": "object",
+        "properties": {
+          "employee": {
+            "type": "object",
+            "properties": {
+              "employeeCode": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "department": {
+                "type": "string",
+                "enum": [
+                  "Tech",
+                  "HR",
+                  "Finance",
+                  "Operations",
+                  "Support"
+                ]
+              },
+              "country": {
+                "type": "string",
+                "enum": [
+                  "IN",
+                  "US"
+                ]
+              },
+              "employmentStatus": {
+                "type": "string",
+                "enum": [
+                  "SOON_TO_JOIN",
+                  "CURRENTLY_WORKING",
+                  "LEFT"
+                ]
+              }
+            },
+            "required": [
+              "employeeCode",
+              "name",
+              "department",
+              "country",
+              "employmentStatus"
+            ],
+            "additionalProperties": false
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "INR",
+              "USD"
+            ]
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "annualBaseSalary": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d{2}$",
+                    "description": "Exact decimal string with two decimal places."
+                  },
+                  "annualBonus": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d{2}$",
+                    "description": "Exact decimal string with two decimal places."
+                  },
+                  "annualCashCompensation": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d{2}$",
+                    "description": "Exact decimal string with two decimal places."
+                  }
+                },
+                "required": [
+                  "annualBaseSalary",
+                  "annualBonus",
+                  "annualCashCompensation"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scheduled": {
+            "type": "object",
+            "properties": {
+              "annualBaseSalary": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              "annualBonus": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              "annualCashCompensation": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              }
+            },
+            "required": [
+              "annualBaseSalary",
+              "annualBonus",
+              "annualCashCompensation"
+            ],
+            "additionalProperties": false
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "changeReason": {
+            "type": "string",
+            "enum": [
+              "INITIAL_IMPORT",
+              "PERFORMANCE",
+              "MARKET_ADJUSTMENT",
+              "PROMOTION",
+              "ROLE_CHANGE",
+              "CORRECTION"
+            ]
+          },
+          "approvedBy": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "displayName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "displayName"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requestId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "employee",
+          "currency",
+          "previous",
+          "scheduled",
+          "effectiveFrom",
+          "changeReason",
+          "approvedBy",
+          "requestId"
+        ],
+        "additionalProperties": false
+      },
+      "DashboardSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "asOf": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "UTC business date used for current and upcoming compensation."
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "access": {
+            "$ref": "#/components/schemas/DashboardAccess"
+          },
+          "filters": {
+            "type": "object",
+            "properties": {
+              "department": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "Tech",
+                      "HR",
+                      "Finance",
+                      "Operations",
+                      "Support"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "country": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "IN",
+                      "US"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currency": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "INR",
+                      "USD"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "level": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "JUNIOR",
+                      "MID",
+                      "SENIOR",
+                      "LEAD",
+                      "MANAGER"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "employmentStatus": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "SOON_TO_JOIN",
+                      "CURRENTLY_WORKING",
+                      "LEFT"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "department",
+              "country",
+              "currency",
+              "level",
+              "employmentStatus"
+            ],
+            "additionalProperties": false
+          },
+          "figures": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "headcount": {
+                    "type": "object",
+                    "properties": {
+                      "currentlyWorking": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "soonToJoin": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "left": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "notApplied": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/DashboardFilterNote"
+                        }
+                      }
+                    },
+                    "required": [
+                      "currentlyWorking",
+                      "soonToJoin",
+                      "left",
+                      "notApplied"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "currentSpending": {
+                    "type": "object",
+                    "properties": {
+                      "population": {
+                        "type": "string",
+                        "const": "CURRENTLY_WORKING"
+                      },
+                      "byCurrency": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "currency": {
+                              "type": "string",
+                              "enum": [
+                                "INR",
+                                "USD"
+                              ]
+                            },
+                            "employeeCount": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "annualBaseSalary": {
+                              "type": "string",
+                              "pattern": "^\\d+\\.\\d{2}$",
+                              "description": "Exact decimal string with two decimal places."
+                            },
+                            "annualCashCompensation": {
+                              "type": "string",
+                              "pattern": "^\\d+\\.\\d{2}$",
+                              "description": "Exact decimal string with two decimal places."
+                            },
+                            "usdEquivalent": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "annualBaseSalary": {
+                                      "type": "string",
+                                      "pattern": "^\\d+\\.\\d{2}$",
+                                      "description": "Exact decimal string with two decimal places."
+                                    },
+                                    "annualCashCompensation": {
+                                      "type": "string",
+                                      "pattern": "^\\d+\\.\\d{2}$",
+                                      "description": "Exact decimal string with two decimal places."
+                                    }
+                                  },
+                                  "required": [
+                                    "annualBaseSalary",
+                                    "annualCashCompensation"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Comparison only."
+                            }
+                          },
+                          "required": [
+                            "currency",
+                            "employeeCount",
+                            "annualBaseSalary",
+                            "annualCashCompensation",
+                            "usdEquivalent"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "description": "One row per native currency present. Never summed across currencies."
+                      },
+                      "notApplied": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/DashboardFilterNote"
+                        }
+                      }
+                    },
+                    "required": [
+                      "population",
+                      "byCurrency",
+                      "notApplied"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "upcomingCommitment": {
+                    "type": "object",
+                    "properties": {
+                      "definition": {
+                        "type": "string"
+                      },
+                      "byCurrency": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "currency": {
+                              "type": "string",
+                              "enum": [
+                                "INR",
+                                "USD"
+                              ]
+                            },
+                            "soonToJoinCount": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "soonToJoinAnnualCashCompensation": {
+                              "type": "string",
+                              "pattern": "^\\d+\\.\\d{2}$",
+                              "description": "Exact decimal string with two decimal places."
+                            },
+                            "approvedFutureChangeCount": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "approvedFutureChangeAnnualCashImpact": {
+                              "type": "string",
+                              "pattern": "^-?\\d+\\.\\d{2}$",
+                              "description": "Signed: scheduled minus current annual cash."
+                            },
+                            "totalAnnualCashCommitment": {
+                              "type": "string",
+                              "pattern": "^-?\\d+\\.\\d{2}$"
+                            }
+                          },
+                          "required": [
+                            "currency",
+                            "soonToJoinCount",
+                            "soonToJoinAnnualCashCompensation",
+                            "approvedFutureChangeCount",
+                            "approvedFutureChangeAnnualCashImpact",
+                            "totalAnnualCashCommitment"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "upcomingChanges": {
+                        "type": "object",
+                        "properties": {
+                          "total": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/components/schemas/DashboardUpcomingChange"
+                            },
+                            "description": "Soonest first, at most 10."
+                          }
+                        },
+                        "required": [
+                          "total",
+                          "items"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "notApplied": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/DashboardFilterNote"
+                        }
+                      }
+                    },
+                    "required": [
+                      "definition",
+                      "byCurrency",
+                      "upcomingChanges",
+                      "notApplied"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "requests": {
+                    "type": "object",
+                    "properties": {
+                      "pending": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "stale": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "notApplied": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/DashboardFilterNote"
+                        }
+                      }
+                    },
+                    "required": [
+                      "pending",
+                      "stale",
+                      "notApplied"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "recentChanges": {
+                    "type": "object",
+                    "properties": {
+                      "periodDays": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "count": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "notApplied": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/DashboardFilterNote"
+                        }
+                      }
+                    },
+                    "required": [
+                      "periodDays",
+                      "count",
+                      "notApplied"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "withoutRecentAdjustment": {
+                    "type": "object",
+                    "properties": {
+                      "months": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "definition": {
+                        "type": "string",
+                        "const": "No recorded salary adjustment since import or during the selected period."
+                      },
+                      "count": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "notApplied": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/DashboardFilterNote"
+                        }
+                      }
+                    },
+                    "required": [
+                      "months",
+                      "definition",
+                      "count",
+                      "notApplied"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "usdComparison": {
+                    "type": "object",
+                    "properties": {
+                      "available": {
+                        "type": "boolean"
+                      },
+                      "unavailableReason": {
+                        "description": "Present when no saved exchange rate is loaded. Native figures are unaffected.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "exchangeRate": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/components/schemas/ExchangeRateContext"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "quoteDescription": {
+                        "description": "For example \"1 USD = 93.9100 INR\" (INR per one US dollar).",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "disclaimer": {
+                        "type": "string",
+                        "description": "USD equivalents are informational; native amounts are authoritative."
+                      },
+                      "currentSpending": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "annualBaseSalary": {
+                                "type": "string",
+                                "pattern": "^\\d+\\.\\d{2}$",
+                                "description": "Exact decimal string with two decimal places."
+                              },
+                              "annualCashCompensation": {
+                                "type": "string",
+                                "pattern": "^\\d+\\.\\d{2}$",
+                                "description": "Exact decimal string with two decimal places."
+                              }
+                            },
+                            "required": [
+                              "annualBaseSalary",
+                              "annualCashCompensation"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Sum of per-currency USD equivalents. Informational only."
+                      }
+                    },
+                    "required": [
+                      "available",
+                      "unavailableReason",
+                      "exchangeRate",
+                      "quoteDescription",
+                      "disclaimer",
+                      "currentSpending"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "headcount",
+                  "currentSpending",
+                  "upcomingCommitment",
+                  "requests",
+                  "recentChanges",
+                  "withoutRecentAdjustment",
+                  "usdComparison"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when the HR user has no employee access."
+          }
+        },
+        "required": [
+          "asOf",
+          "generatedAt",
+          "access",
+          "filters",
+          "figures"
+        ],
+        "additionalProperties": false
+      },
+      "DashboardBreakdownGroup": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string",
+            "description": "Department name, country code, currency, level, or employment status."
+          },
+          "label": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "INR",
+              "USD"
+            ]
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "CURRENT_SPENDING",
+              "FUTURE_COMMITMENT",
+              "COUNT_ONLY"
+            ]
+          },
+          "employeeCount": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "annualBaseSalary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "annualCashCompensation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "averageAnnualCashCompensation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "medianAnnualCashCompensation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "minimumAnnualCashCompensation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maximumAnnualCashCompensation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usdEquivalent": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "annualBaseSalary": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d{2}$",
+                    "description": "Exact decimal string with two decimal places."
+                  },
+                  "annualCashCompensation": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d{2}$",
+                    "description": "Exact decimal string with two decimal places."
+                  }
+                },
+                "required": [
+                  "annualBaseSalary",
+                  "annualCashCompensation"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "group",
+          "label",
+          "currency",
+          "basis",
+          "employeeCount",
+          "annualBaseSalary",
+          "annualCashCompensation",
+          "averageAnnualCashCompensation",
+          "medianAnnualCashCompensation",
+          "minimumAnnualCashCompensation",
+          "maximumAnnualCashCompensation",
+          "usdEquivalent"
+        ],
+        "additionalProperties": false
+      },
+      "DashboardBreakdownResponse": {
+        "type": "object",
+        "properties": {
+          "asOf": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "UTC business date used for current and upcoming compensation."
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "access": {
+            "$ref": "#/components/schemas/DashboardAccess"
+          },
+          "filters": {
+            "type": "object",
+            "properties": {
+              "department": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "Tech",
+                      "HR",
+                      "Finance",
+                      "Operations",
+                      "Support"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "country": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "IN",
+                      "US"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currency": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "INR",
+                      "USD"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "level": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "JUNIOR",
+                      "MID",
+                      "SENIOR",
+                      "LEAD",
+                      "MANAGER"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "employmentStatus": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "SOON_TO_JOIN",
+                      "CURRENTLY_WORKING",
+                      "LEFT"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "department",
+              "country",
+              "currency",
+              "level",
+              "employmentStatus"
+            ],
+            "additionalProperties": false
+          },
+          "breakdown": {
+            "type": "string",
+            "enum": [
+              "DEPARTMENT",
+              "COUNTRY",
+              "CURRENCY",
+              "LEVEL",
+              "EMPLOYMENT_STATUS"
+            ]
+          },
+          "population": {
+            "type": "string",
+            "description": "Which employees the groups cover."
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardBreakdownGroup"
+            }
+          },
+          "notApplied": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardFilterNote"
+            }
+          },
+          "usdComparison": {
+            "$ref": "#/components/schemas/DashboardUsdComparison"
+          }
+        },
+        "required": [
+          "asOf",
+          "generatedAt",
+          "access",
+          "filters",
+          "breakdown",
+          "population",
+          "groups",
+          "notApplied",
+          "usdComparison"
+        ],
+        "additionalProperties": false
+      },
+      "DashboardRecentChange": {
+        "type": "object",
+        "properties": {
+          "employee": {
+            "type": "object",
+            "properties": {
+              "employeeCode": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "department": {
+                "type": "string",
+                "enum": [
+                  "Tech",
+                  "HR",
+                  "Finance",
+                  "Operations",
+                  "Support"
+                ]
+              },
+              "country": {
+                "type": "string",
+                "enum": [
+                  "IN",
+                  "US"
+                ]
+              }
+            },
+            "required": [
+              "employeeCode",
+              "name",
+              "department",
+              "country"
+            ],
+            "additionalProperties": false
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "INR",
+              "USD"
+            ]
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "annualBaseSalary": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d{2}$",
+                    "description": "Exact decimal string with two decimal places."
+                  },
+                  "annualBonus": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d{2}$",
+                    "description": "Exact decimal string with two decimal places."
+                  },
+                  "annualCashCompensation": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d{2}$",
+                    "description": "Exact decimal string with two decimal places."
+                  }
+                },
+                "required": [
+                  "annualBaseSalary",
+                  "annualBonus",
+                  "annualCashCompensation"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "new": {
+            "type": "object",
+            "properties": {
+              "annualBaseSalary": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              "annualBonus": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              },
+              "annualCashCompensation": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{2}$",
+                "description": "Exact decimal string with two decimal places."
+              }
+            },
+            "required": [
+              "annualBaseSalary",
+              "annualBonus",
+              "annualCashCompensation"
+            ],
+            "additionalProperties": false
+          },
+          "changeReason": {
+            "type": "string",
+            "enum": [
+              "INITIAL_IMPORT",
+              "PERFORMANCE",
+              "MARKET_ADJUSTMENT",
+              "PROMOTION",
+              "ROLE_CHANGE",
+              "CORRECTION"
+            ]
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "effectiveInFuture": {
+            "type": "boolean"
+          },
+          "changedBy": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "displayName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "displayName"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requestId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "employee",
+          "currency",
+          "previous",
+          "new",
+          "changeReason",
+          "recordedAt",
+          "effectiveFrom",
+          "effectiveInFuture",
+          "changedBy",
+          "requestId"
+        ],
+        "additionalProperties": false
+      },
+      "DashboardRecentChangesResponse": {
+        "type": "object",
+        "properties": {
+          "asOf": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "UTC business date used for current and upcoming compensation."
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "access": {
+            "$ref": "#/components/schemas/DashboardAccess"
+          },
+          "filters": {
+            "type": "object",
+            "properties": {
+              "department": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "Tech",
+                      "HR",
+                      "Finance",
+                      "Operations",
+                      "Support"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "country": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "IN",
+                      "US"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currency": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "INR",
+                      "USD"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "level": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "JUNIOR",
+                      "MID",
+                      "SENIOR",
+                      "LEAD",
+                      "MANAGER"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "employmentStatus": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "SOON_TO_JOIN",
+                      "CURRENTLY_WORKING",
+                      "LEFT"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "department",
+              "country",
+              "currency",
+              "level",
+              "employmentStatus"
+            ],
+            "additionalProperties": false
+          },
+          "periodDays": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "emptyMessage": {
+            "type": "string",
+            "const": "No compensation changes were recorded in this period."
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardRecentChange"
+            }
+          },
+          "page": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "size": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalRows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "number",
+              "size",
+              "totalRows",
+              "totalPages"
+            ],
+            "additionalProperties": false
+          },
+          "notApplied": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardFilterNote"
+            }
+          }
+        },
+        "required": [
+          "asOf",
+          "generatedAt",
+          "access",
+          "filters",
+          "periodDays",
+          "emptyMessage",
+          "changes",
+          "page",
+          "notApplied"
+        ],
+        "additionalProperties": false
+      },
+      "DashboardWithoutAdjustmentResponse": {
+        "type": "object",
+        "properties": {
+          "asOf": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "UTC business date used for current and upcoming compensation."
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "access": {
+            "$ref": "#/components/schemas/DashboardAccess"
+          },
+          "filters": {
+            "type": "object",
+            "properties": {
+              "department": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "Tech",
+                      "HR",
+                      "Finance",
+                      "Operations",
+                      "Support"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "country": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "IN",
+                      "US"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currency": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "INR",
+                      "USD"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "level": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "JUNIOR",
+                      "MID",
+                      "SENIOR",
+                      "LEAD",
+                      "MANAGER"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "employmentStatus": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "SOON_TO_JOIN",
+                      "CURRENTLY_WORKING",
+                      "LEFT"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "department",
+              "country",
+              "currency",
+              "level",
+              "employmentStatus"
+            ],
+            "additionalProperties": false
+          },
+          "months": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "definition": {
+            "type": "string",
+            "const": "No recorded salary adjustment since import or during the selected period."
+          },
+          "employees": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "employee": {
+                  "type": "object",
+                  "properties": {
+                    "employeeCode": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "department": {
+                      "type": "string",
+                      "enum": [
+                        "Tech",
+                        "HR",
+                        "Finance",
+                        "Operations",
+                        "Support"
+                      ]
+                    },
+                    "country": {
+                      "type": "string",
+                      "enum": [
+                        "IN",
+                        "US"
+                      ]
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": [
+                        "JUNIOR",
+                        "MID",
+                        "SENIOR",
+                        "LEAD",
+                        "MANAGER"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "employeeCode",
+                    "name",
+                    "department",
+                    "country",
+                    "level"
+                  ],
+                  "additionalProperties": false
+                },
+                "currency": {
+                  "type": "string",
+                  "enum": [
+                    "INR",
+                    "USD"
+                  ]
+                },
+                "annualBaseSalary": {
+                  "type": "string",
+                  "pattern": "^\\d+\\.\\d{2}$",
+                  "description": "Exact decimal string with two decimal places."
+                },
+                "annualCashCompensation": {
+                  "type": "string",
+                  "pattern": "^\\d+\\.\\d{2}$",
+                  "description": "Exact decimal string with two decimal places."
+                },
+                "lastRecordedAdjustmentAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Latest non-import record before the period, or null (none since import)."
+                }
+              },
+              "required": [
+                "employee",
+                "currency",
+                "annualBaseSalary",
+                "annualCashCompensation",
+                "lastRecordedAdjustmentAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "page": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "size": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalRows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "number",
+              "size",
+              "totalRows",
+              "totalPages"
+            ],
+            "additionalProperties": false
+          },
+          "notApplied": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardFilterNote"
+            }
+          }
+        },
+        "required": [
+          "asOf",
+          "generatedAt",
+          "access",
+          "filters",
+          "months",
+          "definition",
+          "employees",
+          "page",
+          "notApplied"
         ],
         "additionalProperties": false
       }

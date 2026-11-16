@@ -8,6 +8,7 @@ import type { CompensationInsights } from '../../src/assistant/compensation-insi
 import { createToolRegistry } from '../../src/assistant/tools.js';
 import { SalaryAdjustmentError } from '../../src/compensation/salary-adjustment-service.js';
 import type { SalaryAdjustmentService } from '../../src/compensation/salary-adjustment-service.js';
+import type { DashboardService } from '../../src/dashboard/dashboard-service.js';
 import type { DirectoryService } from '../../src/directory/directory-repository.js';
 import { createApp } from '../../src/http/app.js';
 import type { AppDependencies } from '../../src/http/app.js';
@@ -116,6 +117,24 @@ export function fakeSalaryAdjustments(): SalaryAdjustmentService {
   };
 }
 
+/** A dashboard double: an empty-scope answer for everyone. Real behaviour: test/db/dashboard.test.ts. */
+export function fakeDashboard(): DashboardService {
+  const envelope = () => ({
+    asOf: '2026-11-15',
+    generatedAt: '2026-11-15T00:00:00.000Z',
+    access: { hasEmployeeAccess: false, message: 'Your HR account has no employee access.', scope: { kind: 'SCOPED' as const, countries: [], departments: [] } },
+    filters: { department: null, country: null, currency: null, level: null, employmentStatus: null },
+  });
+  const usd = { available: false, unavailableReason: 'fake', exchangeRate: null, quoteDescription: null, disclaimer: 'fake' };
+  const page = { number: 1, size: 25, totalRows: 0, totalPages: 0 };
+  return {
+    async summary() { return { ...envelope(), figures: null }; },
+    async breakdowns(_p, q) { return { ...envelope(), breakdown: q.breakdown, population: 'CURRENTLY_WORKING', groups: [], notApplied: [], usdComparison: usd }; },
+    async recentChanges(_p, q) { return { ...envelope(), periodDays: q.periodDays, emptyMessage: 'No compensation changes were recorded in this period.', changes: [], page, notApplied: [] }; },
+    async withoutRecentAdjustment(_p, q) { return { ...envelope(), months: q.noAdjustmentMonths, definition: 'No recorded salary adjustment since import or during the selected period.', employees: [], page, notApplied: [] }; },
+  };
+}
+
 export interface TestApp {
   app: ReturnType<typeof createApp>;
   logs: LogEntry[];
@@ -136,6 +155,7 @@ export function buildTestApp(overrides: Partial<AppDependencies> = {}): TestApp 
     tools,
     assistant: createAssistantService({ model: null, tools, logger: (entry) => logs.push(entry) }),
     salaryAdjustments: fakeSalaryAdjustments(),
+    dashboard: fakeDashboard(),
     logger: (entry) => logs.push(entry),
     clock: () => new Date(Date.now() + offsetMs),
     clientIpSource: 'socket',

@@ -6,11 +6,13 @@ import type { Express } from 'express';
 import type { AuthService } from '../access/sessions.js';
 import type { AssistantService } from '../assistant/assistant-service.js';
 import type { SalaryAdjustmentService } from '../compensation/salary-adjustment-service.js';
+import type { DashboardService } from '../dashboard/dashboard-service.js';
 import type { ToolRegistry } from '../assistant/tools.js';
 import type { DirectoryService } from '../directory/directory-repository.js';
 import { assistantRoutes } from './assistant-routes.js';
 import { authRoutes } from './auth-routes.js';
 import { HealthResponse, PATHS } from './contract.js';
+import { dashboardRoutes } from './dashboard-routes.js';
 import { directoryRoutes } from './directory-routes.js';
 import { salaryRoutes } from './salary-routes.js';
 import { errorHandler, notFoundHandler } from './errors.js';
@@ -42,10 +44,12 @@ export interface AppDependencies {
   assistantRateLimitStore?: ClockedMemoryStore;
   /** Salary adjustments: preview, direct apply, requests, approval, cancellation. */
   salaryAdjustments: SalaryAdjustmentService;
+  /** Read-only, permission-aware dashboard analytics. */
+  dashboard: DashboardService;
 }
 
 export function createApp({
-  auth, directory, assistant, tools, salaryAdjustments, logger, clientIpSource, clock = () => new Date(), rateLimitStore, toolClock, assistantRateLimitStore,
+  auth, directory, assistant, tools, salaryAdjustments, dashboard, logger, clientIpSource, clock = () => new Date(), rateLimitStore, toolClock, assistantRateLimitStore,
 }: AppDependencies): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -72,6 +76,7 @@ export function createApp({
   app.use(authRoutes({ auth, loginLimiter: failedLoginLimiter({ clientIpSource, clock, store: rateLimitStore }) }));
   app.use(directoryRoutes({ auth, directory }));
   app.use(salaryRoutes({ auth, salaryAdjustments }));
+  app.use(dashboardRoutes({ auth, dashboard }));
 
   app.use(notFoundHandler);
   app.use(errorHandler(logger));

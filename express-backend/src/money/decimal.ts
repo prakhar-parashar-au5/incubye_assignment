@@ -79,3 +79,18 @@ export function convertToUsd(amount: string, currency: 'INR' | 'USD', snapshot: 
   const remainder = scaled % numerator;
   return formatMoney(remainder * 2n >= numerator ? quotient + 1n : quotient);
 }
+
+/** Parses a signed two-decimal string ("-0.10" -> -10n). */
+export function parseSignedMoney(value: string): bigint {
+  return value.startsWith('-') ? -parseMoney(value.slice(1)) : parseMoney(value);
+}
+
+/** Formats signed cents ("-0.01"); zero is never negative. */
+export function formatSignedMoney(cents: bigint): string {
+  return cents < 0n ? `-${formatMoney(-cents)}` : formatMoney(cents);
+}
+
+/** a + b where either may be negative. */
+export function addSignedMoney(a: string, b: string): string {
+  return formatSignedMoney(parseSignedMoney(a) + parseSignedMoney(b));
+}

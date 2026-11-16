@@ -39,6 +39,10 @@ export const PATHS = Object.freeze({
   salaryAdjustmentRequest: `${API_PREFIX}/salary-adjustment-requests/:requestId`,
   salaryAdjustmentRequestApprove: `${API_PREFIX}/salary-adjustment-requests/:requestId/approve`,
   salaryAdjustmentRequestCancel: `${API_PREFIX}/salary-adjustment-requests/:requestId/cancel`,
+  dashboardSummary: `${API_PREFIX}/dashboard/summary`,
+  dashboardBreakdowns: `${API_PREFIX}/dashboard/breakdowns`,
+  dashboardRecentChanges: `${API_PREFIX}/dashboard/recent-changes`,
+  dashboardWithoutRecentAdjustment: `${API_PREFIX}/dashboard/without-recent-adjustment`,
 });
 
 /** Registry of schemas published as #/components/schemas/<id>. */
@@ -641,3 +645,244 @@ export const SalaryRequestList = z
   })
   .register(contractRegistry, { id: 'SalaryRequestList' });
 export type SalaryRequestList = z.infer<typeof SalaryRequestList>;
+
+// ---------------------------------------------------------------------------
+// Compensation dashboard (Task 10). See docs_human/10-compensation-dashboard.md.
+
+export const DASHBOARD_PERIOD_DAYS = Object.freeze(['7', '30', '90'] as const);
+export const DASHBOARD_NO_ADJUSTMENT_MONTHS = Object.freeze(['3', '6', '12', '24'] as const);
+export const DASHBOARD_BREAKDOWNS = Object.freeze(['DEPARTMENT', 'COUNTRY', 'CURRENCY', 'LEVEL', 'EMPLOYMENT_STATUS'] as const);
+export type DashboardBreakdown = (typeof DASHBOARD_BREAKDOWNS)[number];
+export const DASHBOARD_FILTER_NAMES = Object.freeze(['department', 'country', 'currency', 'level', 'employmentStatus'] as const);
+export const DASHBOARD_LIST_MAX_PAGE_SIZE = 100;
+export const NO_ADJUSTMENT_DEFINITION = 'No recorded salary adjustment since import or during the selected period.' as const;
+export const NO_RECENT_CHANGES_MESSAGE = 'No compensation changes were recorded in this period.' as const;
+export const NO_ACCESS_MESSAGE = 'Your HR account has no employee access.' as const;
+
+const dashboardFilterFields = {
+  department: z.enum(DEPARTMENTS).optional(),
+  country: z.enum(COUNTRY_CODES).optional(),
+  currency: z.enum(CURRENCIES).optional().describe('Currency of the selected compensation record.'),
+  level: z.enum(LEVELS).optional(),
+  employmentStatus: z.enum(EMPLOYMENT_STATUSES).optional(),
+};
+const periodDays = z.enum(DASHBOARD_PERIOD_DAYS).default('30').transform(Number)
+  .describe('Recent changes: records created in the last 7, 30, or 90 days, measured back from now.');
+const noAdjustmentMonths = z.enum(DASHBOARD_NO_ADJUSTMENT_MONTHS).default('12').transform(Number);
+const dashboardPage = { page: positiveInt(1_000_000).default(1), pageSize: positiveInt(DASHBOARD_LIST_MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE) };
+/** Strict query: repeated values arrive as arrays and fail; unknown keys fail. Drops unset keys. */
+const dashboardQuery = <T extends z.ZodRawShape>(shape: T) => z.strictObject(shape)
+  .transform((query) => Object.fromEntries(Object.entries(query).filter(([, v]) => v !== undefined)) as z.infer<z.ZodObject<T>>);
+
+export const DashboardSummaryQuery = dashboardQuery({ ...dashboardFilterFields, periodDays, noAdjustmentMonths });
+export type DashboardSummaryQuery = z.output<typeof DashboardSummaryQuery>;
+export const DashboardBreakdownQuery = dashboardQuery({ ...dashboardFilterFields, breakdown: z.enum(DASHBOARD_BREAKDOWNS).default('DEPARTMENT') });
+export type DashboardBreakdownQuery = z.output<typeof DashboardBreakdownQuery>;
+export const DashboardRecentChangesQuery = dashboardQuery({ ...dashboardFilterFields, periodDays, ...dashboardPage });
+export type DashboardRecentChangesQuery = z.output<typeof DashboardRecentChangesQuery>;
+export const DashboardWithoutAdjustmentQuery = dashboardQuery({ ...dashboardFilterFields, noAdjustmentMonths, ...dashboardPage });
+export type DashboardWithoutAdjustmentQuery = z.output<typeof DashboardWithoutAdjustmentQuery>;
+export type DashboardFilters = Pick<DashboardSummaryQuery, 'department' | 'country' | 'currency' | 'level' | 'employmentStatus'>;
+
+const DashboardFiltersView = z.object({
+  department: z.enum(DEPARTMENTS).nullable(),
+  country: z.enum(COUNTRY_CODES).nullable(),
+  currency: z.enum(CURRENCIES).nullable(),
+  level: z.enum(LEVELS).nullable(),
+  employmentStatus: z.enum(EMPLOYMENT_STATUSES).nullable(),
+});
+
+export const DashboardFilterNote = z
+  .object({ filter: z.enum(DASHBOARD_FILTER_NAMES), reason: z.string() })
+  .register(contractRegistry, { id: 'DashboardFilterNote', description: 'A selected filter that this section does not apply, and why.' });
+
+export const DashboardAccess = z
+  .object({
+    hasEmployeeAccess: z.boolean().describe('False for an empty scope: no figures are returned and the UI shows the no-access message.'),
+    message: z.string().nullable(),
+    scope: z.object({ kind: z.enum(['ALL', 'SCOPED']), countries: z.array(z.string()), departments: z.array(z.string()) }),
+  })
+  .register(contractRegistry, { id: 'DashboardAccess' });
+
+export const DashboardUsdComparison = z
+  .object({
+    available: z.boolean(),
+    unavailableReason: z.string().nullable().describe('Present when no saved exchange rate is loaded. Native figures are unaffected.'),
+    exchangeRate: ExchangeRateContext.nullable(),
+    quoteDescription: z.string().nullable().describe('For example "1 USD = 93.9100 INR" (INR per one US dollar).'),
+    disclaimer: z.string().describe('USD equivalents are informational; native amounts are authoritative.'),
+  })
+  .register(contractRegistry, { id: 'DashboardUsdComparison' });
+
+const dashboardEnvelope = {
+  asOf: IsoDate.describe('UTC business date used for current and upcoming compensation.'),
+  generatedAt: z.iso.datetime(),
+  access: DashboardAccess,
+  filters: DashboardFiltersView,
+};
+
+const CurrencyAmounts = z.object({
+  currency: z.enum(CURRENCIES),
+  employeeCount: z.number().int().nonnegative(),
+  annualBaseSalary: Money,
+  annualCashCompensation: Money,
+  usdEquivalent: z.object({ annualBaseSalary: Money, annualCashCompensation: Money }).nullable().describe('Comparison only.'),
+});
+
+const CompensationSnapshot = z.object({ annualBaseSalary: Money, annualBonus: Money, annualCashCompensation: Money });
+
+const DashboardEmployeeRef = z.object({
+  employeeCode: z.string(),
+  name: z.string(),
+  department: z.enum(DEPARTMENTS),
+  country: z.enum(COUNTRY_CODES),
+});
+
+export const DashboardUpcomingChange = z
+  .object({
+    employee: DashboardEmployeeRef.extend({ employmentStatus: z.enum(EMPLOYMENT_STATUSES) }),
+    currency: z.enum(CURRENCIES),
+    previous: CompensationSnapshot.nullable(),
+    scheduled: CompensationSnapshot,
+    effectiveFrom: IsoDate,
+    changeReason: z.enum(CHANGE_REASONS),
+    approvedBy: z.object({ displayName: z.string() }).nullable(),
+    requestId: z.uuid().nullable(),
+  })
+  .register(contractRegistry, { id: 'DashboardUpcomingChange' });
+
+export const DashboardSummaryResponse = z
+  .object({
+    ...dashboardEnvelope,
+    figures: z.object({
+      headcount: z.object({
+        currentlyWorking: z.number().int().nonnegative(),
+        soonToJoin: z.number().int().nonnegative(),
+        left: z.number().int().nonnegative(),
+        notApplied: z.array(DashboardFilterNote),
+      }),
+      currentSpending: z.object({
+        population: z.literal('CURRENTLY_WORKING'),
+        byCurrency: z.array(CurrencyAmounts).describe('One row per native currency present. Never summed across currencies.'),
+        notApplied: z.array(DashboardFilterNote),
+      }),
+      upcomingCommitment: z.object({
+        definition: z.string(),
+        byCurrency: z.array(z.object({
+          currency: z.enum(CURRENCIES),
+          soonToJoinCount: z.number().int().nonnegative(),
+          soonToJoinAnnualCashCompensation: Money,
+          approvedFutureChangeCount: z.number().int().nonnegative(),
+          approvedFutureChangeAnnualCashImpact: z.string().regex(/^-?\d+\.\d{2}$/).describe('Signed: scheduled minus current annual cash.'),
+          totalAnnualCashCommitment: z.string().regex(/^-?\d+\.\d{2}$/),
+        })),
+        upcomingChanges: z.object({
+          total: z.number().int().nonnegative(),
+          items: z.array(DashboardUpcomingChange).describe('Soonest first, at most 10.'),
+        }),
+        notApplied: z.array(DashboardFilterNote),
+      }),
+      requests: z.object({
+        pending: z.number().int().nonnegative(),
+        stale: z.number().int().nonnegative(),
+        notApplied: z.array(DashboardFilterNote),
+      }),
+      recentChanges: z.object({ periodDays: z.number().int(), count: z.number().int().nonnegative(), notApplied: z.array(DashboardFilterNote) }),
+      withoutRecentAdjustment: z.object({
+        months: z.number().int(),
+        definition: z.literal(NO_ADJUSTMENT_DEFINITION),
+        count: z.number().int().nonnegative(),
+        notApplied: z.array(DashboardFilterNote),
+      }),
+      usdComparison: DashboardUsdComparison.extend({
+        currentSpending: z.object({ annualBaseSalary: Money, annualCashCompensation: Money }).nullable()
+          .describe('Sum of per-currency USD equivalents. Informational only.'),
+      }),
+    }).nullable().describe('Null when the HR user has no employee access.'),
+  })
+  .register(contractRegistry, { id: 'DashboardSummaryResponse' });
+export type DashboardSummaryResponse = z.infer<typeof DashboardSummaryResponse>;
+
+export const DashboardBreakdownGroup = z
+  .object({
+    group: z.string().describe('Department name, country code, currency, level, or employment status.'),
+    label: z.string(),
+    currency: z.enum(CURRENCIES),
+    basis: z.enum(['CURRENT_SPENDING', 'FUTURE_COMMITMENT', 'COUNT_ONLY']),
+    employeeCount: z.number().int().positive(),
+    annualBaseSalary: Money.nullable(),
+    annualCashCompensation: Money.nullable(),
+    averageAnnualCashCompensation: Money.nullable(),
+    medianAnnualCashCompensation: Money.nullable(),
+    minimumAnnualCashCompensation: Money.nullable(),
+    maximumAnnualCashCompensation: Money.nullable(),
+    usdEquivalent: z.object({ annualBaseSalary: Money, annualCashCompensation: Money }).nullable(),
+  })
+  .register(contractRegistry, {
+    id: 'DashboardBreakdownGroup',
+    description: 'One group in one native currency. Money is null for COUNT_ONLY (LEFT). Average and median round half-up to cents.',
+  });
+
+export const DashboardBreakdownResponse = z
+  .object({
+    ...dashboardEnvelope,
+    breakdown: z.enum(DASHBOARD_BREAKDOWNS),
+    population: z.string().describe('Which employees the groups cover.'),
+    groups: z.array(DashboardBreakdownGroup),
+    notApplied: z.array(DashboardFilterNote),
+    usdComparison: DashboardUsdComparison,
+  })
+  .register(contractRegistry, { id: 'DashboardBreakdownResponse' });
+export type DashboardBreakdownResponse = z.infer<typeof DashboardBreakdownResponse>;
+
+const DashboardPage = z.object({
+  number: z.number().int().positive(),
+  size: z.number().int().positive(),
+  totalRows: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative(),
+});
+
+export const DashboardRecentChange = z
+  .object({
+    employee: DashboardEmployeeRef,
+    currency: z.enum(CURRENCIES),
+    previous: CompensationSnapshot.nullable(),
+    new: CompensationSnapshot,
+    changeReason: z.enum(CHANGE_REASONS),
+    recordedAt: z.iso.datetime(),
+    effectiveFrom: IsoDate,
+    effectiveInFuture: z.boolean(),
+    changedBy: z.object({ displayName: z.string() }).nullable(),
+    requestId: z.uuid().nullable(),
+  })
+  .register(contractRegistry, { id: 'DashboardRecentChange' });
+
+export const DashboardRecentChangesResponse = z
+  .object({
+    ...dashboardEnvelope,
+    periodDays: z.number().int(),
+    emptyMessage: z.literal(NO_RECENT_CHANGES_MESSAGE),
+    changes: z.array(DashboardRecentChange),
+    page: DashboardPage,
+    notApplied: z.array(DashboardFilterNote),
+  })
+  .register(contractRegistry, { id: 'DashboardRecentChangesResponse', description: 'Records created in the period, newest first. INITIAL_IMPORT is excluded.' });
+export type DashboardRecentChangesResponse = z.infer<typeof DashboardRecentChangesResponse>;
+
+export const DashboardWithoutAdjustmentResponse = z
+  .object({
+    ...dashboardEnvelope,
+    months: z.number().int(),
+    definition: z.literal(NO_ADJUSTMENT_DEFINITION),
+    employees: z.array(z.object({
+      employee: DashboardEmployeeRef.extend({ level: z.enum(LEVELS) }),
+      currency: z.enum(CURRENCIES),
+      annualBaseSalary: Money,
+      annualCashCompensation: Money,
+      lastRecordedAdjustmentAt: z.iso.datetime().nullable().describe('Latest non-import record before the period, or null (none since import).'),
+    })),
+    page: DashboardPage,
+    notApplied: z.array(DashboardFilterNote),
+  })
+  .register(contractRegistry, { id: 'DashboardWithoutAdjustmentResponse', description: 'Currently working employees only.' });
+export type DashboardWithoutAdjustmentResponse = z.infer<typeof DashboardWithoutAdjustmentResponse>;

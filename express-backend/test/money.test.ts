@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { addMoney, averageMoney, convertToUsd, parseMoney, subtractMoney } from '../src/money/decimal.js';
+import { addMoney, addSignedMoney, averageMoney, convertToUsd, parseMoney, subtractMoney } from '../src/money/decimal.js';
 import { loadExchangeRate, parseExchangeRateSnapshot } from '../src/directory/exchange-rate.js';
 import type { ExchangeRateSnapshot } from '../src/directory/exchange-rate.js';
 
@@ -59,6 +59,15 @@ describe('exact money arithmetic', () => {
     assert.equal(subtractMoney('1500000.00', '1800000.10'), '-300000.10');
     assert.equal(subtractMoney('0.30', '0.10'), '0.20');
     assert.equal(subtractMoney('5.00', '5.00'), '0.00');
+  });
+
+  // Detects: a signed impact (a scheduled decrease) breaking the commitment total.
+  test('adds signed two-decimal strings exactly', () => {
+    assert.equal(addSignedMoney('1000000.00', '110000.00'), '1110000.00');
+    assert.equal(addSignedMoney('127000.00', '-127000.01'), '-0.01');
+    assert.equal(addSignedMoney('-0.10', '-0.20'), '-0.30');
+    assert.equal(addSignedMoney('0.00', '-0.00'), '0.00');
+    assert.throws(() => addSignedMoney('1.0', '1.00'), /two-decimal/);
   });
 
   // Detects: averages computed with floats or truncated instead of rounded half-up.
