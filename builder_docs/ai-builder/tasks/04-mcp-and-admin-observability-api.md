@@ -2,11 +2,42 @@
 
 ## Status
 
-BLOCKED UNTIL TASK 03 IS ACCEPTED
+READY. Task 03 and 03a were accepted on 2026-11-17 (planner reran typecheck and the fast suite: 438 pass).
+
+## Priority order
+
+The traces frontend builder is waiting on this contract. Deliver it in this order and regenerate OpenAPI after each step, so the contract is usable early:
+
+1. Admin trace list, detail, review, delete, plus the new **summary** endpoint below.
+2. Admin MCP list and detail, plus MCP instrumentation.
+3. Evaluator oracle fixtures from `builder_docs/ai-builder/issues/04-evaluator-oracle-fixtures.md`. Last; skip and report if time runs out.
 
 ## Goal
 
-Complete backend observability by instrumenting MCP calls and exposing Admin-only trace, MCP, review, and deletion APIs.
+Complete backend observability by instrumenting MCP calls and exposing Admin-only trace, MCP, review, deletion, and monitoring-summary APIs.
+
+## Monitoring summary (planner addition, approved by Prakhar 2026-11-17)
+
+`docs_human/13` defines trace list and detail but no aggregate view. Add one read-only Admin endpoint that powers an AI monitoring dashboard:
+
+```text
+GET /api/v1/admin/ai-traces/summary?window=24h|7d|30d   (default 24h)
+```
+
+Return, for the window, computed in SQL from the existing typed columns (never by scanning JSON):
+
+- Trace counts by terminal status, plus `STARTED` still open.
+- Failure counts by failure category and reason.
+- Duration p50 and p95 and max (ms) for completed traces. If exact percentiles are awkward in MySQL 8.4, compute them over the bounded window with a window function, or document the approximation.
+- Token totals: input, output, reasoning, total.
+- Model-call count, and counts by model name.
+- Tool-call counts by tool name and status (`SUCCEEDED`, `FAILED`, `REJECTED`).
+- MCP call counts by tool name and status.
+- Review counts by verdict, and unreviewed count.
+- A time series of trace count and failure count, hourly for `24h`, daily for `7d` and `30d`.
+- `generatedAt` and the window bounds.
+
+Rules: Admin only (Scoped HR 403), no prompt, response, argument, result, or identity content, strict Zod schema and OpenAPI like every other operation. Add an index only if `EXPLAIN` shows a full scan over the 30-day window, and record the plan in the response. Tests: empty window, mixed statuses, percentile correctness on a known set, window boundaries, 403 for Scoped HR.
 
 Do not modify frontend code.
 

@@ -21,6 +21,8 @@ export function scriptedModel(steps: readonly FakeStep[]): FakeModel {
   const requests: ModelRequest[] = [];
   const outputsByRound: (readonly ModelToolOutput[])[] = [];
   return {
+    provider: 'fake',
+    model: 'fake-model',
     requests,
     outputsByRound,
     open(request) {

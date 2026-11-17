@@ -7,9 +7,14 @@
 // tool call is the expected tool (or no tool for a mutation request).
 // Prints case IDs, tool names, and pass/fail only: no answers or data.
 //
+// Each case runs through the same recorded tool loop as the product. Its
+// recorder keeps the steps in this process's memory only (this script has no
+// HR user or conversation); nothing is persisted and nothing is printed.
+//
 // Usage: DATABASE_URL=... OPENAI_API_KEY=... npm run eval:assistant
 import type { Principal } from '../src/access/sessions.js';
 import { createAssistantService } from '../src/assistant/assistant-service.js';
+import type { TurnRecorder } from '../src/assistant/assistant-service.js';
 import { createCompensationInsights } from '../src/assistant/compensation-insights.js';
 import { createOpenAiModelAdapter, DEFAULT_OPENAI_MODEL } from '../src/assistant/openai-model.js';
 import { createToolRegistry } from '../src/assistant/tools.js';
@@ -57,7 +62,22 @@ try {
     });
     let outcome: string;
     try {
-      const reply = await assistant.ask(ADMIN, [{ role: 'user', content: evalCase.question }], `eval-${evalCase.id}`);
+      let next = 0;
+      const steps: unknown[] = [];
+      const recorder: TurnRecorder = {
+        startModelCall: async (input) => { steps.push(input); next += 1; return { id: String(next) }; },
+        finishModelCall: async (_id, input) => { steps.push(input); },
+        startToolCall: async (input) => { steps.push(input); next += 1; return { id: String(next) }; },
+        finishToolCall: async (_id, input) => { steps.push(input); },
+      };
+      const reply = await assistant.runTurn({
+        principal: ADMIN,
+        messages: [{ role: 'user', content: evalCase.question }],
+        prompt: assistant.prompt(new Date().toISOString().slice(0, 10)),
+        requestId: `eval-${evalCase.id}`,
+        traceId: `eval-${evalCase.id}`,
+        recorder,
+      });
       const first = called[0] ?? null;
       const pass = first === evalCase.expectedTool && reply.toolCalls.every((t) => t.status === 'completed');
       if (!pass) failures += 1;

@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
+import { parseActorScope } from '../actor-scope.js';
+import type { ActorScope } from '../actor-scope.js';
 import { boundedJson, PAYLOAD_LIMITS, PersistenceValidationError, validateReview, validateTraceTransition } from './validation.js';
 import type { ReviewVerdict, TraceStatus } from './validation.js';
 
@@ -40,6 +42,12 @@ async function write(db: Pool | PoolConnection, sql: string, params: QueryParams
 async function transaction<T>(pool: Pool, operation: (connection: PoolConnection) => Promise<T>): Promise<T> {
   const connection = await pool.getConnection();
   try {
+    // READ COMMITTED (Task 03): every read after a row lock sees the latest
+    // committed rows. Under REPEATABLE READ, finishTrace's first read fixed an
+    // older snapshot before it waited for the conversation lock, so a
+    // concurrent turn's message sequence was invisible and the next sequence
+    // collided (ER_DUP_ENTRY) when several turns finished at once.
+    await connection.query('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
     await connection.beginTransaction();
     const result = await operation(connection);
     await connection.commit();
@@ -96,6 +104,30 @@ function toolRow(row: Row) {
   };
 }
 
+function turnRow(row: Row) {
+  return {
+    id: id(row.id), sequence: number(row.sequence), previousTraceId: row.previous_trace_id === null ? null : id(row.previous_trace_id),
+    status: id(row.status) as TraceStatus, failureStage: row.failure_stage === null ? null : id(row.failure_stage),
+    errorCategory: row.error_category === null ? null : id(row.error_category), startedAt: id(row.started_at),
+    userMessageSequence: row.user_message_sequence === null ? null : number(row.user_message_sequence),
+    finalMessageSequence: row.final_message_sequence === null ? null : number(row.final_message_sequence),
+    // Task 03a: null for traces recorded before migration 007.
+    actorScope: parseActorScope(row.actor_role, row.actor_countries === null ? null : parse(row.actor_countries), row.actor_departments === null ? null : parse(row.actor_departments)),
+  };
+}
+
+/** The validated snapshot columns for createTrace; all null when no snapshot is given. */
+function actorScopeColumns(scope: ActorScope | undefined): [string | null, string | null, string | null] {
+  if (scope === undefined) return [null, null, null];
+  const parsed = parseActorScope(scope.role, scope.countries, scope.departments);
+  if (parsed === null) throw new PersistenceValidationError('invalid actor scope snapshot');
+  if (parsed.role === 'ADMIN' && (parsed.countries.length > 0 || parsed.departments.length > 0)) throw new PersistenceValidationError('admin snapshot has no scope rows');
+  return [parsed.role, JSON.stringify(parsed.countries), JSON.stringify(parsed.departments)];
+}
+
+/** Low-level helpers shared with the Admin read model (admin-repository.ts). Not for other callers. */
+export const sqlHelpers = Object.freeze({ rows, write, transaction, parse, id, number, traceRow, callRow, toolRow });
+
 export interface TraceFilters { from?: string; to?: string; actorId?: number; status?: TraceStatus; model?: string; toolName?: string; errorCategory?: string; limit?: number; offset?: number }
 export interface TraceSummary {
   id: string;
@@ -146,7 +178,8 @@ export function createObservabilityRepository(pool: Pool) {
         return { id: String(result.insertId), sequence };
       });
     },
-    async createTrace(input: { conversationId: string; actorId: number; requestId: string; previousTraceId?: string; idempotencyKey?: string; commandHash?: string; promptVersion: string; promptHash: string; model: string; userContent: unknown; modelMessages: unknown; startedAt: string }) {
+    async createTrace(input: { conversationId: string; actorId: number; requestId: string; previousTraceId?: string; idempotencyKey?: string; commandHash?: string; promptVersion: string; promptHash: string; model: string; userContent: unknown; modelMessages: unknown; startedAt: string; actorScope?: ActorScope }) {
+      const scope = actorScopeColumns(input.actorScope);
       if (input.idempotencyKey !== undefined || input.commandHash !== undefined) {
         if (typeof input.idempotencyKey !== 'string' || input.idempotencyKey.trim() === '' ||
           typeof input.commandHash !== 'string' || !/^[0-9a-f]{64}$/.test(input.commandHash)) {
@@ -167,16 +200,16 @@ export function createObservabilityRepository(pool: Pool) {
           const existing = await rows(db, 'SELECT id, sequence, command_hash FROM ai_traces WHERE conversation_id = ? AND idempotency_key = ?', [input.conversationId, input.idempotencyKey]);
           if (existing[0]) {
             if (existing[0].command_hash !== input.commandHash) throw new ConflictError('idempotency key reused with different command');
-            return { id: id(existing[0].id), sequence: number(existing[0].sequence), reused: true };
+            return { id: id(existing[0].id), sequence: number(existing[0].sequence), reused: true, userMessageSequence: null };
           }
         }
         const traceId = randomUUID();
-        await write(db, `INSERT INTO ai_traces (id, conversation_id, previous_trace_id, hr_user_id, sequence, request_id, idempotency_key, command_hash, model, prompt_version, prompt_hash, user_content, model_messages, started_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [traceId, input.conversationId, input.previousTraceId ?? null, input.actorId, sequence, input.requestId, input.idempotencyKey ?? null, input.commandHash ?? null, input.model, input.promptVersion, input.promptHash, user, messages, input.startedAt]);
+        await write(db, `INSERT INTO ai_traces (id, conversation_id, previous_trace_id, hr_user_id, actor_role, actor_countries, actor_departments, sequence, request_id, idempotency_key, command_hash, model, prompt_version, prompt_hash, user_content, model_messages, started_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [traceId, input.conversationId, input.previousTraceId ?? null, input.actorId, ...scope, sequence, input.requestId, input.idempotencyKey ?? null, input.commandHash ?? null, input.model, input.promptVersion, input.promptHash, user, messages, input.startedAt]);
         const messageSequence = await lockedNext(db, 'ai_messages', input.conversationId);
         const inserted = await write(db, 'INSERT INTO ai_messages (conversation_id, trace_id, sequence, role, content, created_at) VALUES (?, ?, ?, ?, ?, ?)', [input.conversationId, traceId, messageSequence, 'USER', user, input.startedAt]);
         await write(db, 'UPDATE ai_traces SET user_message_id = ? WHERE id = ?', [inserted.insertId, traceId]);
-        return { id: traceId, sequence, reused: false };
+        return { id: traceId, sequence, reused: false, userMessageSequence: messageSequence as number | null };
       });
     },
     async startModelCall(input: { traceId: string; provider: string; model: string; input: unknown; tools: unknown; promptVersion: string; promptHash: string; startedAt: string; providerRequestId?: string }) {
@@ -191,14 +224,16 @@ export function createObservabilityRepository(pool: Pool) {
         return { id: String(result.insertId), sequence: number(next[0]?.sequence) };
       });
     },
-    async finishModelCall(callId: string, input: { status: TerminalCallStatus; output?: unknown; decisions?: unknown; inputTokens?: number; outputTokens?: number; reasoningTokens?: number; latencyMs: number; completedAt: string; failureCategory?: string; safeError?: unknown; providerRequestId?: string }) {
-      for (const [name, value] of [['inputTokens', input.inputTokens], ['outputTokens', input.outputTokens], ['reasoningTokens', input.reasoningTokens], ['latencyMs', input.latencyMs]] as const) nonnegative(name, value);
+    async finishModelCall(callId: string, input: { status: TerminalCallStatus; output?: unknown; decisions?: unknown; inputTokens?: number; outputTokens?: number; totalTokens?: number; reasoningTokens?: number; latencyMs: number; completedAt: string; failureCategory?: string; safeError?: unknown; providerRequestId?: string }) {
+      for (const [name, value] of [['inputTokens', input.inputTokens], ['outputTokens', input.outputTokens], ['totalTokens', input.totalTokens], ['reasoningTokens', input.reasoningTokens], ['latencyMs', input.latencyMs]] as const) nonnegative(name, value);
+      // A provider-reported total wins; otherwise the sum when both parts are known.
+      const totalTokens = input.totalTokens ?? (input.inputTokens !== undefined && input.outputTokens !== undefined ? input.inputTokens + input.outputTokens : undefined);
       if (input.status !== 'SUCCEEDED' && input.status !== 'FAILED') throw new PersistenceValidationError('invalid model status');
       const output = maybeJson(input.output, PAYLOAD_LIMITS.modelOutput);
       const decisions = maybeJson(input.decisions, PAYLOAD_LIMITS.modelOutput);
       const safeError = maybeJson(input.safeError, PAYLOAD_LIMITS.safeError);
       const result = await write(pool, `UPDATE ai_model_calls SET status = ?, output_content = ?, tool_decisions = ?, input_tokens = ?, output_tokens = ?, total_tokens = ?, reasoning_tokens = ?, latency_ms = ?, completed_at = ?, failure_category = ?, safe_error = ?, provider_request_id = COALESCE(?, provider_request_id) WHERE id = ? AND status = 'STARTED'`,
-        [input.status, output, decisions, input.inputTokens ?? null, input.outputTokens ?? null, input.inputTokens !== undefined && input.outputTokens !== undefined ? input.inputTokens + input.outputTokens : null, input.reasoningTokens ?? null, input.latencyMs, input.completedAt, input.failureCategory ?? null, safeError, input.providerRequestId ?? null, callId]);
+        [input.status, output, decisions, input.inputTokens ?? null, input.outputTokens ?? null, totalTokens ?? null, input.reasoningTokens ?? null, input.latencyMs, input.completedAt, input.failureCategory ?? null, safeError, input.providerRequestId ?? null, callId]);
       if (result.affectedRows !== 1) throw new ConflictError('model call is not active');
     },
     async startToolCall(input: { traceId: string; modelCallId: string; toolName: string; arguments: unknown; startedAt: string; providerToolCallId?: string }) {
@@ -227,14 +262,22 @@ export function createObservabilityRepository(pool: Pool) {
       validateTraceTransition('STARTED', input.status);
       nonnegative('durationMs', input.durationMs);
       if (input.status === 'FAILED' && input.finalResponse !== undefined) throw new PersistenceValidationError('failed trace cannot have a final response');
-      const response = maybeJson(input.finalResponse, PAYLOAD_LIMITS.message);
-      return transaction(pool, async (db) => {
+      const response = maybeJson(input.finalResponse, PAYLOAD_LIMITS.assistantResponse);
+      return transaction(pool, async (db): Promise<{ finalMessageSequence: number | null }> => {
         // Match createTrace's lock order: conversation first, then trace.
         const target = await rows(db, 'SELECT conversation_id FROM ai_traces WHERE id = ?', [traceId]);
         if (!target[0]) throw new ConflictError('trace unavailable');
         const messageSequence = await lockedNext(db, 'ai_messages', id(target[0].conversation_id));
         const found = await rows(db, 'SELECT status, conversation_id, hr_user_id FROM ai_traces WHERE id = ? FOR UPDATE', [traceId]);
         if (!found[0] || found[0].status !== 'STARTED') throw new ConflictError('trace is already terminal');
+        if (input.status === 'FAILED') {
+          // Task 03: a failed turn may stop between an attempt and its outcome
+          // (the outcome write itself failed). Close those attempts as FAILED
+          // with a fixed category, in this transaction, so the trace reaches
+          // one terminal state. Their recorded inputs are left untouched.
+          await write(db, `UPDATE ai_model_calls SET status = 'FAILED', failure_category = 'OUTCOME_NOT_RECORDED', completed_at = ? WHERE trace_id = ? AND status = 'STARTED'`, [input.completedAt, traceId]);
+          await write(db, `UPDATE ai_tool_calls SET status = 'FAILED', error_category = 'OUTCOME_NOT_RECORDED', completed_at = ? WHERE trace_id = ? AND status = 'STARTED'`, [input.completedAt, traceId]);
+        }
         const active = await rows(db, `SELECT (SELECT COUNT(*) FROM ai_model_calls WHERE trace_id = ? AND status = 'STARTED') + (SELECT COUNT(*) FROM ai_tool_calls WHERE trace_id = ? AND status = 'STARTED') AS count`, [traceId, traceId]);
         if (number(active[0]?.count) !== 0) throw new ConflictError('trace has unfinished calls');
         const model = await rows(db, 'SELECT COUNT(*) AS calls, COALESCE(SUM(input_tokens),0) AS input_tokens, COALESCE(SUM(output_tokens),0) AS output_tokens, COALESCE(SUM(reasoning_tokens),0) AS reasoning_tokens FROM ai_model_calls WHERE trace_id = ?', [traceId]);
@@ -247,13 +290,70 @@ export function createObservabilityRepository(pool: Pool) {
         }
         await write(db, `UPDATE ai_traces SET status = ?, final_response = ?, final_message_id = ?, duration_ms = ?, completed_at = ?, failure_stage = ?, error_category = ?, input_tokens = ?, output_tokens = ?, reasoning_tokens = ?, model_call_count = ?, tool_call_count = ? WHERE id = ? AND status = 'STARTED'`,
           [input.status, response, messageId, input.durationMs, input.completedAt, input.failureStage ?? null, input.errorCategory ?? null, number(model[0]?.input_tokens), number(model[0]?.output_tokens), number(model[0]?.reasoning_tokens), number(model[0]?.calls), number(tool[0]?.calls), traceId]);
+        return { finalMessageSequence: messageId === null ? null : messageSequence };
       });
+    },
+    /** Owned conversations, most recently active first, with a total for pagination. */
+    async listConversationSummaries(actorId: number, limit = 25, offset = 0) {
+      if (!Number.isInteger(limit) || limit < 1 || limit > 100 || !Number.isInteger(offset) || offset < 0) throw new PersistenceValidationError('invalid pagination');
+      const found = await rows(pool, `SELECT c.id, c.created_at,
+          (SELECT COUNT(*) FROM ai_messages m WHERE m.conversation_id = c.id) AS message_count,
+          (SELECT MAX(m.created_at) FROM ai_messages m WHERE m.conversation_id = c.id) AS last_message_at,
+          (SELECT JSON_UNQUOTE(JSON_EXTRACT(m.content, '$.text')) FROM ai_messages m
+            WHERE m.conversation_id = c.id AND m.role = 'USER' ORDER BY m.sequence LIMIT 1) AS first_text
+        FROM ai_conversations c WHERE c.hr_user_id = ?
+        ORDER BY COALESCE((SELECT MAX(m.created_at) FROM ai_messages m WHERE m.conversation_id = c.id), c.created_at) DESC, c.id DESC
+        LIMIT ? OFFSET ?`, [actorId, limit, offset]);
+      const total = await rows(pool, 'SELECT COUNT(*) AS n FROM ai_conversations WHERE hr_user_id = ?', [actorId]);
+      return {
+        total: number(total[0]?.n),
+        items: found.map((row) => ({
+          id: id(row.id), createdAt: id(row.created_at), messageCount: number(row.message_count),
+          lastMessageAt: row.last_message_at === null ? null : id(row.last_message_at),
+          firstUserText: row.first_text === null ? null : id(row.first_text),
+        })),
+      };
+    },
+    /** One owned conversation with ordered messages and turn states; null when unknown or unowned. */
+    async readConversation(conversationId: string, actorId: number) {
+      const found = await rows(pool, 'SELECT id, hr_user_id, created_at FROM ai_conversations WHERE id = ? AND hr_user_id = ?', [conversationId, actorId]);
+      if (!found[0]) return null;
+      const [messages, turns] = await Promise.all([
+        rows(pool, 'SELECT id, trace_id, sequence, role, content, created_at FROM ai_messages WHERE conversation_id = ? ORDER BY sequence', [conversationId]),
+        rows(pool, `SELECT t.id, t.sequence, t.previous_trace_id, t.status, t.failure_stage, t.error_category, t.started_at,
+            t.actor_role, t.actor_countries, t.actor_departments,
+            um.sequence AS user_message_sequence, fm.sequence AS final_message_sequence
+          FROM ai_traces t
+          LEFT JOIN ai_messages um ON um.id = t.user_message_id
+          LEFT JOIN ai_messages fm ON fm.id = t.final_message_id
+          WHERE t.conversation_id = ? ORDER BY t.sequence`, [conversationId]),
+      ]);
+      return {
+        id: id(found[0].id), createdAt: id(found[0].created_at),
+        messages: messages.map((row) => ({
+          traceId: row.trace_id === null ? null : id(row.trace_id), sequence: number(row.sequence),
+          role: id(row.role) as 'USER' | 'ASSISTANT', content: parse(row.content), createdAt: id(row.created_at),
+        })),
+        turns: turns.map(turnRow),
+      };
+    },
+    /** The trace stored under an idempotency key in one conversation, with its command hash and outcome. */
+    async findTraceByIdempotency(conversationId: string, idempotencyKey: string) {
+      const found = await rows(pool, `SELECT t.id, t.sequence, t.previous_trace_id, t.status, t.failure_stage, t.error_category, t.started_at,
+          t.actor_role, t.actor_countries, t.actor_departments, t.command_hash, t.final_response, um.sequence AS user_message_sequence, fm.sequence AS final_message_sequence
+        FROM ai_traces t
+        LEFT JOIN ai_messages um ON um.id = t.user_message_id
+        LEFT JOIN ai_messages fm ON fm.id = t.final_message_id
+        WHERE t.conversation_id = ? AND t.idempotency_key = ?`, [conversationId, idempotencyKey]);
+      const row = found[0];
+      if (!row) return null;
+      return { ...turnRow(row), commandHash: id(row.command_hash), finalResponse: row.final_response === null ? null : parse(row.final_response) };
     },
     async startMcpCall(input: { actorId: number; requestId: string; toolName: string; arguments: unknown; startedAt: string }) {
       const callId = randomUUID();
       const args = json(input.arguments, PAYLOAD_LIMITS.toolArguments);
       await write(pool, 'INSERT INTO mcp_tool_calls (id, request_id, hr_user_id, tool_name, requested_arguments, started_at) VALUES (?, ?, ?, ?, ?, ?)', [callId, input.requestId, input.actorId, input.toolName, args, input.startedAt]);
-      return { id: callId };
+      return { id: callId as string };
     },
     async finishMcpCall(callId: string, input: ToolOutcomeInput) {
       validateToolOutcome(input);

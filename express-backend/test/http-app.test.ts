@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import request from 'supertest';
 
 import { createApp } from '../src/http/app.js';
-import { EXPIRES_AT, FAILING_TOKENS, FAKE_PASSWORD, FAKE_TOKEN, buildTestApp, fakeAuth, fakeDirectory, noModelAssistant, fakeSalaryAdjustments, fakeDashboard, fakeHrAccess } from './support/http.js';
+import { EXPIRES_AT, FAILING_TOKENS, FAKE_PASSWORD, FAKE_TOKEN, buildTestApp, fakeAuth, fakeDirectory, noModelAssistant, fakeSalaryAdjustments, fakeDashboard, fakeHrAccess, fakeAdminObservability, fakeMcpStore } from './support/http.js';
 
 const LOGIN = '/api/v1/auth/login';
 const ME = '/api/v1/auth/me';
@@ -14,7 +14,7 @@ describe('application construction', () => {
   test('creating the app does not start a network listener', () => {
     const servers = () => process.getActiveResourcesInfo().filter((r) => r === 'TCPServerWrap').length;
     const before = servers();
-    createApp({ auth: fakeAuth(), directory: fakeDirectory(), ...noModelAssistant(fakeDirectory()), salaryAdjustments: fakeSalaryAdjustments(), dashboard: fakeDashboard(), hrAccess: fakeHrAccess(), logger: () => undefined, clientIpSource: 'socket' });
+    createApp({ auth: fakeAuth(), directory: fakeDirectory(), ...noModelAssistant(fakeDirectory()), salaryAdjustments: fakeSalaryAdjustments(), dashboard: fakeDashboard(), hrAccess: fakeHrAccess(), adminObservability: fakeAdminObservability(), mcpStore: fakeMcpStore().store, logger: () => undefined, clientIpSource: 'socket' });
     assert.equal(servers(), before);
   });
 

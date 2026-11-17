@@ -31,9 +31,31 @@ export interface ModelToolOutput {
   output: string;
 }
 
-export type ModelReply =
-  | { kind: 'tool_calls'; calls: readonly ModelToolCall[] }
-  | { kind: 'answer'; text: string };
+/**
+ * Token counts as reported by the provider. Each field is present only when
+ * the provider supplied it. `reasoningTokens` is a count only: reasoning
+ * content itself never crosses this interface.
+ */
+export interface ModelUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  reasoningTokens?: number;
+}
+
+/**
+ * Observability envelope for one provider call (Task 03). Only the fields the
+ * trace store needs: never provider bodies, headers, or encrypted reasoning.
+ */
+export interface ModelTelemetry {
+  providerRequestId?: string;
+  usage?: ModelUsage;
+}
+
+export type ModelReply = (
+  | { kind: 'tool_calls'; calls: readonly ModelToolCall[]; /** Visible text sent alongside the calls, if any. */ text?: string }
+  | { kind: 'answer'; text: string }
+) & { telemetry?: ModelTelemetry };
 
 /** One conversation turn. The first next() sends the messages; later calls send tool outputs. */
 export interface ModelSession {
@@ -41,6 +63,10 @@ export interface ModelSession {
 }
 
 export interface ModelAdapter {
+  /** Provider name recorded with every model call, e.g. "openai". */
+  readonly provider: string;
+  /** Model identifier recorded with every model call. */
+  readonly model: string;
   open(request: ModelRequest): ModelSession;
 }
 
@@ -50,10 +76,13 @@ export type ModelFailureCategory = (typeof MODEL_FAILURE_CATEGORIES)[number];
 /** A model failure with a loggable category. Its message never contains provider response text. */
 export class ModelFailure extends Error {
   readonly category: ModelFailureCategory;
+  /** Provider request ID when the provider returned one with the failure. */
+  readonly providerRequestId: string | undefined;
 
-  constructor(category: ModelFailureCategory) {
+  constructor(category: ModelFailureCategory, { providerRequestId }: { providerRequestId?: string | undefined } = {}) {
     super(`model failure: ${category}`);
     this.name = 'ModelFailure';
     this.category = category;
+    this.providerRequestId = providerRequestId;
   }
 }

@@ -14,10 +14,19 @@ const get = (value: unknown, ...keys: string[]): unknown =>
 
 describe('OpenAPI contract', () => {
   // Detects: an endpoint missing from, or added to, the published contract.
-  test('documents exactly the thirty-eight endpoints', () => {
+  test('documents exactly the fifty endpoints', () => {
     const paths = get(doc, 'paths') as Json;
     const operations = Object.entries(paths).flatMap(([path, item]) => Object.keys(item as Json).map((m) => `${m.toUpperCase()} ${path}`));
     assert.deepEqual(operations.sort(), [
+      'DELETE /api/v1/admin/ai-traces/{traceId}',
+      'GET /api/v1/admin/ai-traces',
+      'GET /api/v1/admin/ai-traces/options',
+      'GET /api/v1/admin/ai-traces/summary',
+      'GET /api/v1/admin/ai-traces/{traceId}',
+      'GET /api/v1/admin/mcp-tool-calls',
+      'GET /api/v1/admin/mcp-tool-calls/{mcpCallId}',
+      'GET /api/v1/assistant/conversations',
+      'GET /api/v1/assistant/conversations/{conversationId}',
       'GET /api/v1/auth/me',
       'GET /api/v1/dashboard/breakdowns',
       'GET /api/v1/dashboard/recent-changes',
@@ -33,6 +42,9 @@ describe('OpenAPI contract', () => {
       'GET /api/v1/salary-adjustment-requests',
       'GET /api/v1/salary-adjustment-requests/{requestId}',
       'GET /health',
+      'POST /api/v1/admin/ai-traces/{traceId}/review',
+      'POST /api/v1/assistant/conversations',
+      'POST /api/v1/assistant/conversations/{conversationId}/messages',
       'POST /api/v1/assistant/messages',
       'POST /api/v1/auth/login',
       'POST /api/v1/auth/logout',
@@ -266,6 +278,41 @@ describe('OpenAPI contract', () => {
   });
 
   // Detects: an assistant contract that drifts from the shared frontend contract.
+  // Detects: conversation operations documented without auth, idempotency, the
+  // single-message body, or the approved errors (AI Task 03).
+  test('assistant conversation operations document auth, idempotency, strict bodies, and errors', () => {
+    const base = '/api/v1/assistant/conversations';
+    const responses = (path: string, method: string) => Object.keys(get(doc, 'paths', path, method, 'responses') as Json).sort();
+    for (const [path, method] of [[base, 'get'], [base, 'post'], [`${base}/{conversationId}`, 'get'], [`${base}/{conversationId}/messages`, 'post']] as const) {
+      assert.deepEqual(get(doc, 'paths', path, method, 'security'), [{ bearerAuth: [] }], `${method} ${path}`);
+    }
+    const send = `${base}/{conversationId}/messages`;
+    assert.deepEqual(responses(send, 'post'), ['200', '400', '401', '404', '409', '429', '500', '502', '503']);
+    assert.deepEqual(responses(`${base}/{conversationId}`, 'get'), ['200', '401', '404', '500', '503']);
+    const headers = (get(doc, 'paths', send, 'post', 'parameters') as Json[]).filter((p) => p.in === 'header').map((p) => [p.name, p.required, get(p, 'schema', 'pattern')]);
+    assert.deepEqual(headers, [['Idempotency-Key', true, '^[A-Za-z0-9_-]{16,100}$']]);
+    const message = get(doc, 'components', 'schemas', 'AssistantMessageRequest');
+    assert.equal(get(message, 'additionalProperties'), false);
+    assert.deepEqual(Object.keys(get(message, 'properties') as Json).sort(), ['content', 'retryOfTraceId'], 'one message, never a history array');
+    assert.deepEqual(get(message, 'required'), ['content']);
+    assert.equal(get(doc, 'components', 'schemas', 'AssistantConversationCreateRequest', 'additionalProperties'), false);
+    const turn = get(doc, 'components', 'schemas', 'AssistantTurnResponse');
+    for (const field of ['answer', 'toolCalls', 'cards', 'limitations', 'generatedAt', 'conversationId', 'traceId', 'previousTraceId', 'userMessageSequence', 'assistantMessageSequence']) {
+      assert.ok((get(turn, 'required') as string[]).includes(field), field);
+    }
+    assert.deepEqual(get(doc, 'components', 'schemas', 'AssistantConversationTurn', 'properties', 'status', 'enum'), ['STARTED', 'COMPLETED', 'FAILED']);
+    // Q-C9 and Q-C10: the retry time and a reloaded failure's safe reason are published.
+    assert.ok(get(doc, 'paths', send, 'post', 'responses', '429', 'headers', 'Retry-After'));
+    const turnError = get(doc, 'components', 'schemas', 'AssistantConversationTurn', 'properties', 'error');
+    assert.ok(JSON.stringify(turnError).includes('"reason"'), 'turn error carries reason');
+    assert.equal(get(doc, 'paths', '/api/v1/assistant/messages', 'post', 'deprecated'), true);
+    assert.equal(get(doc, 'paths', send, 'post', 'deprecated'), undefined);
+    const reasons = get(doc, 'components', 'schemas', 'ErrorResponse', 'properties', 'error', 'properties', 'reason', 'enum') as string[];
+    for (const reason of ['MODEL_TIMEOUT', 'MODEL_RATE_LIMITED', 'MODEL_ERROR', 'MODEL_INVALID_RESPONSE', 'MODEL_NOT_CONFIGURED', 'TURN_TIMEOUT', 'TRACE_UNAVAILABLE']) {
+      assert.ok(reasons.includes(reason), reason);
+    }
+  });
+
   test('assistant request and response schemas follow the shared contract', () => {
     const op = get(doc, 'paths', '/api/v1/assistant/messages', 'post');
     assert.equal(get(op, 'requestBody', 'content', 'application/json', 'schema', '$ref'), '#/components/schemas/AssistantMessagesRequest');
@@ -293,7 +340,7 @@ describe('OpenAPI contract', () => {
     assert.deepEqual(get(doc, 'components', 'schemas', 'ErrorResponse', 'properties', 'error', 'properties', 'code', 'enum'), [
       'VALIDATION_ERROR', 'INVALID_CREDENTIALS', 'UNAUTHENTICATED', 'RATE_LIMITED', 'NOT_FOUND', 'ASSISTANT_UNAVAILABLE',
       'FORBIDDEN', 'STALE_VERSION', 'DUPLICATE_OPERATION', 'PENDING_REQUEST_EXISTS', 'REQUEST_NOT_PENDING', 'EMPLOYEE_INELIGIBLE',
-      'LAST_ACTIVE_ADMIN', 'EMAIL_TAKEN', 'INVALID_SCOPE', 'SELF_PASSWORD_REGENERATION_FORBIDDEN', 'SERVICE_UNAVAILABLE', 'INTERNAL_ERROR',
+      'LAST_ACTIVE_ADMIN', 'EMAIL_TAKEN', 'INVALID_SCOPE', 'SELF_PASSWORD_REGENERATION_FORBIDDEN', 'MODEL_PROVIDER_FAILED', 'ASSISTANT_TURN_IN_PROGRESS', 'SERVICE_UNAVAILABLE', 'INTERNAL_ERROR',
     ]);
   });
 
@@ -315,8 +362,9 @@ describe('OpenAPI contract', () => {
     const paths = get(doc, 'paths') as Json;
     for (const [path, item] of Object.entries(paths)) {
       for (const method of Object.keys(item as Json)) {
-        const url = path.replace('{employeeCode}', 'ACME00001').replace('{requestId}', '00000000-0000-4000-8000-000000000000').replace('{hrUserId}', '1');
-        const call = method === 'post' ? request(app).post(url) : method === 'put' ? request(app).put(url) : request(app).get(url);
+        const url = path.replace('{employeeCode}', 'ACME00001').replace('{requestId}', '00000000-0000-4000-8000-000000000000').replace('{hrUserId}', '1').replace('{conversationId}', '00000000-0000-4000-8000-000000000000')
+          .replace('{traceId}', '00000000-0000-4000-8000-000000000000').replace('{mcpCallId}', '00000000-0000-4000-8000-000000000000');
+        const call = method === 'post' ? request(app).post(url) : method === 'put' ? request(app).put(url) : method === 'delete' ? request(app).delete(url) : request(app).get(url);
         const res = await call.set('Authorization', `Bearer ${FAKE_TOKEN}`).send({});
         // Routed operations may answer 404 for a missing resource; only the
         // unmatched-route handler says "Route not found."
