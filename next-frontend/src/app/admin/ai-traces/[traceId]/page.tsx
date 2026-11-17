@@ -117,10 +117,13 @@ function TraceBody({ detail }: { detail: TraceDetail }) {
       <div className="mt-4 grid gap-10 xl:grid-cols-[minmax(0,1fr)_22rem] xl:gap-12">
         <div className="flex min-w-0 flex-col gap-5">
           <div className="flex flex-col gap-3">
-            <h2 className="text-[1.125rem] font-semibold">
-              Trace {shortId(trace.traceId)}
-              <span className="ml-2 text-[0.8125rem] font-normal text-muted-foreground [overflow-wrap:anywhere]">{trace.traceId}</span>
-            </h2>
+            {/* The short ID is the heading; the full ID sits outside it so the prefix is not read twice (QA run 03, D5). */}
+            <div>
+              <h2 className="text-[1.125rem] font-semibold">Trace {shortId(trace.traceId)}</h2>
+              <p className="mt-0.5 text-[0.8125rem] text-muted-foreground [overflow-wrap:anywhere]">
+                Trace ID <span translate="no">{trace.traceId}</span>
+              </p>
+            </div>
             <RecordLine
               items={[
                 { label: "Status", value: <StatusLabel tone={traceTone(trace.status)}>{TRACE_STATUS_LABELS[trace.status]}</StatusLabel> },

@@ -85,3 +85,54 @@ it('offers password regeneration after a create replay without rendering a missi
   expect(screen.getByRole('link',{name:'Regenerate temporary password'})).toHaveAttribute('href','/hr-access/22/regenerate-password');
   expect(screen.queryByLabelText('Temporary password value')).not.toBeInTheDocument();
 });
+
+// QA run 03, D4: with cacheComponents a visited route is hidden by React Activity, not unmounted.
+it('starts blank after the route is hidden and shown again, and drops a late result', async () => {
+  const { Activity } = await import('react');
+  const Harness = ({ mode }: { mode: 'visible' | 'hidden' }) => <Activity mode={mode}><HrAccessWorkspace operation="CREATE" /></Activity>;
+  mocked.preview.mockResolvedValue({ ok:true, preview });
+  mocked.confirm.mockResolvedValue({ ok:true, result:{ hrUser, temporaryPassword:'one-time-secret', credentialRecoveryRequired:false, temporaryPasswordNotice:'Shown once.', auditEvent:{} } });
+  const user=userEvent.setup();
+  const view = render(<Harness mode="visible" />);
+  await user.type(screen.getByLabelText('Display name'),'QA HR');
+  await user.type(screen.getByLabelText('Email'),'qa.hr@example.com');
+  await user.click(screen.getByLabelText('India'));
+  await user.click(screen.getByLabelText('Tech'));
+  await user.click(screen.getByRole('button',{name:'Preview change'}));
+  await user.click(await screen.findByRole('button',{name:'Create HR user'}));
+  await screen.findByRole('heading',{name:'Temporary password, shown once'});
+  view.rerender(<Harness mode="hidden" />);
+  view.rerender(<Harness mode="visible" />);
+  await waitFor(()=>expect(screen.getByLabelText('Display name')).toHaveValue(''));
+  expect(screen.queryByRole('heading',{name:'Temporary password, shown once'})).not.toBeInTheDocument();
+  expect(screen.queryByText('one-time-secret')).not.toBeInTheDocument();
+  expect(screen.queryByText(/complete$/)).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Email')).toHaveValue('');
+  expect(screen.getByLabelText('India')).not.toBeChecked();
+
+  // A preview that answers after the route was hidden is not shown on the next visit.
+  let resolveLate: (value: unknown) => void = () => {};
+  mocked.preview.mockImplementationOnce(() => new Promise((resolve) => (resolveLate = resolve)));
+  await user.type(screen.getByLabelText('Display name'),'Late');
+  await user.type(screen.getByLabelText('Email'),'late@example.com');
+  await user.click(screen.getByLabelText('India'));
+  await user.click(screen.getByLabelText('Tech'));
+  await user.click(screen.getByRole('button',{name:'Preview change'}));
+  view.rerender(<Harness mode="hidden" />);
+  resolveLate({ ok:true, preview });
+  view.rerender(<Harness mode="visible" />);
+  await waitFor(()=>expect(screen.getByLabelText('Display name')).toHaveValue(''));
+  expect(screen.getByText('Create a preview to see the exact result. Previewing writes nothing.')).toBeVisible();
+  expect(screen.getByRole('button',{name:'Preview change'})).toBeInTheDocument();
+});
+
+it('resets a regenerate form to a blank reason on the next visit', async () => {
+  const { Activity } = await import('react');
+  const Harness = ({ mode }: { mode: 'visible' | 'hidden' }) => <Activity mode={mode}><HrAccessWorkspace operation="REGENERATE_PASSWORD" user={hrUser as never} /></Activity>;
+  const user=userEvent.setup();
+  const view = render(<Harness mode="visible" />);
+  await user.type(screen.getByLabelText('Reason'),'Lost password');
+  view.rerender(<Harness mode="hidden" />);
+  view.rerender(<Harness mode="visible" />);
+  await waitFor(()=>expect(screen.getByLabelText('Reason')).toHaveValue(''));
+});

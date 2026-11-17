@@ -92,6 +92,157 @@ test('Admin creates a Scoped HR account and the user signs in through Another HR
   await scopedContext.close();
 });
 
+// QA run 03 regressions (D1-D4). Each opens HR Access directly as the Admin demo account.
+async function openHrAccess(page: import('@playwright/test').Page, search = '') {
+  await signInDemo(page,'Meera Iyer');
+  await page.goto(`/hr-access${search}`);
+  await expect(page.getByRole('heading',{level:1,name:'HR Access'})).toBeVisible();
+}
+function hrUserNames(page: import('@playwright/test').Page, project: string) {
+  // Desktop shows a table; mobile shows a list. Both are named "HR users".
+  return project==='desktop'
+    ? page.getByRole('region',{name:'HR users'}).locator('tbody td:first-child a')
+    : page.getByRole('list',{name:'HR users'}).getByRole('listitem').locator('a');
+}
+function expectCleanListUrl(url: string) {
+  const params = new URL(url).searchParams;
+  const keys = [...params.keys()];
+  expect(new Set(keys).size).toBe(keys.length);
+  for (const [key, value] of params) expect(value, `${key} should not be blank`).not.toBe('');
+}
+
+test('D1: sorting switches to descending and stays there', async ({page},testInfo)=>{
+  await openHrAccess(page);
+  if (testInfo.project.name==='desktop') {
+    const header=page.getByRole('columnheader',{name:/^Name/});
+    await header.getByRole('link').click();
+    await expect(header).toHaveAttribute('aria-sort','ascending');
+    await expect(page).toHaveURL(/[?&]sort=name(&|$)/);
+    await header.getByRole('link').click();
+    await expect(header).toHaveAttribute('aria-sort','descending');
+    await expect(page).toHaveURL(/[?&]sort=name&direction=desc(&|$)/);
+    await expectNamesDescending(page,testInfo.project.name);
+    await header.getByRole('link').click();
+    await expect(header).toHaveAttribute('aria-sort','ascending');
+  } else {
+    await page.getByRole('button',{name:/Filters/}).click();
+    const sheet=page.getByRole('dialog');
+    await sheet.getByLabel('Sort by').selectOption('name');
+    await expect(sheet.getByLabel('Order')).toHaveValue('asc');
+    await sheet.getByLabel('Order').selectOption('desc');
+    await sheet.getByRole('button',{name:'Apply'}).click();
+    await expect(page).toHaveURL(/[?&]sort=name&direction=desc(&|$)/);
+    await page.getByRole('button',{name:/Filters/}).click();
+    await expect(page.getByRole('dialog').getByLabel('Order')).toHaveValue('desc');
+    await page.keyboard.press('Escape');
+    await expectNamesDescending(page,testInfo.project.name);
+  }
+});
+async function expectNamesDescending(page: import('@playwright/test').Page, project: string) {
+  const names=(await hrUserNames(page,project).allTextContents()).map((name)=>name.trim());
+  expect(names.length).toBeGreaterThan(1);
+  expect(names).toEqual([...names].sort((a,b)=>b.localeCompare(a,'en',{sensitivity:'base'})));
+}
+
+test('D2: a page step with no page is plain text, not a link', async ({page})=>{
+  await openHrAccess(page,'?status=ALL&pageSize=100');
+  const pages=page.getByRole('navigation',{name:'HR user pages'});
+  await expect(pages).toContainText('Page 1 of 1');
+  await expect(pages.getByRole('link')).toHaveCount(0);
+  await expect(pages.locator('a')).toHaveCount(0);
+  await expect(pages.getByText('Previous')).toHaveAttribute('aria-disabled','true');
+  await expect(pages.getByText('Next')).toHaveAttribute('aria-disabled','true');
+
+  await page.goto('/hr-access?status=ALL&pageSize=1');
+  await expect(pages.getByText('Previous')).toHaveAttribute('aria-disabled','true');
+  await expect(pages.getByRole('link',{name:'Previous'})).toHaveCount(0);
+  await expect(pages.getByRole('link',{name:'Next'})).toHaveAttribute('href',/page=2/);
+});
+
+test('D3: search and filters return results with clean URLs, and a bad link says so', async ({page},testInfo)=>{
+  await openHrAccess(page);
+  const search=page.getByRole('search',{name:'Search and filter HR users'});
+  await search.getByLabel('Search by name or exact email').fill('Rohan Mehta');
+  await search.getByRole('button',{name:'Search'}).click();
+  await expect(page).toHaveURL(/[?&]q=Rohan(\+|%20)Mehta/);
+  expectCleanListUrl(page.url());
+  await expect(hrUserNames(page,testInfo.project.name).filter({hasText:'Rohan Mehta'})).toHaveCount(1);
+  await expect(page.getByText(/not responding/)).toHaveCount(0);
+
+  await page.goto('/hr-access');
+  if (testInfo.project.name==='desktop') {
+    await search.getByLabel('Role').selectOption('ADMIN');
+    await search.getByRole('button',{name:'Apply filters'}).click();
+  } else {
+    await page.getByRole('button',{name:/Filters/}).click();
+    const sheet=page.getByRole('dialog');
+    await sheet.getByLabel('Role').selectOption('ADMIN');
+    await sheet.getByRole('button',{name:'Apply'}).click();
+  }
+  await expect(page).toHaveURL(/[?&]role=ADMIN(&|$)/);
+  expectCleanListUrl(page.url());
+  await expect(hrUserNames(page,testInfo.project.name).filter({hasText:'Meera Iyer'})).toHaveCount(1);
+  await expect(hrUserNames(page,testInfo.project.name).filter({hasText:'Rohan Mehta'})).toHaveCount(0);
+  if (testInfo.project.name==='mobile') {
+    // A search after a sheet filter keeps that filter: the hidden desktop fields are not stale.
+    await search.getByLabel('Search by name or exact email').fill('Meera');
+    await search.getByRole('button',{name:'Search'}).click();
+    await expect(page).toHaveURL(/[?&]q=Meera&role=ADMIN(&|$)/);
+  }
+
+  await page.goto('/hr-access?role=CEO');
+  const alert=page.getByRole('alert').filter({hasText:'These filters could not be applied'});
+  await expect(alert).toBeVisible();
+  await expect(page.getByText(/not responding/)).toHaveCount(0);
+  await alert.getByRole('link',{name:'Clear filters'}).click();
+  await expect(page).toHaveURL(/\/hr-access$/);
+  await expect(hrUserNames(page,testInfo.project.name).first()).toBeVisible();
+  await expectCleanA11y(page);
+});
+
+test('D4: create and regenerate forms start blank on the next visit', async ({page},testInfo)=>{
+  await openHrAccess(page);
+  const email=`qa.reset.${Date.now()}.${testInfo.project.name}@example.com`;
+  await page.getByRole('link',{name:'Add HR user'}).click();
+  await page.getByLabel('Display name').fill('QA Reset HR');
+  await page.getByLabel('Email',{exact:true}).fill(email);
+  await page.getByRole('checkbox',{name:'India'}).check();
+  await page.getByRole('checkbox',{name:'Tech'}).check();
+  await page.getByRole('button',{name:'Preview change'}).click();
+  await page.getByRole('button',{name:'Create HR user'}).click();
+  await expect(page.getByRole('heading',{name:'Temporary password, shown once'})).toBeVisible();
+  await page.getByRole('button',{name:'Done, I have shared it'}).click();
+  await page.waitForURL(/\/hr-access\/\d+$/);
+  const detailUrl=page.url();
+
+  // Client-side navigation only: a reload would discard the hidden route and hide the defect.
+  await page.getByRole('link',{name:'← HR Access'}).filter({visible:true}).click();
+  await page.waitForURL(/\/hr-access(\?.*)?$/);
+  await page.getByRole('link',{name:'Add HR user'}).click();
+  await page.waitForURL('**/hr-access/new');
+  const displayName=page.getByLabel('Display name').filter({visible:true});
+  await expect(displayName).toHaveValue('');
+  await expect(page.getByLabel('Email',{exact:true}).filter({visible:true})).toHaveValue('');
+  await expect(page.getByRole('heading',{name:/complete$/})).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:'Temporary password, shown once'})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Preview change'})).toBeVisible();
+
+  await page.goto(detailUrl);
+  await page.getByRole('link',{name:'Regenerate temporary password'}).click();
+  await page.getByLabel('Reason').fill('QA reset check');
+  await page.getByRole('button',{name:'Preview change'}).click();
+  await page.getByRole('button',{name:'Regenerate temporary password'}).click();
+  await expect(page.getByRole('heading',{name:'Temporary password, shown once'})).toBeVisible();
+  await page.getByRole('button',{name:'Done, I have shared it'}).click();
+  await page.waitForURL(/\/hr-access\/\d+$/);
+  await page.getByRole('link',{name:'Regenerate temporary password'}).click();
+  await page.waitForURL(/\/regenerate-password$/);
+  await expect(page.getByLabel('Reason').filter({visible:true})).toHaveValue('');
+  await expect(page.getByRole('heading',{name:'Temporary password, shown once'})).toHaveCount(0);
+  await expect(page.getByLabel('Temporary password value')).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:/complete$/})).toHaveCount(0);
+});
+
 async function expectNoOverflow(page: import('@playwright/test').Page){
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 }
