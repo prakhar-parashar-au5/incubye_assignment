@@ -9,7 +9,7 @@ import { EVAL_DEFECTS, EVAL_GATES, EVAL_METHOD, EVAL_RECHECK, EVAL_REPORT, EVAL_
 
 export const metadata: Metadata = { title: "AI evaluation", robots: { index: false, follow: false } };
 
-const SUBTITLE = "Live evaluation 01 of the assistant: the method, the results, the two hard-gate failures, and their fix.";
+const SUBTITLE = "Live evaluation 01 of the assistant: how it was run, the results, the two hard-gate failures (pass-or-fail checks that block acceptance), and their fix.";
 
 export default function AiEvaluationPage() {
   return (

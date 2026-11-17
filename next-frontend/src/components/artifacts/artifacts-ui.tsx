@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ExternalLink } from "lucide-react";
 
-import { ARTIFACTS_HREF, rawHref, repoHref, type ArtifactCard } from "@/lib/artifacts";
+import { ARTIFACT_GROUPS, ARTIFACTS_HREF, rawHref, repoHref, type ArtifactCard } from "@/lib/artifacts";
 import { NOT_ON_MASTER, type Source } from "@/lib/artifacts-content";
 import { cn } from "@/lib/utils";
 
@@ -24,36 +24,51 @@ export function ArtifactsHeading({ title, subtitle, back = true }: { title: stri
 }
 
 /**
- * The overview: one ruled entry per artifact with a title, one sentence, and a link. An entry
- * whose generated page has not been synced yet is plain text marked "Coming soon", never a link.
+ * The overview: three short groups (Thinking, How it works, Quality and history), each a ruled
+ * list with one entry per artifact: a title, one sentence, and a link. An entry whose page is not
+ * available yet is plain text marked "Coming soon", never a link.
  */
 export function ArtifactCardList({ cards, available }: { cards: readonly ArtifactCard[]; available: ReadonlySet<string> }) {
   return (
-    <ul aria-label="Artifacts" className="mt-8 max-w-3xl divide-y divide-line border-y border-line">
-      {cards.map((card) => {
-        const ready = !card.pending && (!card.file || available.has(card.file));
+    <nav aria-label="Artifacts" className="mt-8 max-w-3xl space-y-8">
+      {ARTIFACT_GROUPS.map((group) => {
+        const inGroup = cards.filter((card) => card.group === group);
+        if (inGroup.length === 0) return null;
+        const id = `group-${group.toLowerCase().replace(/[^a-z]+/g, "-")}`;
         return (
-          <li key={card.href} className="grid gap-1 py-4 sm:grid-cols-[minmax(0,1fr)_9rem] sm:gap-x-6">
-            <div className="min-w-0">
-              <h2 className="text-[0.9375rem] font-semibold">
-                {ready ? (
-                  <Link href={card.href} className="text-primary underline underline-offset-4">
-                    {card.title}
-                  </Link>
-                ) : (
-                  card.title
-                )}
-              </h2>
-              <p className="mt-1 text-sm text-pretty text-muted-foreground">{card.summary}</p>
-            </div>
-            <p className="text-[0.8125rem] text-muted-foreground sm:text-right">
-              {card.label}
-              {ready ? null : <span className="block font-medium text-foreground">Coming soon</span>}
-            </p>
-          </li>
+          <section key={group} aria-labelledby={id}>
+            <h2 id={id} className="text-[0.9375rem] font-semibold">
+              {group}
+            </h2>
+            <ul aria-labelledby={id} className="mt-2 divide-y divide-line border-y border-line">
+              {inGroup.map((card) => {
+                const ready = !card.pending && (!card.file || available.has(card.file));
+                return (
+                  <li key={card.href} className="grid gap-1 py-4 sm:grid-cols-[minmax(0,1fr)_9rem] sm:gap-x-6">
+                    <div className="min-w-0">
+                      <h3 className="text-[0.9375rem] font-semibold">
+                        {ready ? (
+                          <Link href={card.href} className="text-primary underline underline-offset-4">
+                            {card.title}
+                          </Link>
+                        ) : (
+                          card.title
+                        )}
+                      </h3>
+                      <p className="mt-1 text-sm text-pretty text-muted-foreground">{card.summary}</p>
+                    </div>
+                    <p className="text-[0.8125rem] text-muted-foreground sm:text-right">
+                      {card.label}
+                      {ready ? null : <span className="block font-medium text-foreground">Coming soon</span>}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         );
       })}
-    </ul>
+    </nav>
   );
 }
 

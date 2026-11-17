@@ -52,8 +52,15 @@ test("Admin HR opens Artifacts from the rail, after AI monitoring, and every art
   await expect(page.getByRole("heading", { level: 1, name: "Artifacts" })).toBeVisible();
   // Counted in the DOM: on mobile the Menu closes after navigation.
   await expect(page.locator('nav[aria-label="Main"] a[href="/artifacts"][aria-current="page"]').first()).toBeAttached();
-  const list = page.getByRole("list", { name: "Artifacts" });
+  const list = page.getByRole("navigation", { name: "Artifacts" });
   await expect(list.getByRole("listitem")).toHaveCount(13);
+  // Task 07b order.
+  await expect(list.getByRole("heading", { level: 3 })).toHaveText([
+    "Requirements", "Decisions and trade-offs", "Tech stack", "How it was built", "Human specs and AI specs",
+    "Database schema", "Opening the employee directory", "An assistant question with a tool call", "A salary request and its approval",
+    "AI evaluation", "Testing", "Performance", "Evolution",
+  ]);
+  await expect(list.getByRole("heading", { level: 2 })).toHaveText(["Thinking", "How it works", "Quality and history"]);
   await noHorizontalOverflow(page);
   await noSeriousAxe(page);
   await page.screenshot({ path: testInfo.outputPath(`artifacts-overview-${testInfo.project.name}.png`), fullPage: true });
@@ -123,7 +130,7 @@ test("Admin HR opens every Task 07a page from the overview", async ({ page }, te
   ];
   for (const { link, path, check } of pages) {
     await page.goto("/artifacts");
-    await page.getByRole("list", { name: "Artifacts" }).getByRole("link", { name: link }).click();
+    await page.getByRole("navigation", { name: "Artifacts" }).getByRole("link", { name: link }).click();
     await page.waitForURL(`**${path}`);
     await expect(page.getByRole("heading", { level: 1, name: link })).toBeVisible();
     await expect(page.locator("main").filter({ visible: true }).getByText(check).first()).toBeVisible();

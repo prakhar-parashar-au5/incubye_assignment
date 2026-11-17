@@ -9,7 +9,7 @@ import { FLAKY_EXAMPLE, ROLES, WORKED_EXAMPLE, type Step } from "@/lib/artifacts
 
 export const metadata: Metadata = { title: "How it was built", robots: { index: false, follow: false } };
 
-const SUBTITLE = "One orchestrator and specialist agents, each in its own worktree, passing tasks and evidence as files. Prakhar decided product rules and ran Git.";
+const SUBTITLE = "One orchestrator and several specialist agents, each in its own worktree, passing tasks and evidence as files. Prakhar made the product decisions and ran Git.";
 
 export default function HowItWasBuiltPage() {
   return (

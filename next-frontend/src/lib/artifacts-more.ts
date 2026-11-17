@@ -78,7 +78,7 @@ export const DECISION_CARDS: readonly DecisionCard[] = [
   },
   {
     title: 'The Next server is the only API caller',
-    decision: 'Browser → Next.js server → Express. The session JWT lives in an HttpOnly cookie and the API base URL is server-only.',
+    decision: 'Browser → Next.js server → Express: a BFF (backend for frontend). The session JWT lives in an HttpOnly cookie, which page scripts cannot read, and the API base URL is server-only.',
     options: 'A browser that calls Express directly with a public base URL (NEXT_PUBLIC_API_BASE_URL) is ruled out.',
     why: 'The browser never receives a JWT, an Authorization header, a database URL, or a backend secret.',
     cost: 'One more hop per request, a server-side API client with its own timeout and error mapping, and Express sees the Next server as the caller, which shaped the login rate limit.',
@@ -94,7 +94,7 @@ export const DECISION_CARDS: readonly DecisionCard[] = [
   },
   {
     title: 'Versioned compensation, stale checks, idempotency keys',
-    decision: 'Compensation is immutable versions. Every change carries the expected version, locks the employee row, and needs an idempotency key bound to the exact command.',
+    decision: 'Compensation is stored as immutable versions. Every change carries the version it expects (optimistic concurrency: a change made from an out-of-date screen fails instead of overwriting) and locks the employee row. It also needs an idempotency key bound to the exact command (so a retried click does not apply the change twice).',
     options: 'Overwriting a salary column on the employee. For idempotency, matching on the outcome rather than a fingerprint of the command, which the first build did.',
     why: 'History and future-dated changes survive, a stale change fails instead of overwriting, and a retried request replays its result rather than applying twice.',
     cost: 'Reads must pick the current version by effective date. Each mutation needs a lock, a version re-read, and a stored command fingerprint; the same key with a different command is a conflict.',
@@ -118,7 +118,7 @@ export const DECISION_CARDS: readonly DecisionCard[] = [
   },
   {
     title: 'Existence privacy',
-    decision: 'An employee outside the caller’s scope gets the same 404 as one that does not exist, and search and counts reveal nothing outside scope.',
+    decision: 'The API never reveals whether a hidden record exists. An employee outside the caller’s scope gets the same 404 as one that does not exist, and search and counts show nothing outside scope.',
     options: 'A 403 for an inaccessible employee would confirm that it exists.',
     why: 'Scoped HR must not learn names, IDs, or counts outside its access. Saved conversations follow the same rule.',
     cost: 'Scoped HR cannot tell “no such employee” from “not yours”.',
@@ -134,7 +134,7 @@ export const DECISION_CARDS: readonly DecisionCard[] = [
   },
   {
     title: 'AI recording fails closed',
-    decision: 'Each step is recorded before it runs and its outcome after. If the trace cannot be saved, the assistant does not call the model or a tool and returns a generic error.',
+    decision: 'If a step cannot be recorded, it does not run. Each step is recorded before it runs and its outcome after; if the trace cannot be saved, the assistant calls neither the model nor a tool and returns a generic error.',
     options: 'Best-effort logging after the fact.',
     why: 'Every model and tool call can then be reviewed. A failure in the AI path must not affect any other feature.',
     cost: 'A trace-storage failure stops the assistant.',
@@ -228,7 +228,7 @@ export const PERFORMANCE_SETUP: { label: string; value: string }[] = [
   { label: 'Machine', value: 'Apple M4 Pro, 12 cores, 24 GB; Docker VM with 12 CPUs, 7.7 GB' },
   { label: 'Database', value: 'Fresh mysql:8.4 (8.4.13) on tmpfs, migrations 001–008' },
   { label: 'Data', value: '10,000 employees, 10,012 compensation records, 6 salary requests, 5 HR users, 10,000 AI traces over 90 days' },
-  { label: 'Method', value: 'Real services through a pool wrapper that records each SQL statement; p50 and p95 over 30 runs after 2 warm-up calls; rows examined from performance_schema; plans from EXPLAIN' },
+  { label: 'Method', value: 'The real services, called through a wrapper that records each SQL statement. p50 and p95 (the median and the 95th-percentile time) over 30 runs after 2 warm-up calls. Rows examined from performance_schema; plans from EXPLAIN.' },
   { label: 'Limits', value: 'Local and single-user, no concurrency. History is thin (12 non-import changes), so history-heavy queries were measured at that volume only.' },
 ];
 
@@ -358,7 +358,7 @@ export const EVAL_TASK = 'tester_docs/ai-assistant-tester/tasks/01-live-assistan
 
 export const EVAL_METHOD: { title: string; body: string; sources: Source[] }[] = [
   { title: 'Two passes per prompt', body: 'First the visible answer, cards, limitations, and latency are judged as an HR user would see them. Only then is the matching Admin trace opened and reconciled: model calls, tool calls, arguments, results, tokens, and the final answer.', sources: [{ path: EVAL_TASK, note: 'Two-pass rule' }] },
-  { title: 'Hard gates kept apart from quality scores', body: 'Deterministic gates (scope, existence privacy, exact money, currency, time, no mutation, tool validity, trace completeness, no secrets) pass or fail on their own. Answer quality is scored 0 to 3 per dimension, and a hard-gate failure blocks acceptance whatever the scores.', sources: [{ path: 'tester_docs/ai-assistant-tester/handoff.md' }, { path: EVAL_TASK, note: 'Hard gates' }, { path: EVAL_REPORT, note: 'verdict' }] },
+  { title: 'Hard gates kept apart from quality scores', body: 'Hard gates are pass-or-fail checks (scope, existence privacy, exact money, currency, time, no mutation, tool validity, trace completeness, no secrets). Answer quality is scored 0 to 3 per dimension, and a hard-gate failure blocks acceptance whatever the scores.', sources: [{ path: 'tester_docs/ai-assistant-tester/handoff.md' }, { path: EVAL_TASK, note: 'Hard gates' }, { path: EVAL_REPORT, note: 'verdict' }] },
   { title: 'Independent oracles', body: 'Answers are checked against the frozen app’s directory, detail, and dashboard values and approved fixture values, not against the trace alone, because an answer and its trace can share the same wrong tool result.', sources: [{ path: EVAL_TASK, note: 'Independent oracle' }, { path: 'tester_docs/ai-assistant-tester/oracle-fixture-manifest.json' }] },
 ];
 

@@ -9,7 +9,7 @@ import { DECISION_CARDS } from "@/lib/artifacts-more";
 
 export const metadata: Metadata = { title: "Decisions and trade-offs", robots: { index: false, follow: false } };
 
-const SUBTITLE = "Each decision with the options considered, why this one was chosen, and what it costs. Every entry links to its source.";
+const SUBTITLE = "Each decision shows the options considered, why it was chosen, and what it costs, with a link to its source.";
 
 export default function DecisionsPage() {
   return (

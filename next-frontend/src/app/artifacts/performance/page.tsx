@@ -9,7 +9,7 @@ import { PERFORMANCE_DOC, PERFORMANCE_FINDINGS, PERFORMANCE_NEXT, PERFORMANCE_SE
 
 export const metadata: Metadata = { title: "Performance", robots: { index: false, follow: false } };
 
-const SUBTITLE = "Measured numbers only, from the backend performance run. Times are milliseconds for the whole service call.";
+const SUBTITLE = "Measured numbers only, from the backend performance run. Times are in milliseconds for the whole service call.";
 
 export default function PerformancePage() {
   return (

@@ -9,7 +9,7 @@ import { DECISIONS, STACK } from "@/lib/artifacts-content";
 
 export const metadata: Metadata = { title: "Tech stack", robots: { index: false, follow: false } };
 
-const SUBTITLE = "Each layer, the version in the package.json files, and why. Every row links to the files that show it.";
+const SUBTITLE = "Each layer with its version from the package.json files and the reason for it. Every row links to the files that show it.";
 
 export default function TechStackPage() {
   return (

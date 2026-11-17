@@ -9,7 +9,7 @@ import { availableArtifacts } from "@/server/artifacts";
 
 export const metadata: Metadata = { title: "Artifacts", robots: { index: false, follow: false } };
 
-const SUBTITLE = "How the system works and how it was built. Static pages; no employee data.";
+const SUBTITLE = "How the system works and how it was built. Static pages with no employee data.";
 
 export default function ArtifactsOverviewPage() {
   return (
