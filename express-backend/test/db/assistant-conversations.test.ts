@@ -202,7 +202,7 @@ describe('recorded turns in MySQL', () => {
     const [trace] = await query('SELECT model_messages, user_content, prompt_version, prompt_hash, model FROM ai_traces WHERE id = ?', [res.body.traceId]);
     assert.deepEqual(trace?.model_messages, expected);
     assert.deepEqual(trace?.user_content, { text: 'Q7', retryOfTraceId: null });
-    assert.deepEqual([trace?.prompt_version, trace?.model], ['assistant-instructions-v1', 'fake-model']);
+    assert.deepEqual([trace?.prompt_version, trace?.model], ['assistant-instructions-v2', 'fake-model']);
     const [call] = await query('SELECT input_messages, prompt_hash FROM ai_model_calls WHERE trace_id = ?', [res.body.traceId]);
     assert.deepEqual((call?.input_messages as { messages: unknown }).messages, expected);
     assert.equal(call?.prompt_hash, trace?.prompt_hash);
@@ -359,6 +359,28 @@ describe('recorded turns in MySQL', () => {
       res.body, logs,
     ]);
     for (const secret of secrets) assert.ok(!everything.includes(secret), secret);
+  });
+
+  // Detects (Task 05, eval-01 D1): a Scoped ranking or total stored or answered without its coverage statement.
+  test('Scoped HR ranking and summary results carry the scope limitation in the stored result and the turn response', async () => {
+    const LIMITATION = 'Covers only employees in your access: India; Support, Tech.';
+    steps = [() => ({ kind: 'tool_calls', calls: [
+      { callId: 'c_top', name: 'get_top_compensated_employees', arguments: '{"metric":"ANNUAL_BASE","limit":5}' },
+      { callId: 'c_sum', name: 'get_compensation_summary', arguments: '{"groupBy":"CURRENCY","metric":"ANNUAL_BASE"}' },
+    ] }), () => answer('Here.')];
+    const res = await send(await create('rohan'), 'Top five company-wide, and the total?', newKey(), 'rohan');
+    assert.equal(res.status, 200, res.text);
+    assert.equal(res.body.limitations[0], LIMITATION);
+    const stored = await query('SELECT tool_name, result FROM ai_tool_calls WHERE trace_id = ? ORDER BY sequence', [res.body.traceId]);
+    assert.deepEqual(stored.map((r) => [r.tool_name, (r.result as { limitations: string[] }).limitations[0]]),
+      [['get_top_compensated_employees', LIMITATION], ['get_compensation_summary', LIMITATION]]);
+    const [trace] = await query('SELECT prompt_version FROM ai_traces WHERE id = ?', [res.body.traceId]);
+    assert.equal(trace?.prompt_version, 'assistant-instructions-v2');
+
+    steps = [() => callTool('get_compensation_summary', { groupBy: 'CURRENCY', metric: 'ANNUAL_BASE' }), () => answer('Here.')];
+    const admin = await send(await create(), 'Total by currency?');
+    assert.equal(admin.status, 200, admin.text);
+    assert.ok(!(admin.body.limitations as string[]).some((l) => l.startsWith('Covers only')), 'Admin HR gets no scope limitation');
   });
 
   // Detects: a timeout or provider error recorded as success or with a fabricated answer.

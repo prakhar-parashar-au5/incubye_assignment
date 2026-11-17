@@ -61,7 +61,7 @@ function setup(model: ReturnType<typeof scriptedModel> | null, registry = stubRe
   });
   const memory = memoryRecorder();
   const run = (messages: readonly ModelMessage[]) => service.runTurn({
-    principal: MEERA, messages, prompt: service.prompt('2026-11-15'), requestId: 'req-1', traceId: 'trace-1', recorder: memory.recorder,
+    principal: MEERA, messages, prompt: service.prompt('2026-11-15', MEERA.role), requestId: 'req-1', traceId: 'trace-1', recorder: memory.recorder,
   });
   const ask = (content = 'Who earns the most?') => run([{ role: 'user', content }]);
   return { service, registry, logs, ask, run, steps: memory.steps };

@@ -73,7 +73,7 @@ try {
       const reply = await assistant.runTurn({
         principal: ADMIN,
         messages: [{ role: 'user', content: evalCase.question }],
-        prompt: assistant.prompt(new Date().toISOString().slice(0, 10)),
+        prompt: assistant.prompt(new Date().toISOString().slice(0, 10), ADMIN.role),
         requestId: `eval-${evalCase.id}`,
         traceId: `eval-${evalCase.id}`,
         recorder,
