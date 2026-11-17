@@ -5,7 +5,7 @@
   "description": "ACME compensation backend (strict TypeScript). Milestones: workbook generator, MySQL schema, workbook seed, HR access-control foundation.",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": "22.23.1"
   },
   "scripts": {
     "lint": "eslint .",
@@ -17,6 +17,7 @@
     "db:up": "COMPOSE_DISABLE_ENV_FILE=1 docker compose up -d --wait",
     "db:down": "COMPOSE_DISABLE_ENV_FILE=1 docker compose down",
     "db:migrate": "tsx scripts/migrate.ts",
+    "db:create": "tsx scripts/create-database.ts",
     "db:seed": "tsx scripts/seed-database.ts",
     "db:seed-demo-users": "tsx scripts/seed-demo-users.ts",
     "generate:workbook": "tsx scripts/generate-workbook.ts",
@@ -26,6 +27,11 @@
     "eval:assistant": "tsx scripts/eval-assistant.ts",
     "eval:oracle-fixtures": "tsx scripts/eval-oracle-fixtures.ts",
     "eval:trace-fixtures": "tsx scripts/eval-trace-fixtures.ts",
+    "db:create:dist": "node dist/scripts/create-database.js",
+    "db:migrate:dist": "node dist/scripts/migrate.js",
+    "db:seed:dist": "node dist/scripts/seed-database.js",
+    "db:seed-demo-users:dist": "node dist/scripts/seed-demo-users.js",
+    "ai:retention:dist": "node dist/scripts/ai-retention.js",
     "start": "node dist/src/server.js"
   },
   "dependencies": {
