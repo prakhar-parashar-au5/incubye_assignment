@@ -9,7 +9,7 @@ import { SALARY_EXAMPLE, SPEC_PAIRS } from "@/lib/artifacts-more";
 
 export const metadata: Metadata = { title: "Human specs and AI specs", robots: { index: false, follow: false } };
 
-const SUBTITLE = "docs_human/ holds Prakhar’s own specs and decisions. docs/ and the task files hold the designs, test plans, and tasks the agents built from them.";
+const SUBTITLE = "docs_human/ holds Prakhar’s own specs and decisions. The agents built the designs, test plans, and tasks in docs/ and the task files from them.";
 
 export default function SpecsPage() {
   return (

@@ -10,35 +10,45 @@ afterEach(cleanup);
 describe("Artifacts overview cards", () => {
   it("shows one entry per artifact with a title, one sentence, and a link", () => {
     render(<ArtifactCardList cards={ARTIFACT_CARDS} available={new Set(["F1.html", "F2.html", "F3.html", "schema.html"])} />);
-    const items = within(screen.getByRole("list", { name: "Artifacts" })).getAllByRole("listitem");
+    const overview = screen.getByRole("navigation", { name: "Artifacts" });
+    const items = within(overview).getAllByRole("listitem");
     expect(items).toHaveLength(13);
-    const links = within(screen.getByRole("list", { name: "Artifacts" })).getAllByRole("link");
+    const links = within(overview).getAllByRole("link");
+    // Task 07b order: the thinking first, then how it works, then quality and history.
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/artifacts/requirements",
+      "/artifacts/decisions",
+      "/artifacts/tech-stack",
+      "/artifacts/how-it-was-built",
+      "/artifacts/specs",
+      "/artifacts/database",
       "/artifacts/flows/employees-click",
       "/artifacts/flows/assistant-tool-call",
       "/artifacts/flows/salary-request",
-      "/artifacts/database",
-      "/artifacts/requirements",
-      "/artifacts/decisions",
-      "/artifacts/specs",
-      "/artifacts/tech-stack",
-      "/artifacts/how-it-was-built",
       "/artifacts/ai-evaluation",
       "/artifacts/testing",
       "/artifacts/performance",
       "/artifacts/evolution",
     ]);
     for (const [index, card] of ARTIFACT_CARDS.entries()) {
-      expect(within(items[index]).getByRole("heading", { level: 2, name: card.title })).toBeVisible();
+      expect(within(items[index]).getByRole("heading", { level: 3, name: card.title })).toBeVisible();
       expect(within(items[index]).getByText(card.summary)).toBeVisible();
       // One sentence each.
       expect(card.summary.match(/[.!?](\s|$)/g)).toHaveLength(1);
     }
   });
 
+  it("groups the entries under three headings: 1–5, 6–9, and 10–13", () => {
+    render(<ArtifactCardList cards={ARTIFACT_CARDS} available={new Set(["F1.html", "F2.html", "F3.html", "schema.html"])} />);
+    const overview = screen.getByRole("navigation", { name: "Artifacts" });
+    expect(within(overview).getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Thinking", "How it works", "Quality and history"]);
+    const counts = ["Thinking", "How it works", "Quality and history"].map((name) => within(within(overview).getByRole("list", { name })).getAllByRole("listitem").length);
+    expect(counts).toEqual([5, 4, 4]);
+  });
+
   it("an artifact whose page is not synced yet is plain text marked Coming soon, not a link", () => {
     render(<ArtifactCardList cards={ARTIFACT_CARDS} available={new Set(["F1.html", "F2.html"])} />);
-    const list = screen.getByRole("list", { name: "Artifacts" });
+    const list = screen.getByRole("navigation", { name: "Artifacts" });
     expect(within(list).getAllByRole("link")).toHaveLength(11);
     expect(within(list).queryByRole("link", { name: /salary request/i })).toBeNull();
     expect(within(list).queryByRole("link", { name: "Database schema" })).toBeNull();
