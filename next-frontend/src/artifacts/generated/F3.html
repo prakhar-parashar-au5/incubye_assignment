@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>F3: Scoped HR requests a salary change and Admin HR approves it</title>
+<style>
+  :root {
+    --ground: #f7f5f1; --ink: #18233a; --muted: #4a5467; --line: #dcd7cd; --surface: #ffffff;
+    --accent: #2a57c0; --db: #8a5a00; --db-wash: #fbf4e4; --ai: #6b4fa0; --ai-wash: #f1edf8;
+    --error: #b3261e; --ok: #1d6e46;
+    --t-browser: #efece6; --t-next-server: #e9eef8; --t-express: #edf5f0; --t-mysql: #faf4e6; --t-openai: #f3effa;
+    --sans: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.45; }
+  .page { max-width: 1440px; margin: 0 auto; padding: 32px 32px 40px; }
+  header h1 { font-size: 26px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 15px; max-width: 72ch; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 16px 0 20px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { display: inline-block; width: 22px; height: 0; border-top: 2px solid var(--ink); }
+  .sw.dashed { border-top-style: dashed; border-color: var(--accent); }
+  .grid { --gutter: 3rem; --edgecol: 19rem; position: relative; }
+  .heads, .row { display: grid; grid-template-columns: var(--gutter) var(--edgecol) 1fr; }
+  .heads .lanes { display: grid; grid-template-columns: repeat(5, 1fr); }
+  .lane-head { font-size: 12px; font-weight: 600; text-transform: none; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: center; }
+  .bands { position: absolute; top: 0; bottom: 0; left: calc(var(--gutter) + var(--edgecol)); right: 0; display: grid; grid-template-columns: repeat(5, 1fr); z-index: 0; }
+  .band { border-left: 1px solid var(--line); }
+  .band:last-child { border-right: 1px solid var(--line); }
+  .lane-browser { background: var(--t-browser); } .lane-next-server { background: var(--t-next-server); } .lane-express { background: var(--t-express); }
+  .lane-mysql { background: var(--t-mysql); } .lane-openai { background: var(--t-openai); }
+  .lane-head.lane-browser, .lane-head.lane-next-server, .lane-head.lane-express, .lane-head.lane-mysql, .lane-head.lane-openai { background: none; }
+  .row { position: relative; z-index: 1; break-inside: avoid; page-break-inside: avoid; }
+  .num { position: relative; }
+  .num::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 2px solid var(--line); }
+  .row.start .num::before { top: 50%; }
+  .dot { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin: 12px 0 0 calc(50% - 13px); border-radius: 50%; background: var(--ink); color: #fff; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .dot-back { background: var(--surface); color: var(--accent); border: 2px dashed var(--accent); }
+  .edge { padding: 12px 14px 12px 4px; border-bottom: 1px solid #ebe7df; min-width: 0; }
+  .trigger { font-weight: 600; padding-top: 14px; }
+  .from { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  .elabel { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+  .sync { font-size: 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-weight: 400; }
+  .payload { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
+  .note { font-size: 11.5px; margin-top: 6px; padding: 5px 8px; border-radius: 6px; }
+  .fail-note { background: #fcf1f0; color: #7d1a14; border: 1px solid #e3b3ae; }
+  .scope-note { background: #e6ecf8; color: var(--ink); border: 1px solid #c3d0ec; }
+  .alt { margin-top: 8px; padding: 6px 9px; font-size: 11.5px; border-left: 3px solid var(--muted); background: var(--surface); border-radius: 0 6px 6px 0; color: var(--ink); }
+  .alt-title { font-weight: 600; }
+  .alt-result { color: var(--muted); margin-top: 2px; }
+  .lanes { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; padding: 10px 0; min-height: 76px; }
+  .cell { position: relative; z-index: 2; padding: 0 8px; display: flex; justify-content: center; }
+  .h { position: absolute; top: 0; height: 0; border-top: 2px solid var(--ink); z-index: 1; }
+  .v { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--ink); z-index: 1; }
+  .dashed { border-color: var(--accent) !important; border-style: dashed !important; }
+  .row:last-child .v { bottom: 50%; }
+  .card, .pill { width: 100%; max-width: 230px; background: var(--surface); border: 1px solid #c9c3b7; border-radius: 10px; padding: 7px 10px; }
+  .pill { border-radius: 999px; text-align: center; border: 2px solid var(--ink); padding: 8px 16px; }
+  .pill .where { display: none; }
+  .label { font-size: 12.5px; font-weight: 600; line-height: 1.3; }
+  .mono { font-family: var(--mono); }
+  .sym { font-size: 11px; color: var(--accent); overflow-wrap: anywhere; margin-top: 2px; }
+  .where { font-size: 10px; color: var(--muted); overflow-wrap: anywhere; margin-top: 1px; }
+  .persona { display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em; border-radius: 4px; padding: 0 5px; margin-bottom: 3px; }
+  .who { display: inline-block; font-size: 10.5px; font-weight: 700; border-radius: 4px; padding: 1px 6px; margin: 2px 0 4px; }
+  .p-0 { background: #e6ecf8; color: #2249a3; border: 1px solid #c3d0ec; }
+  .p-1 { background: #eef7f1; color: #1d6e46; border: 1px solid #b9dcc8; }
+  .p-2 { background: #ece8e0; color: #4a5467; border: 1px solid #dcd7cd; }
+  .pill .persona { display: block; width: fit-content; margin: 0 auto 3px; }
+  .again { margin-left: 6px; font-size: 10px; font-weight: 500; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; justify-content: inherit; }
+  .badge { font-size: 9.5px; font-weight: 600; border-radius: 4px; padding: 1px 5px; }
+  .badge.obs { background: var(--db-wash); color: var(--db); border: 1px solid #e5cf9f; }
+  .badge.fail { background: #fcf1f0; color: var(--error); border: 1px solid #e3b3ae; }
+  .badge.scope { background: #e6ecf8; color: var(--accent); border: 1px solid #c3d0ec; }
+  /* Cylinder: a fixed-height elliptical cap over a body that grows with its text. */
+  .cyl { position: relative; width: 100%; max-width: 210px; margin-top: 10px; background: var(--surface); border: 2px solid var(--db); border-top: none; border-radius: 0 0 50% 50% / 0 0 12px 12px; padding: 0 0 8px; }
+  .cyl::before { content: ""; position: absolute; left: -2px; right: -2px; top: -10px; height: 20px; border: 2px solid var(--db); border-radius: 50%; background: var(--db-wash); }
+  .cyl-text { position: relative; padding: 16px 12px 4px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .cyl-text .mono { font-size: 11.5px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+  .op { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; color: var(--db); }
+  .cyl .badges { position: relative; justify-content: center; margin-top: 4px; }
+  .hex { position: relative; width: 100%; max-width: 210px; height: 80px; }
+  .hex svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .hex-shape { fill: var(--ai-wash); stroke: var(--ai); stroke-width: 2; vector-effect: non-scaling-stroke; }
+  .hex-text { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 26px; }
+  .hex-text strong { font-size: 12.5px; color: var(--ai); }
+  .hex-text .mono { font-size: 10.5px; color: var(--ink); }
+  footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+  footer ul { margin: 8px 0 0; padding-left: 18px; }
+  footer li { margin: 3px 0; }
+  footer p { margin: 4px 0; }
+  @media print {
+    html, body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { padding: 12px; max-width: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>F3: Scoped HR requests a salary change and Admin HR approves it</h1>
+    <p>Rohan Mehta (Scoped HR: India; Support, Tech) and Meera Iyer (Admin HR), on one thread; each box says who acts. 35 code steps across 4 layers, in 39 numbered calls from the click to the screen. In the HTML, hover a box to read what it does.</p>
+  </header>
+  <div class="legend">
+    <span><i class="sw"></i> request going deeper</span>
+    <span><i class="sw dashed"></i> response coming back</span>
+    <span><span class="badge obs">writes trace</span> AI observability write</span>
+    <span><span class="badge fail">fails closed</span> stops if this step fails</span>
+    <span><span class="badge scope">scope rule</span> access scope applied</span>
+    <span>Cylinder: MySQL table · Hexagon: OpenAI · <span class="sync">sync</span> no await</span>
+  </div>
+  <div class="grid">
+    <div class="bands" aria-hidden="true"><div class="band lane-browser"></div><div class="band lane-next-server"></div><div class="band lane-express"></div><div class="band lane-mysql"></div><div class="band lane-openai"></div></div>
+    <div class="heads"><div></div><div class="lane-head" style="text-align:left">Call and payload</div><div class="lanes" style="padding:0;min-height:0"><div class="lane-head lane-browser">Browser</div><div class="lane-head lane-next-server">Next server</div><div class="lane-head lane-express">Express</div><div class="lane-head lane-mysql">MySQL</div><div class="lane-head lane-openai">OpenAI</div></div></div>
+    <div class="row start">
+    <div class="num"></div>
+    <div class="edge"><div class="trigger">Rohan opens Adjust compensation for an in-scope employee, previews a 5% base increase, and submits it; Meera opens the approval queue and approves</div></div>
+    <div class="lanes"><div class="cell" style="grid-column:1"><div class="pill kind-ui-event" title="Validates the form and asks for the backend's exact preview; nothing changes yet.">
+    <div class="persona p-0">Rohan (Scoped HR)</div><div class="label">Rohan: Preview</div>
+    <div class="mono sym">function runPreview</div>
+    <div class="where">next-frontend/…/app/employees/[employeeCode]/adjust/adjustment-workspace.tsx:426</div>
+    
+  </div></div></div>
+  </div>
+<div class="row">
+      <div class="num"><span class="dot">1</span></div>
+      <div class="edge">
+        
+        <div class="elabel">previewSalaryAdjustment(employee.code, command)</div>
+        <div class="payload">SalaryAdjustmentCommand { target, method, value, effectiveFrom, reason, note }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:10%;width:20%"></div><div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-server-action" title="Untrusted entry point: checks the employee code and command shape, reads the session cookie, calls Express.">
+    <div class="persona p-0">Rohan (Scoped HR)</div><div class="label">previewSalaryAdjustment</div>
+    <div class="mono sym">export async function previewSalaryAdjustment</div>
+    <div class="where">next-frontend/…/server/actions/salary.ts:64</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">2</span></div>
+      <div class="edge">
+        
+        <div class="elabel">POST /api/v1/employees/{employeeCode}/salary-adjustments/preview</div>
+        <div class="payload">Authorization: Bearer, SalaryAdjustmentCommand</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:30%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-middleware" title="Reloads the caller's session, role, status, and scopes from MySQL on every request (F1 steps 10–14).">
+    <div class="persona p-2">System</div><div class="label">requireAuth (each request)</div>
+    <div class="mono sym">requireAuth</div>
+    <div class="where">express-backend/…/http/auth-routes.ts:29</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">3</span></div>
+      <div class="edge">
+        <div class="who p-0">Rohan (Scoped HR)</div>
+        <div class="elabel">next() with res.locals.principal (Rohan, SCOPED) <span class="sync">sync</span></div>
+        <div class="payload">Principal { role, countries, departments }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-route-handler" title="Parses SalaryAdjustmentCommand and returns SalaryAdjustmentPreview (no write).">
+    <div class="persona p-0">Rohan (Scoped HR)</div><div class="label">POST …/salary-adjustments/preview</div>
+    <div class="mono sym">router.post(PATHS.salaryAdjustmentPreview</div>
+    <div class="where">express-backend/…/http/salary-routes.ts:90</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">4</span></div>
+      <div class="edge">
+        
+        <div class="elabel">service.preview(principal, employeeCode, command)</div>
+        <div class="payload">→ SalaryAdjustmentPreview</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Finds the employee in scope, loads versions and the band, refuses a second pending request, plans the change, and signs a preview token. Mode is SUBMIT_REQUEST for Scoped HR.">
+    <div class="persona p-0">Rohan (Scoped HR)</div><div class="label">service.preview</div>
+    <div class="mono sym">async function preview</div>
+    <div class="where">express-backend/…/compensation/salary-adjustment-service.ts:401</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">5</span></div>
+      <div class="edge">
+        
+        <div class="elabel">findEmployee(pool, principal, employeeCode)</div>
+        <div class="payload">employeeCode → EmployeeRow</div>
+        <div class="note scope-note"><b>Scope:</b> Scope is enforced on the employee here: Rohan may act only on India employees in Support or Tech. Unknown and out-of-scope codes both raise NOT_FOUND 'Employee not found.'</div>
+        <aside class="alt"><div class="alt-title">Branch: Out-of-scope employee</div><div>If the employee is outside Rohan's countries or departments, or the code is unknown.</div><div class="alt-result">canAccessEmployee is false → NOT_FOUND 'Employee not found.' (404), the same response as an unknown code, so Rohan cannot learn the employee exists.</div></aside>
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-repository" title="Loads the employee by code, then applies canAccessEmployee(principal, country, department).">
+    <div class="persona p-2">System</div><div class="label">findEmployee + canAccessEmployee</div>
+    <div class="mono sym">async function findEmployee</div>
+    <div class="where">express-backend/…/compensation/salary-adjustment-service.ts:265</div>
+    <div class="badges"><span class="badge scope">scope rule</span></div>
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">6</span></div>
+      <div class="edge">
+        
+        <div class="elabel">EMPLOYEE_SELECT … WHERE e.employee_code = ?</div>
+        <div class="payload">employeeCode → id, country_code, department, job_title_id, status</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Employee row with country, department, job title, and status (EMPLOYEE_SELECT).">
+      <div class="cyl-text"><span class="mono">employees</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">7</span></div>
+      <div class="edge">
+        <div class="from">from service.preview</div>
+        <div class="elabel">loadContext(pool, employee, today)</div>
+        <div class="payload">→ { baseline, futureChange, maxVersion, band }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-repository" title="Reads every compensation version (baseline, future change, maxVersion) and the salary band for the role and country.">
+    <div class="persona p-2">System</div><div class="label">loadContext</div>
+    <div class="mono sym">async function loadContext</div>
+    <div class="where">express-backend/…/compensation/salary-adjustment-service.ts:280</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">8</span></div>
+      <div class="edge">
+        
+        <div class="elabel">SELECT … FROM compensation_records WHERE employee_id = ? ORDER BY version</div>
+        <div class="payload">employee_id → RecordRow[]</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="All versions of the employee's compensation; maxVersion is the expected version for later checks.">
+      <div class="cyl-text"><span class="mono">compensation_<wbr>records</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">9</span></div>
+      <div class="edge">
+        <div class="from">from loadContext</div>
+        <div class="elabel">SELECT * FROM salary_bands WHERE job_title_id = ? AND country_code = ? AND currency = ?</div>
+        <div class="payload">→ band min/max</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Minimum and maximum for this job title, country, and currency.">
+      <div class="cyl-text"><span class="mono">salary_<wbr>bands</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">10</span></div>
+      <div class="edge">
+        <div class="from">from service.preview</div>
+        <div class="elabel">pendingRequestId: SELECT public_id … WHERE employee_id = ? AND status = 'PENDING'</div>
+        <div class="payload">→ public_id | null</div>
+        
+        <aside class="alt"><div class="alt-title">Branch: Second pending request refused</div><div>If the employee already has a PENDING request.</div><div class="alt-result">preview and submitRequest raise PENDING_REQUEST_EXISTS (409). The unique key uk_ccr_one_pending on pending_employee_id is the database backstop (mapDatabaseError maps it to the same error).</div></aside>
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Is a request already PENDING for this employee? Also read for the idempotency key on submit and for Meera's queue.">
+      <div class="cyl-text"><span class="mono">compensation_<wbr>change_<wbr>requests</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">11</span></div>
+      <div class="edge">
+        <div class="from">from service.preview</div>
+        <div class="elabel">previewTokens.sign({ actor, session, employee, mode, expectedCompensationVersion, baseCompensationVersion, command })</div>
+        <div class="payload">→ { token, expiresAt }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Signed JWT bound to the actor, session, employee, mode, the expected version (ver), the baseline version (bv), and a digest of the command.">
+    <div class="persona p-2">System</div><div class="label">previewTokens.sign</div>
+    <div class="mono sym">async function sign</div>
+    <div class="where">express-backend/…/compensation/preview-token.ts:93</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">12</span></div>
+      <div class="edge">
+        <div class="who p-0">Rohan (Scoped HR)</div>
+        <div class="elabel">200 SalaryAdjustmentPreview → isSalaryAdjustmentPreview → PreviewOutcome</div>
+        <div class="payload">{ previewToken, plan, confirmationMode: SUBMIT_REQUEST }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:10%;width:40%"></div><div class="v dashed" style="left:10%"></div>
+        <div class="cell" style="grid-column:1"><div class="card kind-render" title="'Preview: nothing has changed yet' with Before | After | Change and a 'Submit for approval' button.">
+    <div class="persona p-0">Rohan (Scoped HR)</div><div class="label">Rohan sees the preview</div>
+    <div class="mono sym">function PreviewPanel</div>
+    <div class="where">next-frontend/…/app/employees/[employeeCode]/adjust/adjustment-workspace.tsx:165</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">13</span></div>
+      <div class="edge">
+        
+        <div class="elabel">click 'Submit for approval' <span class="sync">sync</span></div>
+        <div class="payload">previewToken, Idempotency-Key (new per confirmation)</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:10%"></div>
+        <div class="cell" style="grid-column:1"><div class="card kind-ui-event" title="Creates one Idempotency-Key per confirmation of this preview (newIdempotencyKey); Try again after a transport failure reuses it.">
+    <div class="persona p-0">Rohan (Scoped HR)</div><div class="label">Rohan: Submit for approval</div>
+    <div class="mono sym">function confirm</div>
+    <div class="where">next-frontend/…/app/employees/[employeeCode]/adjust/adjustment-workspace.tsx:464</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">14</span></div>
+      <div class="edge">
+        
+        <div class="elabel">confirmSalaryAdjustment({ employeeCode, mode, previewToken, adjustment, idempotencyKey })</div>
+        <div class="payload">SalaryAdjustmentConfirmation + key</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:10%;width:20%"></div><div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-server-action" title="Validates mode, preview token, command, and key; SUBMIT_REQUEST goes to the request endpoint; a stale result fetches a fresh preview.">
+    <div class="persona p-0">Rohan (Scoped HR)</div><div class="label">confirmSalaryAdjustment</div>
+    <div class="mono sym">export async function confirmSalaryAdjustment</div>
+    <div class="where">next-frontend/…/server/actions/salary.ts:73</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">15</span></div>
+      <div class="edge">
+        
+        <div class="elabel">api().submitSalaryAdjustmentRequest(token, code, body, key)</div>
+        <div class="payload">{ previewToken, adjustment }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-api-client" title="POST with Authorization: Bearer and the Idempotency-Key header; validates SalaryRequestResponse.">
+    <div class="persona p-0">Rohan (Scoped HR)</div><div class="label">submitSalaryAdjustmentRequest</div>
+    <div class="mono sym">submitSalaryAdjustmentRequest</div>
+    <div class="where">next-frontend/…/server/api/client.ts:394</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">16</span></div>
+      <div class="edge">
+        
+        <div class="elabel">POST /api/v1/employees/{employeeCode}/salary-adjustment-requests (via requireAuth)</div>
+        <div class="payload">Authorization: Bearer, Idempotency-Key, SalaryAdjustmentConfirmation</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:30%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-route-handler" title="SCOPED only (else 403); requires Idempotency-Key; parses SalaryAdjustmentConfirmation; 201 SalaryRequestResponse.">
+    <div class="persona p-0">Rohan (Scoped HR)</div><div class="label">POST …/salary-adjustment-requests</div>
+    <div class="mono sym">router.post(PATHS.employeeSalaryAdjustmentRequests</div>
+    <div class="where">express-backend/…/http/salary-routes.ts:109</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">17</span></div>
+      <div class="edge">
+        
+        <div class="elabel">service.submitRequest(principal, employeeCode, confirmation, key)</div>
+        <div class="payload">→ Replayable&lt;SalaryRequestView&gt;</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="One transaction: findEmployee (scope again), lock the employee row (SELECT … FOR UPDATE), replay a known key, refuse a second pending request, verify the preview, then insert the request.">
+    <div class="persona p-0">Rohan (Scoped HR)</div><div class="label">service.submitRequest</div>
+    <div class="mono sym">async function submitRequest</div>
+    <div class="where">express-backend/…/compensation/salary-adjustment-service.ts:678</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">18</span></div>
+      <div class="edge">
+        
+        <div class="elabel">findEmployee (scope) then lockEmployee: SELECT id FROM employees WHERE id = ? FOR UPDATE</div>
+        <div class="payload">row lock serializes every compensation write for this employee</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Employee row with country, department, job title, and status (EMPLOYEE_SELECT).">
+      <div class="cyl-text"><span class="mono">employees</span><span class="op">SELECT</span><span class="again">again</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">19</span></div>
+      <div class="edge">
+        <div class="from">from service.submitRequest</div>
+        <div class="elabel">SELECT * … WHERE requested_by_hr_user_id = ? AND request_idempotency_key = ?; then the PENDING check</div>
+        <div class="payload">known key → replay (Idempotency-Replayed: true); none → continue</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Is a request already PENDING for this employee? Also read for the idempotency key on submit and for Meera's queue.">
+      <div class="cyl-text"><span class="mono">compensation_<wbr>change_<wbr>requests</span><span class="op">SELECT</span><span class="again">again</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">20</span></div>
+      <div class="edge">
+        <div class="from">from service.submitRequest</div>
+        <div class="elabel">confirmPreview(principal, context, previewToken, adjustment, SUBMIT_REQUEST)</div>
+        <div class="payload">token.ver must equal maxVersion; token.bv must equal baseline.version</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Verifies the preview token for this actor, session, employee, and mode; the token's expected version must equal the current maxVersion and baseline, else STALE_VERSION.">
+    <div class="persona p-2">System</div><div class="label">confirmPreview (version check)</div>
+    <div class="mono sym">async function confirmPreview</div>
+    <div class="where">express-backend/…/compensation/salary-adjustment-service.ts:464</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">21</span></div>
+      <div class="edge">
+        <div class="from">from service.submitRequest</div>
+        <div class="elabel">INSERT INTO compensation_change_requests (… status PENDING, requested_against_version, request_idempotency_key …)</div>
+        <div class="payload">plan, versions, key → request row</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="PENDING request with the plan, requested_against_version, base_compensation_version, and request_idempotency_key; compensation itself does not change.">
+      <div class="cyl-text"><span class="mono">compensation_<wbr>change_<wbr>requests</span><span class="op">INSERT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">22</span></div>
+      <div class="edge">
+        <div class="who p-0">Rohan (Scoped HR)</div>
+        <div class="elabel">201 SalaryRequestResponse → isSalaryRequestResponse → router.push(/salary-requests/{requestId})</div>
+        <div class="payload">SalaryRequestView { status: PENDING }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:30%;width:40%"></div><div class="v dashed" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-render" title="After router.push to /salary-requests/{id}: loads the request (GET …/salary-adjustment-requests/{id}) and shows 'Pending approval since …; compensation has not changed'.">
+    <div class="persona p-0">Rohan (Scoped HR)</div><div class="label">Rohan sees 'Pending approval'</div>
+    <div class="mono sym">async function SalaryRequest</div>
+    <div class="where">next-frontend/…/app/salary-requests/[requestId]/page.tsx:46</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">23</span></div>
+      <div class="edge">
+        <div class="who p-1">Meera (Admin HR)</div>
+        <div class="elabel">Later, Meera opens Salary requests (pending, oldest first)</div>
+        <div class="payload">?status=PENDING&amp;direction=asc</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-next-route" title="Server Component for /salary-requests?status=PENDING&amp;direction=asc: the pending queue, oldest first.">
+    <div class="persona p-1">Meera (Admin HR)</div><div class="label">Meera: approval queue</div>
+    <div class="mono sym">async function SalaryRequests</div>
+    <div class="where">next-frontend/…/app/salary-requests/page.tsx:52</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">24</span></div>
+      <div class="edge">
+        
+        <div class="elabel">api().listSalaryAdjustmentRequests → GET /api/v1/salary-adjustment-requests (via requireAuth)</div>
+        <div class="payload">SalaryRequestListQuery → SalaryRequestList</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:30%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-route-handler" title="Parses SalaryRequestListQuery and returns SalaryRequestList.">
+    <div class="persona p-1">Meera (Admin HR)</div><div class="label">GET /salary-adjustment-requests</div>
+    <div class="mono sym">router.get(PATHS.salaryAdjustmentRequests</div>
+    <div class="where">express-backend/…/http/salary-routes.ts:120</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">25</span></div>
+      <div class="edge">
+        
+        <div class="elabel">service.listRequests(principal, query)</div>
+        <div class="payload">Principal (Meera, ADMIN), { status, direction, page, pageSize }</div>
+        <div class="note scope-note"><b>Scope:</b> scopeCondition(principal) in the WHERE clause: Admin HR sees every request; Scoped HR sees only requests for employees in their countries and departments.</div>
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-repository" title="Request view SELECT joined to employees and departments, filtered by status, ordered by created_at, paginated.">
+    <div class="persona p-1">Meera (Admin HR)</div><div class="label">service.listRequests</div>
+    <div class="mono sym">async function listRequests</div>
+    <div class="where">express-backend/…/compensation/salary-adjustment-service.ts:721</div>
+    <div class="badges"><span class="badge scope">scope rule</span></div>
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">26</span></div>
+      <div class="edge">
+        
+        <div class="elabel">REQUEST_VIEW_SELECT … WHERE scope AND r.status = ? ORDER BY r.created_at ASC LIMIT ? OFFSET ?</div>
+        <div class="payload">→ RequestViewRow[] and a COUNT</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Is a request already PENDING for this employee? Also read for the idempotency key on submit and for Meera's queue.">
+      <div class="cyl-text"><span class="mono">compensation_<wbr>change_<wbr>requests</span><span class="op">SELECT</span><span class="again">again</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">27</span></div>
+      <div class="edge">
+        <div class="who p-1">Meera (Admin HR)</div>
+        <div class="elabel">SalaryRequestList rendered; Meera opens the request and chooses Approve</div>
+        <div class="payload">requestId, nextVersion</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:10%;width:60%"></div><div class="v dashed" style="left:10%"></div>
+        <div class="cell" style="grid-column:1"><div class="card kind-ui-event" title="Inline confirmation in the Decision panel; one Idempotency-Key (crypto.randomUUID) per decision action, reused on Try again.">
+    <div class="persona p-1">Meera (Admin HR)</div><div class="label">Meera: Approve</div>
+    <div class="mono sym">function approve</div>
+    <div class="where">next-frontend/…/app/salary-requests/[requestId]/request-decision.tsx:107</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">28</span></div>
+      <div class="edge">
+        
+        <div class="elabel">approveSalaryRequest(requestId, idempotencyKey)</div>
+        <div class="payload">{ requestId, key }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:10%;width:20%"></div><div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-server-action" title="Validates the request ID and key, reads the session cookie, calls Express.">
+    <div class="persona p-1">Meera (Admin HR)</div><div class="label">approveSalaryRequest</div>
+    <div class="mono sym">export async function approveSalaryRequest</div>
+    <div class="where">next-frontend/…/server/actions/salary.ts:110</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">29</span></div>
+      <div class="edge">
+        
+        <div class="elabel">api().approveSalaryAdjustmentRequest(token, requestId, key)</div>
+        <div class="payload">requestId, Idempotency-Key</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-api-client" title="POST …/{requestId}/approve with Bearer and Idempotency-Key; validates SalaryRequestApproval.">
+    <div class="persona p-1">Meera (Admin HR)</div><div class="label">approveSalaryAdjustmentRequest</div>
+    <div class="mono sym">approveSalaryAdjustmentRequest</div>
+    <div class="where">next-frontend/…/server/api/client.ts:428</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">30</span></div>
+      <div class="edge">
+        
+        <div class="elabel">POST /api/v1/salary-adjustment-requests/{requestId}/approve (via requireAuth)</div>
+        <div class="payload">Authorization: Bearer, Idempotency-Key</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:30%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-route-handler" title="ADMIN only (else 403); requires Idempotency-Key; returns SalaryRequestApproval.">
+    <div class="persona p-1">Meera (Admin HR)</div><div class="label">POST …/{requestId}/approve</div>
+    <div class="mono sym">router.post(PATHS.salaryAdjustmentRequestApprove</div>
+    <div class="where">express-backend/…/http/salary-routes.ts:133</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">31</span></div>
+      <div class="edge">
+        
+        <div class="elabel">service.approve(principal, requestId, key)</div>
+        <div class="payload">→ Replayable&lt;SalaryRequestApproval&gt;</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="One transaction: lock the request (FOR UPDATE), replay a prior decision with the same key, require PENDING, recheck, then insert the new version and mark the request APPROVED.">
+    <div class="persona p-1">Meera (Admin HR)</div><div class="label">service.approve</div>
+    <div class="mono sym">async function approve</div>
+    <div class="where">express-backend/…/compensation/salary-adjustment-service.ts:828</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">32</span></div>
+      <div class="edge">
+        
+        <div class="elabel">lockRequest: SELECT * … WHERE id = ? FOR UPDATE; priorDecision by decision_idempotency_key</div>
+        <div class="payload">→ RequestRow (must be PENDING)</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Is a request already PENDING for this employee? Also read for the idempotency key on submit and for Meera's queue.">
+      <div class="cyl-text"><span class="mono">compensation_<wbr>change_<wbr>requests</span><span class="op">SELECT</span><span class="again">again</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">33</span></div>
+      <div class="edge">
+        <div class="from">from service.approve</div>
+        <div class="elabel">recheck(connection, request, today)</div>
+        <div class="payload">maxVersion === requested_against_version &amp;&amp; baseline.version === base_compensation_version</div>
+        
+        <aside class="alt"><div class="alt-title">Branch: Stale version (409 STALE_VERSION)</div><div>If compensation changed after the request was made (maxVersion ≠ requested_against_version, or a different baseline).</div><div class="alt-result">The request is updated to STALE with the reason and committed; nothing is inserted into compensation_records; the API returns 409 STALE_VERSION. At submit, confirmPreview raises the same 409 and the UI shows a fresh preview. The unique key uk_compensation_employee_version is the database backstop.</div></aside>
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Revalidates requester status and scope, eligibility, date, future change, and band; the current maxVersion must equal requested_against_version (the optimistic version check).">
+    <div class="persona p-2">System</div><div class="label">recheck (expected version)</div>
+    <div class="mono sym">async function recheck</div>
+    <div class="where">express-backend/…/compensation/salary-adjustment-service.ts:786</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">34</span></div>
+      <div class="edge">
+        
+        <div class="elabel">loadContext again: current versions and band</div>
+        <div class="payload">employee_id → RecordRow[]</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="All versions of the employee's compensation; maxVersion is the expected version for later checks.">
+      <div class="cyl-text"><span class="mono">compensation_<wbr>records</span><span class="op">SELECT</span><span class="again">again</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">35</span></div>
+      <div class="edge">
+        <div class="from">from service.approve</div>
+        <div class="elabel">insertRecord: INSERT INTO compensation_records (… version = maxVersion + 1, source_request_id …)</div>
+        <div class="payload">proposed amounts, actor = Meera, decision key</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="insertRecord: version maxVersion + 1 with the proposed amounts, previous_compensation_record_id, changed_by_hr_user_id (Meera), source_request_id, and the decision key.">
+      <div class="cyl-text"><span class="mono">compensation_<wbr>records</span><span class="op">INSERT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">36</span></div>
+      <div class="edge">
+        <div class="from">from service.approve</div>
+        <div class="elabel">UPDATE … SET status = 'APPROVED', decided_by_hr_user_id = ?; staleOtherPending</div>
+        <div class="payload">decider, decided_at, decision_idempotency_key</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="This request becomes APPROVED with decider, time, and decision key; staleOtherPending then marks any other PENDING request for the employee STALE.">
+      <div class="cyl-text"><span class="mono">compensation_<wbr>change_<wbr>requests</span><span class="op">UPDATE</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">37</span></div>
+      <div class="edge">
+        <div class="from">from service.approve</div>
+        <div class="elabel">commit; return { request, compensation }</div>
+        <div class="payload">SalaryRequestApproval</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:20%"></div><div class="v dashed" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-response" title="The approved request and the new compensation record, validated against the contract.">
+    <div class="persona p-2">System</div><div class="label">SalaryRequestApproval.parse</div>
+    <div class="mono sym">SalaryRequestApproval.parse</div>
+    <div class="where">express-backend/…/http/salary-routes.ts:139</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">38</span></div>
+      <div class="edge">
+        
+        <div class="elabel">200 application/json (Cache-Control: no-store)</div>
+        <div class="payload">SalaryRequestApproval</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:30%;width:20%"></div><div class="v dashed" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-response" title="The Next server rejects any response that breaks the generated contract.">
+    <div class="persona p-2">System</div><div class="label">isSalaryRequestApproval (Ajv)</div>
+    <div class="mono sym">isSalaryRequestApproval</div>
+    <div class="where">next-frontend/…/server/api/contract.ts:111</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">39</span></div>
+      <div class="edge">
+        <div class="who p-1">Meera (Admin HR)</div>
+        <div class="elabel">DecisionOutcome ok → router.refresh()</div>
+        <div class="payload">request page re-rendered from GET …/salary-adjustment-requests/{id}</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:10%;width:20%"></div><div class="v dashed" style="left:10%"></div>
+        <div class="cell" style="grid-column:1"><div class="pill kind-render" title="router.refresh re-renders the request page from the backend: 'Approved by Meera Iyer on …' and the new compensation version.">
+    <div class="persona p-1">Meera (Admin HR)</div><div class="label">Meera sees 'Approved'</div>
+    <div class="mono sym">router.refresh</div>
+    <div class="where">next-frontend/…/app/salary-requests/[requestId]/request-decision.tsx:84</div>
+    
+  </div></div>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <p>Traced at master 9236ac4 with AI Task 05 merged (feat/architecture-flows). Generated from flows/F3-salary-request-approval.json.</p>
+    
+    <ul><li>Audit writes: none in this flow. access_audit_events is written only by HR access management (hr-users.ts). The salary audit trail is the rows themselves: the request (requester, versions, key) and the new compensation_records version (changed_by_hr_user_id, source_request_id, previous_compensation_record_id).</li><li>Idempotency keys: request_idempotency_key on the request insert (step 19 replay check, step 21 insert); decision_idempotency_key on approval (step 32 replay check, step 36 update) and operation_idempotency_key on the new compensation record (step 35).</li><li>Every request also passes requireAuth (shown once at step 2), which reloads the principal from MySQL; steps 16, 24, and 30 go through it the same way.</li><li>Admin HR cannot submit a request (403 at the route; Admin applies directly), and Scoped HR cannot approve (403 at the approve route).</li></ul>
+  </footer>
+</div>
+</body>
+</html>

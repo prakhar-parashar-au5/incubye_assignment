@@ -1,0 +1,4 @@
+{
+  "comment": "Generated architecture pages the Artifacts section may serve. Read by scripts/sync-artifacts.mjs and src/lib/artifacts.ts; a name not listed here is never read or served.",
+  "files": ["F1.html", "F2.html", "F3.html", "schema.html"]
+}
