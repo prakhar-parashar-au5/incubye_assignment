@@ -43,6 +43,20 @@ import {
 } from '@/server/api/contract';
 import type { DashboardApiQueries } from '@/lib/dashboard-url';
 import type { DirectoryQuery } from '@/lib/directory-url';
+import type { operations } from '@/generated/api';
+import {
+  isAccessAuditResponse, isHrAccessPreview, isHrUserChangeResult, isHrUserCreateResult,
+  isHrUserDetailResponse, isHrUserListResponse, isHrUserPasswordRegenerationPreview,
+  isHrUserPasswordRegenerationResult,
+  type AccessAuditResponse, type HrAccessPreview, type HrUserChangeResult,
+  type HrUserCreatePreviewRequest, type HrUserCreateRequest, type HrUserCreateResult,
+  type HrUserDeactivatePreviewRequest, type HrUserDeactivateRequest, type HrUserDetailResponse,
+  type HrUserListResponse, type HrUserPasswordRegenerationPreview,
+  type HrUserPasswordRegenerationPreviewRequest, type HrUserPasswordRegenerationRequest,
+  type HrUserPasswordRegenerationResult, type HrUserProfilePreviewRequest, type HrUserProfileRequest,
+  type HrUserPromotePreviewRequest, type HrUserPromoteRequest, type HrUserReactivatePreviewRequest,
+  type HrUserReactivateRequest, type HrUserScopesPreviewRequest, type HrUserScopesRequest,
+} from '@/server/api/contract';
 
 // The only module that talks to the Express API. It runs on the Next.js server only: the
 // `server-only` import makes any Client Component import of it a build error.
@@ -81,7 +95,7 @@ const defaultLogger: Logger = (entry) => console.error(JSON.stringify(entry));
 
 type RequestSpec<T> = {
   operation: string;
-  method: 'GET' | 'POST';
+  method: 'GET' | 'POST' | 'PUT';
   path: string;
   token?: string;
   body?: unknown;
@@ -343,7 +357,45 @@ export function createApiClient(options: ApiClientOptions = {}) {
         validate: isDashboardWithoutAdjustmentResponse,
       });
     },
+    listHrUsers(token: string, query: NonNullable<operations['listHrUsers']['parameters']['query']>) {
+      return request<HrUserListResponse>({ operation: 'listHrUsers', method: 'GET', path: `/api/v1/hr-users${querySuffix(query)}`, token, validate: isHrUserListResponse });
+    },
+    createHrUserPreview(token: string, body: HrUserCreatePreviewRequest) {
+      return request<HrAccessPreview>({ operation: 'previewHrUserCreation', method: 'POST', path: '/api/v1/hr-users/preview', token, body, validate: isHrAccessPreview });
+    },
+    createHrUser(token: string, body: HrUserCreateRequest, key: string) {
+      return request<HrUserCreateResult>({ operation: 'createHrUser', method: 'POST', path: '/api/v1/hr-users', token, body, headers: { 'Idempotency-Key': key }, validate: isHrUserCreateResult });
+    },
+    getHrUser(token: string, id: number) {
+      return request<HrUserDetailResponse>({ operation: 'getHrUser', method: 'GET', path: `/api/v1/hr-users/${id}`, token, validate: isHrUserDetailResponse });
+    },
+    listHrUserAccessAudit(token: string, id: number, query: NonNullable<operations['listHrUserAccessAudit']['parameters']['query']>) {
+      return request<AccessAuditResponse>({ operation: 'listHrUserAccessAudit', method: 'GET', path: `/api/v1/hr-users/${id}/access-audit${querySuffix(query)}`, token, validate: isAccessAuditResponse });
+    },
+    previewHrUserProfile(token: string, id: number, body: HrUserProfilePreviewRequest) { return hrPreview('previewHrUserProfile', `/api/v1/hr-users/${id}/profile/preview`, token, body); },
+    updateHrUserProfile(token: string, id: number, body: HrUserProfileRequest, key: string) { return hrChange('updateHrUserProfile', `/api/v1/hr-users/${id}/profile`, 'POST', token, body, key); },
+    previewHrUserPromotion(token: string, id: number, body: HrUserPromotePreviewRequest) { return hrPreview('previewHrUserPromotion', `/api/v1/hr-users/${id}/promote/preview`, token, body); },
+    promoteHrUser(token: string, id: number, body: HrUserPromoteRequest, key: string) { return hrChange('promoteHrUser', `/api/v1/hr-users/${id}/promote`, 'POST', token, body, key); },
+    previewHrUserScopes(token: string, id: number, body: HrUserScopesPreviewRequest) { return hrPreview('previewHrUserScopes', `/api/v1/hr-users/${id}/scopes/preview`, token, body); },
+    replaceHrUserScopes(token: string, id: number, body: HrUserScopesRequest, key: string) { return hrChange('replaceHrUserScopes', `/api/v1/hr-users/${id}/scopes`, 'PUT', token, body, key); },
+    previewHrUserDeactivation(token: string, id: number, body: HrUserDeactivatePreviewRequest) { return hrPreview('previewHrUserDeactivation', `/api/v1/hr-users/${id}/deactivate/preview`, token, body); },
+    deactivateHrUser(token: string, id: number, body: HrUserDeactivateRequest, key: string) { return hrChange('deactivateHrUser', `/api/v1/hr-users/${id}/deactivate`, 'POST', token, body, key); },
+    previewHrUserReactivation(token: string, id: number, body: HrUserReactivatePreviewRequest) { return hrPreview('previewHrUserReactivation', `/api/v1/hr-users/${id}/reactivate/preview`, token, body); },
+    reactivateHrUser(token: string, id: number, body: HrUserReactivateRequest, key: string) { return hrChange('reactivateHrUser', `/api/v1/hr-users/${id}/reactivate`, 'POST', token, body, key); },
+    previewHrUserPasswordRegeneration(token: string, id: number, body: HrUserPasswordRegenerationPreviewRequest) {
+      return request<HrUserPasswordRegenerationPreview>({ operation: 'previewHrUserPasswordRegeneration', method: 'POST', path: `/api/v1/hr-users/${id}/regenerate-temporary-password/preview`, token, body, validate: isHrUserPasswordRegenerationPreview });
+    },
+    regenerateHrUserPassword(token: string, id: number, body: HrUserPasswordRegenerationRequest, key: string) {
+      return request<HrUserPasswordRegenerationResult>({ operation: 'regenerateHrUserPassword', method: 'POST', path: `/api/v1/hr-users/${id}/regenerate-temporary-password`, token, body, headers: { 'Idempotency-Key': key }, validate: isHrUserPasswordRegenerationResult });
+    },
   };
+
+  function hrPreview(operation: string, path: string, token: string, body: unknown) {
+    return request<HrAccessPreview>({ operation, method: 'POST', path, token, body, validate: isHrAccessPreview });
+  }
+  function hrChange(operation: string, path: string, method: 'POST' | 'PUT', token: string, body: unknown, key: string) {
+    return request<HrUserChangeResult>({ operation, method, path, token, body, headers: { 'Idempotency-Key': key }, validate: isHrUserChangeResult });
+  }
 }
 
 /** `?a=1&b=2` from defined, non-empty values; the backend rejects empty and repeated keys. */

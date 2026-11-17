@@ -150,3 +150,25 @@ Do not start HR-access or AI-observability frontend implementation until the par
 - Never put backend URLs or secrets in a `NEXT_PUBLIC_` variable.
 - Never log passwords, JWTs, cookies, request bodies, salary data, or database URLs.
 - Do not enable Impeccable hooks or live mode without explicit approval.
+
+## Worktree task override
+
+This dedicated worktree is assigned only:
+
+```text
+builder_docs/frontend-builder/tasks/05a-hr-access-management-shape.md
+```
+
+It is planning-only. Do not edit production files. Report blockers under `builder_docs/frontend-builder/issues/` using `docs/27-agent-blocker-reporting-protocol.md`.
+
+## Task 05 implementation authorization
+
+Shape Task 05a is complete and its sign-in blocker is resolved. The current task is:
+
+```text
+builder_docs/frontend-builder/tasks/05-hr-access-management-ui.md
+```
+
+Status: `READY`
+
+Implement only Task 05 and write its required response. Do not start AI observability frontend work.

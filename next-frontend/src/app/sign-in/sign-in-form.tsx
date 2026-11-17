@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CircleAlert } from "lucide-react";
 
 import { ScopeRecord } from "@/components/shell/scope-record";
@@ -27,11 +27,12 @@ type Props = {
 
 export function SignInForm({ accounts, demoPassword }: Props) {
   const [state, formAction, pending] = useActionState<SignInState, FormData>(signIn, INITIAL_SIGN_IN_STATE);
+  const [mode, setMode] = useState<SignInState["account"]>(state?.account ?? "meera");
   const passwordRef = useRef<HTMLInputElement>(null);
   const formErrorRef = useRef<HTMLDivElement>(null);
 
-  const passwordError = isPasswordError(state.error) ? state.error : undefined;
-  const formError = state.error && !passwordError ? state.error : undefined;
+  const passwordError = isPasswordError(state?.error) ? state.error : undefined;
+  const formError = state?.error && !passwordError ? state.error : undefined;
 
   // After a failed attempt, move focus to the thing to fix: the password field for a password
   // problem, otherwise the form-level message.
@@ -63,7 +64,8 @@ export function SignInForm({ accounts, demoPassword }: Props) {
               type="radio"
               name="account"
               value={account.key}
-              defaultChecked={state.account === account.key}
+              defaultChecked={state?.account === account.key}
+              onChange={() => setMode(account.key)}
               aria-labelledby={`account-${account.key}-name`}
               aria-describedby={`account-${account.key}-details`}
               className="mt-1 size-4 shrink-0 accent-primary focus-visible:outline-none"
@@ -86,6 +88,22 @@ export function SignInForm({ accounts, demoPassword }: Props) {
             </span>
           </label>
         ))}
+        <label
+          className={cn(
+            "group flex cursor-pointer gap-3 rounded-md border border-line bg-surface px-4 py-3.5 transition-[border-color,background-color] duration-150",
+            "hover:border-input has-[:checked]:border-primary has-[:checked]:bg-[#f3f6fc] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring",
+          )}
+        >
+          <input
+            type="radio"
+            name="account"
+            value="another"
+            defaultChecked={state?.account === "another"}
+            onChange={() => setMode("another")}
+            className="mt-1 size-4 shrink-0 accent-primary focus-visible:outline-none"
+          />
+          <span className="font-semibold">Another HR account</span>
+        </label>
       </fieldset>
 
       <section aria-labelledby="demo-credentials-heading" className="space-y-2">
@@ -108,6 +126,13 @@ export function SignInForm({ accounts, demoPassword }: Props) {
           </p>
         )}
       </section>
+
+      {mode === "another" ? (
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" name="email" type="email" autoComplete="username" required maxLength={254} />
+        </div>
+      ) : null}
 
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>

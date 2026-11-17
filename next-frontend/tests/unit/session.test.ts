@@ -36,7 +36,7 @@ describe("resolveSession", () => {
     const state = await resolveSession(SAMPLE_TOKEN, client(fakeFetch(meOk()).fetch));
     expect(state).toEqual({
       kind: "signed-in",
-      user: { displayName: "Rohan Mehta", role: "SCOPED", countries: ["IN"], departments: ["Support", "Tech"] },
+      user: { id: 2, displayName: "Rohan Mehta", role: "SCOPED", countries: ["IN"], departments: ["Support", "Tech"] },
     });
     expect(JSON.stringify(state)).not.toContain("@acme.com");
   });

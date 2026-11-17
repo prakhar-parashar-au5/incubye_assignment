@@ -16,9 +16,7 @@ import { signOut } from "@/server/actions/auth";
 
 export type ShellIdentity = { name: string; role: string; scope: string; isAdmin: boolean };
 
-const LATER_SECTIONS = ["HR Access"] as const;
-
-export type ShellSection = "dashboard" | "employees" | "requests" | "assistant";
+export type ShellSection = "dashboard" | "employees" | "requests" | "assistant" | "hr-access";
 
 // Admin HR opens the approval queue (pending, oldest first); Scoped HR opens their request list.
 const sections = (isAdmin: boolean): { id: ShellSection; label: string; href: string }[] => [
@@ -26,6 +24,7 @@ const sections = (isAdmin: boolean): { id: ShellSection; label: string; href: st
   { id: "employees", label: "Employees", href: "/employees" },
   { id: "requests", label: "Salary requests", href: isAdmin ? ADMIN_QUEUE_HREF : "/salary-requests" },
   { id: "assistant", label: "Assistant", href: "/assistant" },
+  ...(isAdmin ? [{ id: "hr-access" as const, label: "HR Access", href: "/hr-access" }] : []),
 ];
 
 function Navigation({ className, current, isAdmin }: { className?: string; current: ShellSection; isAdmin: boolean }) {
@@ -45,12 +44,6 @@ function Navigation({ className, current, isAdmin }: { className?: string; curre
             >
               {section.label}
             </Link>
-          </li>
-        ))}
-        {LATER_SECTIONS.map((label) => (
-          <li key={label} className="flex items-baseline justify-between gap-3 px-3 py-2 text-rail-muted">
-            <span>{label}</span>
-            <span className="text-[0.75rem]">Coming later</span>
           </li>
         ))}
       </ul>

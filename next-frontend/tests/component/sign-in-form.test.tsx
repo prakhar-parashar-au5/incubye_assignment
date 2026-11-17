@@ -24,6 +24,20 @@ describe("SignInForm", () => {
     expect(screen.getByRole("heading", { name: "Synthetic demo credentials" })).toBeVisible();
     expect(screen.getByText("synthetic-demo-pass")).toBeVisible();
     expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
+    expect(screen.getByRole("radio", { name: "Another HR account" })).toBeVisible();
+  });
+
+  it("offers an email field only in Another HR account mode", async () => {
+    const user = userEvent.setup();
+    render(<SignInForm accounts={DEMO_ACCOUNTS} demoPassword="synthetic-demo-pass" />);
+    expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "Another HR account" }));
+    expect(screen.getByLabelText("Email")).toHaveAttribute("autocomplete", "username");
+    await user.type(screen.getByLabelText("Email"), "hr@acme.com");
+    await user.type(screen.getByLabelText("Password"), "temporary-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(signIn.mock.calls.at(-1)?.[1].get("account")).toBe("another");
+    expect(signIn.mock.calls.at(-1)?.[1].get("email")).toBe("hr@acme.com");
   });
 
   it("signs in with the keyboard only, then keeps the account and focuses the field after an error", async () => {
@@ -47,7 +61,7 @@ describe("SignInForm", () => {
     expect(submitted.has("email")).toBe(false);
 
     const password = screen.getByLabelText("Password");
-    await waitFor(() => expect(password).toHaveAccessibleDescription(/not correct for this account/));
+    await waitFor(() => expect(password).toHaveAccessibleDescription(/email or password is not correct/));
     expect(password).toHaveAttribute("aria-invalid", "true");
     expect(password).toHaveFocus();
     expect(password).toHaveValue("");

@@ -31,19 +31,27 @@ function loginFailureCode(kind: ApiFailureKind): SignInErrorCode {
 }
 
 export async function signIn(previous: SignInState, formData: FormData): Promise<SignInState> {
-  const account = findDemoAccount(formData.get('account'));
-  if (!account) return { account: previous.account, error: 'ACCOUNT_REQUIRED' };
+  const selected = formData.get('account');
+  const account = findDemoAccount(selected);
+  const another = selected === 'another';
+  if (!account && !another) return { account: previous.account, error: 'ACCOUNT_REQUIRED' };
+
+  const email = another ? formData.get('email') : account!.email;
+  if (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { account: another ? 'another' : account!.key, error: 'INVALID_CREDENTIALS' };
+  }
 
   const password = formData.get('password');
-  if (typeof password !== 'string' || password.length === 0) return { account: account.key, error: 'PASSWORD_REQUIRED' };
-  if (password.length > MAX_PASSWORD_LENGTH) return { account: account.key, error: 'PASSWORD_REJECTED' };
+  const mode = another ? 'another' : account!.key;
+  if (typeof password !== 'string' || password.length === 0) return { account: mode, error: 'PASSWORD_REQUIRED' };
+  if (password.length > MAX_PASSWORD_LENGTH) return { account: mode, error: 'PASSWORD_REJECTED' };
 
-  const result = await api().login({ email: account.email, password });
-  if (!result.ok) return { account: account.key, error: loginFailureCode(result.kind) };
+  const result = await api().login({ email, password });
+  if (!result.ok) return { account: mode, error: loginFailureCode(result.kind) };
 
   const expires = new Date(result.data.expiresAt);
   if (Number.isNaN(expires.getTime()) || expires.getTime() <= Date.now()) {
-    return { account: account.key, error: 'SERVICE_ERROR' };
+    return { account: mode, error: 'SERVICE_ERROR' };
   }
 
   await setSessionCookie(result.data.token, expires);
