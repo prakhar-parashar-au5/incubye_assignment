@@ -472,39 +472,52 @@
         }
       }
     },
-    "/api/v1/assistant/messages": {
-      "post": {
-        "operationId": "sendAssistantMessages",
-        "summary": "Ask the read-only compensation assistant",
-        "description": "Read-only. The server derives identity and scope from the Bearer token. Tools return permission-filtered cards; the answer text is model-written. At most 4 tool rounds and 45 seconds per request.",
+    "/api/v1/assistant/conversations": {
+      "get": {
+        "operationId": "listAssistantConversations",
+        "summary": "The caller's own saved assistant conversations, most recently active first",
         "security": [
           {
             "bearerAuth": []
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AssistantMessagesRequest"
-              }
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
             }
           }
-        },
+        ],
         "responses": {
           "200": {
-            "description": "The answer, tool calls, cards, and limitations.",
+            "description": "Summaries only.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AssistantMessagesResponse"
+                  "$ref": "#/components/schemas/AssistantConversationListResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "VALIDATION_ERROR: invalid conversation.",
+            "description": "VALIDATION_ERROR",
             "content": {
               "application/json": {
                 "schema": {
@@ -534,7 +547,310 @@
             }
           },
           "503": {
-            "description": "ASSISTANT_UNAVAILABLE: no model configured, model timeout, or provider error. Other routes are unaffected.",
+            "description": "ASSISTANT_UNAVAILABLE: conversation storage is unavailable. Other routes are unaffected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createAssistantConversation",
+        "summary": "Start a conversation owned by the caller",
+        "description": "Not idempotent and takes no Idempotency-Key. Send the first message with the message endpoint. A conversation whose first message never arrived stays listed with messageCount 0; retention removes empty conversations 30 days after creation.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantConversationCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new conversation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantConversationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ASSISTANT_UNAVAILABLE: conversation storage is unavailable. Other routes are unaffected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/conversations/{conversationId}": {
+      "get": {
+        "operationId": "getAssistantConversation",
+        "summary": "One owned conversation: ordered messages and turn states",
+        "description": "Returns every saved message and turn (not paginated). A saved answer whose recorded actor scope the caller's current scope no longer covers is withheld (withheld: true, fixed text, response null); the user message stays visible.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Messages in sequence order. A failed turn has a user message and a safe error, never an assistant answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantConversationDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: unknown and unowned conversations return the same body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ASSISTANT_UNAVAILABLE: conversation storage is unavailable. Other routes are unaffected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/conversations/{conversationId}/messages": {
+      "post": {
+        "operationId": "sendAssistantConversationMessage",
+        "summary": "Send one user message and run a recorded assistant turn",
+        "description": "The server loads bounded history: at most the 4 most recent COMPLETED turns (user message plus final answer), at most 16,000 characters, newest first, stopping at the first turn that does not fit. Failed and in-progress turns, the retried turn, and tool data from earlier turns are never sent. Every model and tool step is recorded before and after it runs; the answer is returned only after the assistant message and trace are saved. On a 502 or 503 the response has no trace ID; when a trace was created it appears in the conversation detail as a FAILED turn with the same code and reason. Counts toward the limit of 20 assistant requests per HR user per 15 minutes.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Generated by the client per submission; a UUID v4 (36 characters) fits. Reuse only to retry the same submission: the same key and command returns the stored result (Idempotency-Replayed: true), or 409 ASSISTANT_TURN_IN_PROGRESS while it is still running. A user-selected Retry sends a new key with retryOfTraceId.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,100}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The recorded answer, tool statuses, cards, and limitations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantTurnResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR (IDEMPOTENCY_KEY_REQUIRED, invalid message, or retryOfTraceId outside the conversation).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: unknown and unowned conversations return the same body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "DUPLICATE_OPERATION (key reused with different content) or ASSISTANT_TURN_IN_PROGRESS.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED: more than 20 assistant message requests by this HR user in 15 minutes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the current 15-minute window resets.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "RateLimit": {
+                "description": "IETF draft-8 RateLimit header: remaining requests (r) and seconds to reset (t).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "RateLimit-Policy": {
+                "description": "IETF draft-8 policy: limit (q) and window seconds (w).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "MODEL_PROVIDER_FAILED, reason MODEL_TIMEOUT, MODEL_RATE_LIMITED, MODEL_ERROR, or MODEL_INVALID_RESPONSE. The failed turn is recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ASSISTANT_UNAVAILABLE, reason MODEL_NOT_CONFIGURED (the message and a FAILED turn are recorded; no model call), TRACE_UNAVAILABLE (required recording failed; nothing unrecorded ran), or TURN_TIMEOUT.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4139,6 +4455,930 @@
           }
         }
       }
+    },
+    "/api/v1/admin/ai-traces": {
+      "get": {
+        "operationId": "listAdminAiTraces",
+        "summary": "Recorded assistant turns, newest first (Admin HR)",
+        "description": "Offset pagination with a total. Filters are exact and run in SQL on typed columns. Rows never include prompts, responses, arguments, results, or safe-error JSON.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "UTC calendar date, inclusive: started at or after 00:00 UTC.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "UTC calendar date, inclusive: started before 00:00 UTC of the next day. Must not be before from.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "hrUserId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "STARTED: still in progress.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "STARTED",
+                "COMPLETED",
+                "FAILED"
+              ]
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "description": "Exact model name.",
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "tool",
+            "in": "query",
+            "required": false,
+            "description": "Exact tool name; traces with at least one call to it.",
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "errorCategory",
+            "in": "query",
+            "required": false,
+            "description": "Exact trace error category.",
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "description": "Over 100 is a 400, not clamped.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of trace summaries.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTraceListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: unknown, repeated, or invalid filter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR. Scoped HR always receives this.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai-traces/options": {
+      "get": {
+        "operationId": "getAdminAiTraceOptions",
+        "summary": "Filter choices and closed status and stage lists (Admin HR)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Values present in stored traces and MCP calls.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTraceOptionsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: no query parameters are accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR. Scoped HR always receives this.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai-traces/summary": {
+      "get": {
+        "operationId": "getAdminAiTraceSummary",
+        "summary": "AI monitoring aggregates for 24 hours, 7 days, or 30 days (Admin HR)",
+        "description": "Computed in SQL from typed columns. Window [now - length, now], both inclusive. Counts and measurements only.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "default": "24h"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Monitoring summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTraceSummaryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR. Scoped HR always receives this.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai-traces/{traceId}": {
+      "get": {
+        "operationId": "getAdminAiTrace",
+        "summary": "One complete trace in sequence order (Admin HR)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "traceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Unknown, deleted, or malformed IDs give 404."
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "description": "formatted: employee names, codes, and emails replaced by stable per-record placeholders; salary values shown. raw: exact stored JSON with the synthetic-data warning. Never put trace content in URLs.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "formatted",
+                "raw"
+              ],
+              "default": "formatted"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trace header, model calls, tool calls, messages, and review.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTraceDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: invalid view.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR. Scoped HR always receives this.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: unknown or deleted trace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteAdminAiTrace",
+        "summary": "Permanently delete one trace aggregate (Admin HR)",
+        "description": "Removes the trace, its model and tool calls, its review, and the user and assistant messages of that turn. Other turns of the conversation remain; a later trace's previousTraceId becomes null. Repeating returns 404.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "traceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Unknown, deleted, or malformed IDs give 404."
+          },
+          {
+            "name": "confirm",
+            "in": "query",
+            "required": false,
+            "description": "Required: the same trace ID, as explicit confirmation. No request body.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was removed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTraceDeleteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR, reason DELETE_CONFIRMATION_REQUIRED: confirm missing or different from the path ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR. Scoped HR always receives this.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: unknown or already deleted trace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai-traces/{traceId}/review": {
+      "post": {
+        "operationId": "reviewAdminAiTrace",
+        "summary": "Create or replace the trace review (compare-and-set, Admin HR)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "traceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Unknown, deleted, or malformed IDs give 404."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminTraceReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The saved review with its new version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTraceReviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: verdict, note over 2,000 characters, or expectedVersion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR. Scoped HR always receives this.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND: unknown or deleted trace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "STALE_VERSION: expectedVersion is not the current version (reload the trace); ASSISTANT_TURN_IN_PROGRESS: the trace is STARTED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/mcp-tool-calls": {
+      "get": {
+        "operationId": "listAdminMcpToolCalls",
+        "summary": "Recorded MCP tool calls, newest first (Admin HR)",
+        "description": "Rows never include arguments or results.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "UTC calendar date, inclusive: started at or after 00:00 UTC.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "UTC calendar date, inclusive: started before 00:00 UTC of the next day. Must not be before from.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "hrUserId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "tool",
+            "in": "query",
+            "required": false,
+            "description": "Exact tool name.",
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "STARTED",
+                "REJECTED",
+                "SUCCEEDED",
+                "FAILED"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "description": "Over 100 is a 400, not clamped.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of MCP call summaries.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminMcpListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR. Scoped HR always receives this.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/mcp-tool-calls/{mcpCallId}": {
+      "get": {
+        "operationId": "getAdminMcpToolCall",
+        "summary": "One recorded MCP tool call (Admin HR)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mcpCallId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Unknown or malformed IDs give 404."
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "description": "formatted: employee names, codes, and emails replaced by stable per-record placeholders; salary values shown. raw: exact stored JSON with the synthetic-data warning. Never put trace content in URLs.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "formatted",
+                "raw"
+              ],
+              "default": "formatted"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Arguments, validation result, result, and safe error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminMcpDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_ERROR: invalid view.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN: only active Admin HR. Scoped HR always receives this.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4459,6 +5699,1820 @@
         ],
         "additionalProperties": false
       },
+      "AdminMcpDetailResponse": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string",
+            "enum": [
+              "formatted",
+              "raw"
+            ]
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "Raw trace data contains complete synthetic employee identities and compensation values."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set on the raw view only."
+          },
+          "redaction": {
+            "type": "object",
+            "properties": {
+              "identities": {
+                "type": "string",
+                "enum": [
+                  "PLACEHOLDERS",
+                  "NONE"
+                ]
+              },
+              "note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "identities",
+              "note"
+            ],
+            "additionalProperties": false
+          },
+          "call": {
+            "type": "object",
+            "properties": {
+              "mcpCallId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "hrUser": {
+                "description": "The authenticated HR user of the MCP client.",
+                "$ref": "#/components/schemas/AiHrUser"
+              },
+              "toolName": {
+                "type": "string"
+              },
+              "validationStatus": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "VALID",
+                  "REJECTED"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "STARTED",
+                  "REJECTED",
+                  "SUCCEEDED",
+                  "FAILED"
+                ]
+              },
+              "startedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "UTC instant."
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "description": "UTC instant."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "durationMs": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "errorCategory": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "requestedArguments": {
+                "description": "Stored JSON value."
+              },
+              "validationErrors": {
+                "anyOf": [
+                  {
+                    "description": "Stored JSON value."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "anyOf": [
+                  {
+                    "description": "Stored JSON value."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "safeError": {
+                "anyOf": [
+                  {
+                    "description": "Stored JSON value."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "mcpCallId",
+              "requestId",
+              "hrUser",
+              "toolName",
+              "validationStatus",
+              "status",
+              "startedAt",
+              "completedAt",
+              "durationMs",
+              "errorCategory",
+              "requestedArguments",
+              "validationErrors",
+              "result",
+              "safeError"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "view",
+          "warning",
+          "redaction",
+          "call"
+        ],
+        "additionalProperties": false
+      },
+      "AdminMcpListItem": {
+        "type": "object",
+        "properties": {
+          "mcpCallId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "hrUser": {
+            "description": "The authenticated HR user of the MCP client.",
+            "$ref": "#/components/schemas/AiHrUser"
+          },
+          "toolName": {
+            "type": "string"
+          },
+          "validationStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "VALID",
+              "REJECTED"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "STARTED",
+              "REJECTED",
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "UTC instant."
+          },
+          "completedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "UTC instant."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errorCategory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "mcpCallId",
+          "requestId",
+          "hrUser",
+          "toolName",
+          "validationStatus",
+          "status",
+          "startedAt",
+          "completedAt",
+          "durationMs",
+          "errorCategory"
+        ],
+        "additionalProperties": false
+      },
+      "AdminMcpListResponse": {
+        "type": "object",
+        "properties": {
+          "calls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminMcpListItem"
+            },
+            "description": "Newest first."
+          },
+          "page": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "size": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalRows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "number",
+              "size",
+              "totalRows",
+              "totalPages"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "calls",
+          "page"
+        ],
+        "additionalProperties": false
+      },
+      "AdminModelCall": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Trace-wide order of model calls."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "STARTED",
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "providerRequestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "promptVersion": {
+            "type": "string"
+          },
+          "promptHash": {
+            "type": "string"
+          },
+          "input": {
+            "description": "Exact provider-neutral input: instructions, bounded messages, and this turn's tool exchanges."
+          },
+          "tools": {
+            "description": "Tool names and JSON schemas offered."
+          },
+          "output": {
+            "anyOf": [
+              {
+                "description": "Stored JSON value."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "{ text } when the model answered."
+          },
+          "toolDecisions": {
+            "anyOf": [
+              {
+                "description": "Stored JSON value."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Requested calls: callId, name, parsed arguments (or { invalidJson: true })."
+          },
+          "inputTokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outputTokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "totalTokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reasoningTokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Count only."
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "UTC instant."
+          },
+          "completedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "UTC instant."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latencyMs": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failureCategory": {
+            "description": "Model-call category, separate from the trace error category.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "safeError": {
+            "anyOf": [
+              {
+                "description": "Stored JSON value."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "sequence",
+          "status",
+          "provider",
+          "model",
+          "providerRequestId",
+          "promptVersion",
+          "promptHash",
+          "input",
+          "tools",
+          "output",
+          "toolDecisions",
+          "inputTokens",
+          "outputTokens",
+          "totalTokens",
+          "reasoningTokens",
+          "startedAt",
+          "completedAt",
+          "latencyMs",
+          "failureCategory",
+          "safeError"
+        ],
+        "additionalProperties": false
+      },
+      "AdminToolCall": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Trace-wide order of tool calls."
+          },
+          "modelCallSequence": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "description": "The model call that requested it."
+          },
+          "providerToolCallId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "toolName": {
+            "type": "string"
+          },
+          "requestedArguments": {
+            "description": "As requested (secret keys scrubbed; { invalidJson: true } for unparseable text). There is no separate validated value."
+          },
+          "validationStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "VALID",
+              "REJECTED"
+            ]
+          },
+          "validationErrors": {
+            "anyOf": [
+              {
+                "description": "Stored JSON value."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "STARTED",
+              "REJECTED",
+              "SUCCEEDED",
+              "FAILED"
+            ],
+            "description": "STARTED inside a STARTED trace: still running."
+          },
+          "result": {
+            "anyOf": [
+              {
+                "description": "Stored JSON value."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SUCCEEDED only: { data, cards, limitations }."
+          },
+          "errorCategory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "safeError": {
+            "anyOf": [
+              {
+                "description": "Stored JSON value."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "UTC instant."
+          },
+          "completedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "UTC instant."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "sequence",
+          "modelCallSequence",
+          "providerToolCallId",
+          "toolName",
+          "requestedArguments",
+          "validationStatus",
+          "validationErrors",
+          "status",
+          "result",
+          "errorCategory",
+          "safeError",
+          "startedAt",
+          "completedAt",
+          "durationMs"
+        ],
+        "additionalProperties": false
+      },
+      "AdminTraceDeleteResponse": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "object",
+            "properties": {
+              "traceId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "modelCalls": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "toolCalls": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "messages": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "review": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "traceId",
+              "modelCalls",
+              "toolCalls",
+              "messages",
+              "review"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "deleted"
+        ],
+        "additionalProperties": false
+      },
+      "AdminTraceDetailResponse": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string",
+            "enum": [
+              "formatted",
+              "raw"
+            ]
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "Raw trace data contains complete synthetic employee identities and compensation values."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set on the raw view only."
+          },
+          "redaction": {
+            "type": "object",
+            "properties": {
+              "identities": {
+                "type": "string",
+                "enum": [
+                  "PLACEHOLDERS",
+                  "NONE"
+                ]
+              },
+              "note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "identities",
+              "note"
+            ],
+            "additionalProperties": false
+          },
+          "trace": {
+            "type": "object",
+            "properties": {
+              "traceId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "conversationId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "turnSequence": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "previousTraceId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "nextTraceId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The earliest later trace that links to this one."
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "hrUser": {
+                "$ref": "#/components/schemas/AiHrUser"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "STARTED",
+                  "COMPLETED",
+                  "FAILED"
+                ]
+              },
+              "failureStage": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "errorCategory": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "model": {
+                "type": "string"
+              },
+              "promptVersion": {
+                "type": "string"
+              },
+              "promptHash": {
+                "type": "string"
+              },
+              "startedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "UTC instant."
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                    "description": "UTC instant."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "durationMs": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "inputTokens": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "outputTokens": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "reasoningTokens": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "modelCallCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "toolCallCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "traceId",
+              "conversationId",
+              "turnSequence",
+              "previousTraceId",
+              "nextTraceId",
+              "requestId",
+              "hrUser",
+              "status",
+              "failureStage",
+              "errorCategory",
+              "model",
+              "promptVersion",
+              "promptHash",
+              "startedAt",
+              "completedAt",
+              "durationMs",
+              "inputTokens",
+              "outputTokens",
+              "reasoningTokens",
+              "modelCallCount",
+              "toolCallCount"
+            ],
+            "additionalProperties": false
+          },
+          "userContent": {
+            "description": "{ text, retryOfTraceId } as submitted."
+          },
+          "modelMessages": {
+            "description": "The bounded conversation messages sent to the model."
+          },
+          "modelCalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminModelCall"
+            }
+          },
+          "toolCalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminToolCall"
+            }
+          },
+          "finalResponse": {
+            "anyOf": [
+              {
+                "description": "Stored JSON value."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "COMPLETED only. A failed trace never has one."
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sequence": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "USER",
+                    "ASSISTANT"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                  "description": "UTC instant."
+                }
+              },
+              "required": [
+                "sequence",
+                "role",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminTraceReview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "view",
+          "warning",
+          "redaction",
+          "trace",
+          "userContent",
+          "modelMessages",
+          "modelCalls",
+          "toolCalls",
+          "finalResponse",
+          "messages",
+          "review"
+        ],
+        "additionalProperties": false
+      },
+      "AdminTraceListItem": {
+        "type": "object",
+        "properties": {
+          "traceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "conversationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "turnSequence": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "hrUser": {
+            "$ref": "#/components/schemas/AiHrUser"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "STARTED",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "model": {
+            "type": "string"
+          },
+          "toolNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Distinct tool names in first-use order."
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "UTC instant."
+          },
+          "completedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "UTC instant."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inputTokens": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "outputTokens": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "reasoningTokens": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Count only; reasoning content is never recorded."
+          },
+          "modelCallCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "toolCallCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "failureStage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "errorCategory": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "traceId",
+          "conversationId",
+          "turnSequence",
+          "hrUser",
+          "status",
+          "model",
+          "toolNames",
+          "startedAt",
+          "completedAt",
+          "durationMs",
+          "inputTokens",
+          "outputTokens",
+          "reasoningTokens",
+          "modelCallCount",
+          "toolCallCount",
+          "failureStage",
+          "errorCategory"
+        ],
+        "additionalProperties": false
+      },
+      "AdminTraceListResponse": {
+        "type": "object",
+        "properties": {
+          "traces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminTraceListItem"
+            },
+            "description": "Newest first."
+          },
+          "page": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "size": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalRows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "number",
+              "size",
+              "totalRows",
+              "totalPages"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "traces",
+          "page"
+        ],
+        "additionalProperties": false
+      },
+      "AdminTraceOptionsResponse": {
+        "type": "object",
+        "properties": {
+          "hrUsers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiHrUser"
+            },
+            "description": "HR users with at least one stored trace or MCP call."
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "toolNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tool names in stored assistant or MCP calls."
+          },
+          "errorCategories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "failureStages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "statuses": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "STARTED",
+                "COMPLETED",
+                "FAILED"
+              ]
+            }
+          },
+          "enums": {
+            "type": "object",
+            "properties": {
+              "failureStages": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "TRACE_CREATE",
+                    "MODEL_CALL",
+                    "MODEL_TRACE_WRITE",
+                    "TOOL_VALIDATION",
+                    "TOOL_EXECUTION",
+                    "TOOL_TRACE_WRITE",
+                    "FINAL_TRACE_WRITE"
+                  ]
+                }
+              },
+              "modelCallStatuses": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "STARTED",
+                    "SUCCEEDED",
+                    "FAILED"
+                  ]
+                }
+              },
+              "toolValidationStatuses": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "PENDING",
+                    "VALID",
+                    "REJECTED"
+                  ]
+                }
+              },
+              "toolCallStatuses": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "STARTED",
+                    "REJECTED",
+                    "SUCCEEDED",
+                    "FAILED"
+                  ]
+                }
+              },
+              "knownCategories": {
+                "type": "object",
+                "properties": {
+                  "traceError": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "modelCallFailure": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "toolError": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "toolRejection": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "mcpError": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "traceError",
+                  "modelCallFailure",
+                  "toolError",
+                  "toolRejection",
+                  "mcpError"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "failureStages",
+              "modelCallStatuses",
+              "toolValidationStatuses",
+              "toolCallStatuses",
+              "knownCategories"
+            ],
+            "additionalProperties": false,
+            "description": "Closed status and stage lists, and the known category values."
+          }
+        },
+        "required": [
+          "hrUsers",
+          "models",
+          "toolNames",
+          "errorCategories",
+          "failureStages",
+          "statuses",
+          "enums"
+        ],
+        "additionalProperties": false
+      },
+      "AdminTraceReview": {
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "CORRECT",
+              "PARTIAL",
+              "INCORRECT"
+            ]
+          },
+          "note": {
+            "type": "string"
+          },
+          "nominated": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Send as expectedVersion to replace this review."
+          },
+          "reviewer": {
+            "$ref": "#/components/schemas/AiHrUser"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "UTC instant."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "UTC instant."
+          }
+        },
+        "required": [
+          "verdict",
+          "note",
+          "nominated",
+          "version",
+          "reviewer",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "AdminTraceReviewRequest": {
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "CORRECT",
+              "PARTIAL",
+              "INCORRECT"
+            ]
+          },
+          "note": {
+            "default": "",
+            "type": "string",
+            "maxLength": 2000
+          },
+          "nominated": {
+            "default": false,
+            "description": "Nominated as an evaluation-fixture candidate. Nothing is copied automatically.",
+            "type": "boolean"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "0 for the first review; otherwise the current review.version."
+          }
+        },
+        "required": [
+          "verdict",
+          "note",
+          "nominated",
+          "expectedVersion"
+        ],
+        "additionalProperties": false
+      },
+      "AdminTraceReviewResponse": {
+        "type": "object",
+        "properties": {
+          "review": {
+            "$ref": "#/components/schemas/AdminTraceReview"
+          }
+        },
+        "required": [
+          "review"
+        ],
+        "additionalProperties": false
+      },
+      "AdminTraceSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "window": {
+            "type": "string",
+            "enum": [
+              "24h",
+              "7d",
+              "30d"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "Inclusive."
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "Inclusive; equal to generatedAt."
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "UTC instant."
+          },
+          "traces": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "completed": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "failed": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "started": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Still open (STARTED)."
+              }
+            },
+            "required": [
+              "total",
+              "completed",
+              "failed",
+              "started"
+            ],
+            "additionalProperties": false
+          },
+          "failures": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "failureStage": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "errorCategory": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "failureStage",
+                "errorCategory",
+                "count"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "durationMs": {
+            "type": "object",
+            "properties": {
+              "completedCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "p50": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "p95": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "max": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "completedCount",
+              "p50",
+              "p95",
+              "max"
+            ],
+            "additionalProperties": false,
+            "description": "COMPLETED traces only. Exact nearest-rank percentiles; null when there are none."
+          },
+          "tokens": {
+            "type": "object",
+            "properties": {
+              "input": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "output": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "reasoning": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Part of output; count only."
+              },
+              "total": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "input + output."
+              }
+            },
+            "required": [
+              "input",
+              "output",
+              "reasoning",
+              "total"
+            ],
+            "additionalProperties": false
+          },
+          "modelCalls": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "byModel": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "model": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "model",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "total",
+              "byModel"
+            ],
+            "additionalProperties": false
+          },
+          "toolCalls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "toolName": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "STARTED",
+                    "REJECTED",
+                    "SUCCEEDED",
+                    "FAILED"
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "toolName",
+                "status",
+                "count"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "mcpCalls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "toolName": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "STARTED",
+                    "REJECTED",
+                    "SUCCEEDED",
+                    "FAILED"
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "toolName",
+                "status",
+                "count"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "reviews": {
+            "type": "object",
+            "properties": {
+              "byVerdict": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "verdict": {
+                      "type": "string",
+                      "enum": [
+                        "CORRECT",
+                        "PARTIAL",
+                        "INCORRECT"
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "verdict",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "unreviewed": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Finished traces without a review."
+              }
+            },
+            "required": [
+              "byVerdict",
+              "unreviewed"
+            ],
+            "additionalProperties": false
+          },
+          "series": {
+            "type": "object",
+            "properties": {
+              "bucket": {
+                "type": "string",
+                "enum": [
+                  "HOUR",
+                  "DAY"
+                ]
+              },
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "start": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "UTC instant."
+                    },
+                    "traces": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "failures": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "start",
+                    "traces",
+                    "failures"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "UTC-aligned buckets from the one containing from to the one containing to, zero-filled. The first and last are partial."
+              }
+            },
+            "required": [
+              "bucket",
+              "points"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "window",
+          "from",
+          "to",
+          "generatedAt",
+          "traces",
+          "failures",
+          "durationMs",
+          "tokens",
+          "modelCalls",
+          "toolCalls",
+          "mcpCalls",
+          "reviews",
+          "series"
+        ],
+        "additionalProperties": false
+      },
+      "AiHrUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
+        ],
+        "additionalProperties": false
+      },
       "AssistantCard": {
         "oneOf": [
           {
@@ -4475,43 +7529,471 @@
           }
         ]
       },
-      "AssistantMessagesRequest": {
+      "AssistantConversationCreateRequest": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "AssistantConversationDetailResponse": {
         "type": "object",
         "properties": {
+          "conversation": {
+            "$ref": "#/components/schemas/AssistantConversationSummary"
+          },
           "messages": {
-            "minItems": 1,
-            "maxItems": 10,
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "role": {
-                  "type": "string",
-                  "enum": [
-                    "user",
-                    "assistant"
-                  ]
-                },
-                "content": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 2000
-                }
-              },
-              "required": [
-                "role",
-                "content"
-              ],
-              "additionalProperties": false
-            }
+              "$ref": "#/components/schemas/AssistantConversationMessage"
+            },
+            "description": "Every saved message, in sequence order (not paginated). Missing sequence numbers mean deleted or expired turns."
+          },
+          "turns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantConversationTurn"
+            },
+            "description": "Every saved turn, in sequence order. STARTED means the turn has not finished."
           }
         },
         "required": [
-          "messages"
+          "conversation",
+          "messages",
+          "turns"
         ],
         "additionalProperties": false
       },
-      "AssistantMessagesResponse": {
+      "AssistantConversationListResponse": {
+        "type": "object",
+        "properties": {
+          "conversations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantConversationSummary"
+            },
+            "description": "Most recently active first."
+          },
+          "page": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "size": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalRows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "number",
+              "size",
+              "totalRows",
+              "totalPages"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "conversations",
+          "page"
+        ],
+        "additionalProperties": false
+      },
+      "AssistantConversationMessage": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Authoritative order within the conversation."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ]
+          },
+          "traceId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "text": {
+            "type": "string",
+            "description": "User text, or the assistant answer (plain text). For a withheld answer, a fixed notice."
+          },
+          "response": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "toolCalls": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "completed",
+                            "rejected",
+                            "failed"
+                          ],
+                          "description": "rejected: invalid tool name or arguments, not executed."
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "status"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "cards": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/AssistantCard"
+                    }
+                  },
+                  "limitations": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "generatedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  }
+                },
+                "required": [
+                  "toolCalls",
+                  "cards",
+                  "limitations",
+                  "generatedAt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Assistant messages only: tool statuses, cards, limitations. Null when withheld."
+          },
+          "withheld": {
+            "type": "boolean",
+            "description": "True when the saved answer is hidden because the caller's current employee scope no longer covers the scope recorded with its turn. The user's own message is never withheld."
+          }
+        },
+        "required": [
+          "sequence",
+          "role",
+          "traceId",
+          "createdAt",
+          "text",
+          "response",
+          "withheld"
+        ],
+        "additionalProperties": false
+      },
+      "AssistantConversationResponse": {
+        "type": "object",
+        "properties": {
+          "conversation": {
+            "$ref": "#/components/schemas/AssistantConversationSummary"
+          }
+        },
+        "required": [
+          "conversation"
+        ],
+        "additionalProperties": false
+      },
+      "AssistantConversationSummary": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "lastMessageAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "messageCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "title": {
+            "description": "The first 80 characters of the first user message.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "conversationId",
+          "createdAt",
+          "lastMessageAt",
+          "messageCount",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "AssistantConversationTurn": {
+        "type": "object",
+        "properties": {
+          "traceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "sequence": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "previousTraceId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retryOfTraceId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "STARTED",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "userMessageSequence": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assistantMessageSequence": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null unless COMPLETED. A failed turn has no assistant message."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "enum": [
+                      "VALIDATION_ERROR",
+                      "INVALID_CREDENTIALS",
+                      "UNAUTHENTICATED",
+                      "RATE_LIMITED",
+                      "NOT_FOUND",
+                      "ASSISTANT_UNAVAILABLE",
+                      "FORBIDDEN",
+                      "STALE_VERSION",
+                      "DUPLICATE_OPERATION",
+                      "PENDING_REQUEST_EXISTS",
+                      "REQUEST_NOT_PENDING",
+                      "EMPLOYEE_INELIGIBLE",
+                      "LAST_ACTIVE_ADMIN",
+                      "EMAIL_TAKEN",
+                      "INVALID_SCOPE",
+                      "SELF_PASSWORD_REGENERATION_FORBIDDEN",
+                      "MODEL_PROVIDER_FAILED",
+                      "ASSISTANT_TURN_IN_PROGRESS",
+                      "SERVICE_UNAVAILABLE",
+                      "INTERNAL_ERROR"
+                    ]
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "PREVIEW_EXPIRED",
+                          "PREVIEW_INVALID",
+                          "PREVIEW_MISMATCH",
+                          "PERCENTAGE_RANGE",
+                          "INVALID_AMOUNT",
+                          "NEGATIVE_RESULT",
+                          "NO_CHANGE",
+                          "ZERO_BONUS_PERCENTAGE",
+                          "BASE_NOT_POSITIVE",
+                          "SALARY_BAND",
+                          "PAST_EFFECTIVE_DATE",
+                          "EFFECTIVE_BEFORE_CURRENT",
+                          "FUTURE_CHANGE_EXISTS",
+                          "NOTE_REQUIRED",
+                          "IDEMPOTENCY_KEY_REQUIRED",
+                          "MODEL_TIMEOUT",
+                          "MODEL_RATE_LIMITED",
+                          "MODEL_ERROR",
+                          "MODEL_INVALID_RESPONSE",
+                          "MODEL_NOT_CONFIGURED",
+                          "TURN_TIMEOUT",
+                          "TRACE_UNAVAILABLE",
+                          "DELETE_CONFIRMATION_REQUIRED"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The same safe reason the message endpoint returned for this failure, when it had one."
+                  }
+                },
+                "required": [
+                  "code",
+                  "message",
+                  "reason"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "FAILED turns only: the same public error the message endpoint returned."
+          }
+        },
+        "required": [
+          "traceId",
+          "sequence",
+          "previousTraceId",
+          "retryOfTraceId",
+          "status",
+          "userMessageSequence",
+          "assistantMessageSequence",
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "AssistantMessageRequest": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "retryOfTraceId": {
+            "description": "Set for a user-selected Retry (with a new Idempotency-Key): links the new turn to that earlier turn of this conversation.",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "additionalProperties": false
+      },
+      "AssistantMoney": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2}$",
+            "description": "Exact decimal string."
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "INR",
+              "USD"
+            ]
+          }
+        },
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "additionalProperties": false
+      },
+      "AssistantTurnResponse": {
         "type": "object",
         "properties": {
           "answer": {
@@ -4559,6 +8041,42 @@
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "conversationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "traceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "previousTraceId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "userMessageSequence": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "assistantMessageSequence": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "withheld": {
+            "type": "boolean",
+            "description": "Replays only can be true: the saved answer is withheld because the caller's current scope no longer covers the scope recorded with the turn; answer is a fixed notice and toolCalls, cards, and limitations are empty."
           }
         },
         "required": [
@@ -4566,29 +8084,13 @@
           "toolCalls",
           "cards",
           "limitations",
-          "generatedAt"
-        ],
-        "additionalProperties": false
-      },
-      "AssistantMoney": {
-        "type": "object",
-        "properties": {
-          "amount": {
-            "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
-            "description": "Exact decimal string."
-          },
-          "currency": {
-            "type": "string",
-            "enum": [
-              "INR",
-              "USD"
-            ]
-          }
-        },
-        "required": [
-          "amount",
-          "currency"
+          "generatedAt",
+          "conversationId",
+          "traceId",
+          "previousTraceId",
+          "userMessageSequence",
+          "assistantMessageSequence",
+          "withheld"
         ],
         "additionalProperties": false
       },
@@ -7332,6 +10834,8 @@
                   "EMAIL_TAKEN",
                   "INVALID_SCOPE",
                   "SELF_PASSWORD_REGENERATION_FORBIDDEN",
+                  "MODEL_PROVIDER_FAILED",
+                  "ASSISTANT_TURN_IN_PROGRESS",
                   "SERVICE_UNAVAILABLE",
                   "INTERNAL_ERROR"
                 ]
@@ -7357,7 +10861,15 @@
                   "EFFECTIVE_BEFORE_CURRENT",
                   "FUTURE_CHANGE_EXISTS",
                   "NOTE_REQUIRED",
-                  "IDEMPOTENCY_KEY_REQUIRED"
+                  "IDEMPOTENCY_KEY_REQUIRED",
+                  "MODEL_TIMEOUT",
+                  "MODEL_RATE_LIMITED",
+                  "MODEL_ERROR",
+                  "MODEL_INVALID_RESPONSE",
+                  "MODEL_NOT_CONFIGURED",
+                  "TURN_TIMEOUT",
+                  "TRACE_UNAVAILABLE",
+                  "DELETE_CONFIRMATION_REQUIRED"
                 ]
               }
             },

@@ -17,36 +17,146 @@ describe("generated frontend contract", () => {
     expect(stdout).toContain("Generated API contract is current.");
   });
 
-  it("contains exactly the allowlisted authentication and directory operations", () => {
+  it("contains exactly the allowlisted operations, and not the deprecated browser-history assistant endpoint", () => {
     const operationIds = Object.values(contract.paths).flatMap((item) =>
       Object.values(item).map((operation) => (operation as { operationId: string }).operationId),
     );
     expect(operationIds.sort()).toEqual([
-      "applySalaryAdjustment", "approveSalaryAdjustmentRequest", "cancelSalaryAdjustmentRequest",
-      "createHrUser", "deactivateHrUser", "getCurrentUser", "getDashboardBreakdown", "getDashboardRecentChanges",
-      "getDashboardSummary", "getDashboardWithoutRecentAdjustment", "getDirectoryOptions", "getEmployee", "getHrUser",
-      "getSalaryAdjustmentRequest", "listEmployees", "listHrUserAccessAudit", "listHrUsers", "listSalaryAdjustmentRequests",
-      "login", "logout", "previewHrUserCreation", "previewHrUserDeactivation", "previewHrUserPasswordRegeneration",
-      "previewHrUserProfile", "previewHrUserPromotion", "previewHrUserReactivation", "previewHrUserScopes",
-      "previewSalaryAdjustment", "promoteHrUser", "reactivateHrUser", "regenerateHrUserPassword", "replaceHrUserScopes",
-      "sendAssistantMessages", "submitSalaryAdjustmentRequest", "updateHrUserProfile",
+      "applySalaryAdjustment",
+      "approveSalaryAdjustmentRequest",
+      "cancelSalaryAdjustmentRequest",
+      "createAssistantConversation",
+      "createHrUser",
+      "deactivateHrUser",
+      "deleteAdminAiTrace",
+      "getAdminAiTrace",
+      "getAdminAiTraceOptions",
+      "getAdminAiTraceSummary",
+      "getAdminMcpToolCall",
+      "getAssistantConversation",
+      "getCurrentUser",
+      "getDashboardBreakdown",
+      "getDashboardRecentChanges",
+      "getDashboardSummary",
+      "getDashboardWithoutRecentAdjustment",
+      "getDirectoryOptions",
+      "getEmployee",
+      "getHrUser",
+      "getSalaryAdjustmentRequest",
+      "listAdminAiTraces",
+      "listAdminMcpToolCalls",
+      "listAssistantConversations",
+      "listEmployees",
+      "listHrUserAccessAudit",
+      "listHrUsers",
+      "listSalaryAdjustmentRequests",
+      "login",
+      "logout",
+      "previewHrUserCreation",
+      "previewHrUserDeactivation",
+      "previewHrUserPasswordRegeneration",
+      "previewHrUserProfile",
+      "previewHrUserPromotion",
+      "previewHrUserReactivation",
+      "previewHrUserScopes",
+      "previewSalaryAdjustment",
+      "promoteHrUser",
+      "reactivateHrUser",
+      "regenerateHrUserPassword",
+      "replaceHrUserScopes",
+      "reviewAdminAiTrace",
+      "sendAssistantConversationMessage",
+      "submitSalaryAdjustmentRequest",
+      "updateHrUserProfile",
     ].sort());
     expect(Object.keys(contract.components.schemas).sort()).toEqual([
-      "AccessAuditEvent", "AccessAuditResponse", "AccessSummary", "AssistantCard", "AssistantMessagesRequest",
-      "AssistantMessagesResponse", "AssistantMoney", "CompensationHistoryEntry", "CompensationRecordView",
-      "CompensationSummaryCard", "CurrentUserResponse", "DashboardAccess", "DashboardBreakdownGroup",
-      "DashboardBreakdownResponse", "DashboardFilterNote", "DashboardRecentChange", "DashboardRecentChangesResponse",
-      "DashboardSummaryResponse", "DashboardUpcomingChange", "DashboardUsdComparison", "DashboardWithoutAdjustmentResponse",
-      "DirectoryOptionsResponse", "DirectoryResponse", "DirectoryRow", "EmployeeDetailResponse", "EmployeeListCard",
-      "ErrorResponse", "ExchangeRateContext", "HrAccessPreview", "HrUserChangeResult", "HrUserCreatePreviewRequest",
-      "HrUserCreateRequest", "HrUserCreateResult", "HrUserDeactivatePreviewRequest", "HrUserDeactivateRequest",
-      "HrUserDetail", "HrUserDetailResponse", "HrUserListResponse", "HrUserPasswordRegenerationPreview",
-      "HrUserPasswordRegenerationPreviewRequest", "HrUserPasswordRegenerationRequest", "HrUserPasswordRegenerationResult",
-      "HrUserProfilePreviewRequest", "HrUserProfileRequest", "HrUserPromotePreviewRequest", "HrUserPromoteRequest",
-      "HrUserReactivatePreviewRequest", "HrUserReactivateRequest", "HrUserScopesPreviewRequest", "HrUserScopesRequest",
-      "HrUserView", "LoginRequest", "LoginResponse", "NoticeCard", "RecentChangesCard", "SalaryAdjustmentCommand",
-      "SalaryAdjustmentConfirmation", "SalaryAdjustmentPreview", "SalaryAdjustmentResult", "SalaryRequestApproval",
-      "SalaryRequestCancellation", "SalaryRequestList", "SalaryRequestResponse", "SalaryRequestView", "SelectedCompensation",
+      "AccessAuditEvent",
+      "AccessAuditResponse",
+      "AccessSummary",
+      "AdminMcpDetailResponse",
+      "AdminMcpListItem",
+      "AdminMcpListResponse",
+      "AdminModelCall",
+      "AdminToolCall",
+      "AdminTraceDeleteResponse",
+      "AdminTraceDetailResponse",
+      "AdminTraceListItem",
+      "AdminTraceListResponse",
+      "AdminTraceOptionsResponse",
+      "AdminTraceReview",
+      "AdminTraceReviewRequest",
+      "AdminTraceReviewResponse",
+      "AdminTraceSummaryResponse",
+      "AiHrUser",
+      "AssistantCard",
+      "AssistantConversationCreateRequest",
+      "AssistantConversationDetailResponse",
+      "AssistantConversationListResponse",
+      "AssistantConversationMessage",
+      "AssistantConversationResponse",
+      "AssistantConversationSummary",
+      "AssistantConversationTurn",
+      "AssistantMessageRequest",
+      "AssistantMoney",
+      "AssistantTurnResponse",
+      "CompensationHistoryEntry",
+      "CompensationRecordView",
+      "CompensationSummaryCard",
+      "CurrentUserResponse",
+      "DashboardAccess",
+      "DashboardBreakdownGroup",
+      "DashboardBreakdownResponse",
+      "DashboardFilterNote",
+      "DashboardRecentChange",
+      "DashboardRecentChangesResponse",
+      "DashboardSummaryResponse",
+      "DashboardUpcomingChange",
+      "DashboardUsdComparison",
+      "DashboardWithoutAdjustmentResponse",
+      "DirectoryOptionsResponse",
+      "DirectoryResponse",
+      "DirectoryRow",
+      "EmployeeDetailResponse",
+      "EmployeeListCard",
+      "ErrorResponse",
+      "ExchangeRateContext",
+      "HrAccessPreview",
+      "HrUserChangeResult",
+      "HrUserCreatePreviewRequest",
+      "HrUserCreateRequest",
+      "HrUserCreateResult",
+      "HrUserDeactivatePreviewRequest",
+      "HrUserDeactivateRequest",
+      "HrUserDetail",
+      "HrUserDetailResponse",
+      "HrUserListResponse",
+      "HrUserPasswordRegenerationPreview",
+      "HrUserPasswordRegenerationPreviewRequest",
+      "HrUserPasswordRegenerationRequest",
+      "HrUserPasswordRegenerationResult",
+      "HrUserProfilePreviewRequest",
+      "HrUserProfileRequest",
+      "HrUserPromotePreviewRequest",
+      "HrUserPromoteRequest",
+      "HrUserReactivatePreviewRequest",
+      "HrUserReactivateRequest",
+      "HrUserScopesPreviewRequest",
+      "HrUserScopesRequest",
+      "HrUserView",
+      "LoginRequest",
+      "LoginResponse",
+      "NoticeCard",
+      "RecentChangesCard",
+      "SalaryAdjustmentCommand",
+      "SalaryAdjustmentConfirmation",
+      "SalaryAdjustmentPreview",
+      "SalaryAdjustmentResult",
+      "SalaryRequestApproval",
+      "SalaryRequestCancellation",
+      "SalaryRequestList",
+      "SalaryRequestResponse",
+      "SalaryRequestView",
+      "SelectedCompensation",
     ].sort());
   });
 
@@ -76,6 +186,8 @@ describe("generated frontend contract", () => {
       | "INVALID_SCOPE"
       | "SELF_PASSWORD_REGENERATION_FORBIDDEN"
       | "SERVICE_UNAVAILABLE"
+      | "MODEL_PROVIDER_FAILED"
+      | "ASSISTANT_TURN_IN_PROGRESS"
     >();
     expectTypeOf<paths["/api/v1/auth/login"]["post"]>().toEqualTypeOf<operations["login"]>();
     expectTypeOf<keyof paths>().toEqualTypeOf<
@@ -85,7 +197,16 @@ describe("generated frontend contract", () => {
       | "/api/v1/employees"
       | "/api/v1/employees/{employeeCode}"
       | "/api/v1/employee-directory/options"
-      | "/api/v1/assistant/messages"
+      | "/api/v1/assistant/conversations"
+      | "/api/v1/assistant/conversations/{conversationId}"
+      | "/api/v1/assistant/conversations/{conversationId}/messages"
+      | "/api/v1/admin/ai-traces"
+      | "/api/v1/admin/ai-traces/options"
+      | "/api/v1/admin/ai-traces/summary"
+      | "/api/v1/admin/ai-traces/{traceId}"
+      | "/api/v1/admin/ai-traces/{traceId}/review"
+      | "/api/v1/admin/mcp-tool-calls"
+      | "/api/v1/admin/mcp-tool-calls/{mcpCallId}"
       | "/api/v1/employees/{employeeCode}/salary-adjustments/preview"
       | "/api/v1/employees/{employeeCode}/salary-adjustments"
       | "/api/v1/employees/{employeeCode}/salary-adjustment-requests"

@@ -182,6 +182,16 @@ export const REASON_MESSAGES: Record<ErrorReason, { field?: FormField; message: 
   },
   NOTE_REQUIRED: { field: "note", message: "A note is required." },
   IDEMPOTENCY_KEY_REQUIRED: { message: "The request could not be sent safely. Try again." },
+  // Shared error-reason enum: these belong to the assistant and AI-trace operations. No salary
+  // operation documents them; a generic message keeps this map exhaustive.
+  MODEL_TIMEOUT: { message: "The request could not be completed. Try again." },
+  MODEL_RATE_LIMITED: { message: "The request could not be completed. Try again." },
+  MODEL_ERROR: { message: "The request could not be completed. Try again." },
+  MODEL_INVALID_RESPONSE: { message: "The request could not be completed. Try again." },
+  MODEL_NOT_CONFIGURED: { message: "The request could not be completed. Try again." },
+  TURN_TIMEOUT: { message: "The request could not be completed. Try again." },
+  TRACE_UNAVAILABLE: { message: "The request could not be completed. Try again." },
+  DELETE_CONFIRMATION_REQUIRED: { message: "The request could not be completed. Try again." },
 };
 
 /** URL for the request list. Defaults (sort by created time, newest first, page 1) are left out. */

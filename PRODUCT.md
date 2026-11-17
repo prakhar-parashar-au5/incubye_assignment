@@ -36,9 +36,9 @@ A compensation ledger rather than a payroll system or HR suite. Native currency 
 
 ## Capabilities and Constraints
 
-- Delivered so far: authentication API (login, current user, logout); employee directory, detail, and options API (backend Task 07) and their frontend (Frontend Task 02, Part A); read-only compensation assistant (Frontend Task 02, Part B); salary adjustments: preview, Admin direct apply, Scoped HR requests, and the Admin approval queue with approve and cancel (backend Task 09, Frontend Task 03); the read-only compensation dashboard (backend Tasks 10 and 11b, Frontend Task 04).
+- Delivered so far: authentication API (login, current user, logout); employee directory, detail, and options API (backend Task 07) and their frontend (Frontend Task 02, Part A); read-only compensation assistant (Frontend Task 02, Part B); salary adjustments: preview, Admin direct apply, Scoped HR requests, and the Admin approval queue with approve and cancel (backend Task 09, Frontend Task 03); the read-only compensation dashboard (backend Tasks 10 and 11b, Frontend Task 04); saved assistant conversations with a 30-day recording notice (AI backend Tasks 03/03a, AI-traces frontend Task 02a); Admin-only AI monitoring: Overview, trace ledger with warned raw view, reviews, deletion, and MCP calls (AI backend Task 04, AI-traces frontend Task 02b).
 - Later: HR access management, spreadsheet import, Raise Advisor.
-- Excluded: payroll payments, tax, currency conversion for payment, autonomous AI mutation, MCP.
+- Excluded: payroll payments, tax, currency conversion for payment, autonomous AI mutation. MCP exists only as a read-only endpoint for MCP clients, audited in AI monitoring.
 - Terminology: "Admin HR", "Scoped HR", "employee ID" (stable code), "annual base salary", "annual cash compensation", "Current / Upcoming / Historical", "Last recorded compensation".
 
 ## Brand Commitments

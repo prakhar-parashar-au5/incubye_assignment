@@ -110,7 +110,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/assistant/messages": {
+    "/api/v1/assistant/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's own saved assistant conversations, most recently active first */
+        get: operations["listAssistantConversations"];
+        put?: never;
+        /**
+         * Start a conversation owned by the caller
+         * @description Not idempotent and takes no Idempotency-Key. Send the first message with the message endpoint. A conversation whose first message never arrived stays listed with messageCount 0; retention removes empty conversations 30 days after creation.
+         */
+        post: operations["createAssistantConversation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant/conversations/{conversationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One owned conversation: ordered messages and turn states
+         * @description Returns every saved message and turn (not paginated). A saved answer whose recorded actor scope the caller's current scope no longer covers is withheld (withheld: true, fixed text, response null); the user message stays visible.
+         */
+        get: operations["getAssistantConversation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant/conversations/{conversationId}/messages": {
         parameters: {
             query?: never;
             header?: never;
@@ -120,10 +161,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Ask the read-only compensation assistant
-         * @description Read-only. The server derives identity and scope from the Bearer token. Tools return permission-filtered cards; the answer text is model-written. At most 4 tool rounds and 45 seconds per request.
+         * Send one user message and run a recorded assistant turn
+         * @description The server loads bounded history: at most the 4 most recent COMPLETED turns (user message plus final answer), at most 16,000 characters, newest first, stopping at the first turn that does not fit. Failed and in-progress turns, the retried turn, and tool data from earlier turns are never sent. Every model and tool step is recorded before and after it runs; the answer is returned only after the assistant message and trace are saved. On a 502 or 503 the response has no trace ID; when a trace was created it appears in the conversation detail as a FAILED turn with the same code and reason. Counts toward the limit of 20 assistant requests per HR user per 15 minutes.
          */
-        post: operations["sendAssistantMessages"];
+        post: operations["sendAssistantConversationMessage"];
         delete?: never;
         options?: never;
         head?: never;
@@ -662,6 +703,138 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/ai-traces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recorded assistant turns, newest first (Admin HR)
+         * @description Offset pagination with a total. Filters are exact and run in SQL on typed columns. Rows never include prompts, responses, arguments, results, or safe-error JSON.
+         */
+        get: operations["listAdminAiTraces"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-traces/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Filter choices and closed status and stage lists (Admin HR) */
+        get: operations["getAdminAiTraceOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-traces/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * AI monitoring aggregates for 24 hours, 7 days, or 30 days (Admin HR)
+         * @description Computed in SQL from typed columns. Window [now - length, now], both inclusive. Counts and measurements only.
+         */
+        get: operations["getAdminAiTraceSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-traces/{traceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One complete trace in sequence order (Admin HR) */
+        get: operations["getAdminAiTrace"];
+        put?: never;
+        post?: never;
+        /**
+         * Permanently delete one trace aggregate (Admin HR)
+         * @description Removes the trace, its model and tool calls, its review, and the user and assistant messages of that turn. Other turns of the conversation remain; a later trace's previousTraceId becomes null. Repeating returns 404.
+         */
+        delete: operations["deleteAdminAiTrace"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai-traces/{traceId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create or replace the trace review (compare-and-set, Admin HR) */
+        post: operations["reviewAdminAiTrace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/mcp-tool-calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recorded MCP tool calls, newest first (Admin HR)
+         * @description Rows never include arguments or results.
+         */
+        get: operations["listAdminMcpToolCalls"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/mcp-tool-calls/{mcpCallId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One recorded MCP tool call (Admin HR) */
+        get: operations["getAdminMcpToolCall"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -728,15 +901,490 @@ export interface components {
                 department: string;
             }[];
         };
-        AssistantCard: components["schemas"]["EmployeeListCard"] | components["schemas"]["CompensationSummaryCard"] | components["schemas"]["RecentChangesCard"] | components["schemas"]["NoticeCard"];
-        AssistantMessagesRequest: {
-            messages: {
+        AdminMcpDetailResponse: {
+            /** @enum {string} */
+            view: "formatted" | "raw";
+            /** @description Set on the raw view only. */
+            warning: "Raw trace data contains complete synthetic employee identities and compensation values." | null;
+            redaction: {
                 /** @enum {string} */
-                role: "user" | "assistant";
-                content: string;
-            }[];
+                identities: "PLACEHOLDERS" | "NONE";
+                note: string | null;
+            };
+            call: {
+                /** Format: uuid */
+                mcpCallId: string;
+                requestId: string;
+                /** @description The authenticated HR user of the MCP client. */
+                hrUser: components["schemas"]["AiHrUser"];
+                toolName: string;
+                /** @enum {string} */
+                validationStatus: "PENDING" | "VALID" | "REJECTED";
+                /** @enum {string} */
+                status: "STARTED" | "REJECTED" | "SUCCEEDED" | "FAILED";
+                /**
+                 * Format: date-time
+                 * @description UTC instant.
+                 */
+                startedAt: string;
+                completedAt: string | null;
+                durationMs: number | null;
+                errorCategory: string | null;
+                /** @description Stored JSON value. */
+                requestedArguments: unknown;
+                validationErrors: unknown | null;
+                result: unknown | null;
+                safeError: unknown | null;
+            };
         };
-        AssistantMessagesResponse: {
+        AdminMcpListItem: {
+            /** Format: uuid */
+            mcpCallId: string;
+            requestId: string;
+            /** @description The authenticated HR user of the MCP client. */
+            hrUser: components["schemas"]["AiHrUser"];
+            toolName: string;
+            /** @enum {string} */
+            validationStatus: "PENDING" | "VALID" | "REJECTED";
+            /** @enum {string} */
+            status: "STARTED" | "REJECTED" | "SUCCEEDED" | "FAILED";
+            /**
+             * Format: date-time
+             * @description UTC instant.
+             */
+            startedAt: string;
+            completedAt: string | null;
+            durationMs: number | null;
+            errorCategory: string | null;
+        };
+        AdminMcpListResponse: {
+            /** @description Newest first. */
+            calls: components["schemas"]["AdminMcpListItem"][];
+            page: {
+                number: number;
+                size: number;
+                totalRows: number;
+                totalPages: number;
+            };
+        };
+        AdminModelCall: {
+            /** @description Trace-wide order of model calls. */
+            sequence: number;
+            /** @enum {string} */
+            status: "STARTED" | "SUCCEEDED" | "FAILED";
+            provider: string;
+            model: string;
+            providerRequestId: string | null;
+            promptVersion: string;
+            promptHash: string;
+            /** @description Exact provider-neutral input: instructions, bounded messages, and this turn's tool exchanges. */
+            input: unknown;
+            /** @description Tool names and JSON schemas offered. */
+            tools: unknown;
+            /** @description { text } when the model answered. */
+            output: unknown | null;
+            /** @description Requested calls: callId, name, parsed arguments (or { invalidJson: true }). */
+            toolDecisions: unknown | null;
+            inputTokens: number | null;
+            outputTokens: number | null;
+            totalTokens: number | null;
+            /** @description Count only. */
+            reasoningTokens: number | null;
+            /**
+             * Format: date-time
+             * @description UTC instant.
+             */
+            startedAt: string;
+            completedAt: string | null;
+            latencyMs: number | null;
+            /** @description Model-call category, separate from the trace error category. */
+            failureCategory: string | null;
+            safeError: unknown | null;
+        };
+        AdminToolCall: {
+            /** @description Trace-wide order of tool calls. */
+            sequence: number;
+            /** @description The model call that requested it. */
+            modelCallSequence: number;
+            providerToolCallId: string | null;
+            toolName: string;
+            /** @description As requested (secret keys scrubbed; { invalidJson: true } for unparseable text). There is no separate validated value. */
+            requestedArguments: unknown;
+            /** @enum {string} */
+            validationStatus: "PENDING" | "VALID" | "REJECTED";
+            validationErrors: unknown | null;
+            /**
+             * @description STARTED inside a STARTED trace: still running.
+             * @enum {string}
+             */
+            status: "STARTED" | "REJECTED" | "SUCCEEDED" | "FAILED";
+            /** @description SUCCEEDED only: { data, cards, limitations }. */
+            result: unknown | null;
+            errorCategory: string | null;
+            safeError: unknown | null;
+            /**
+             * Format: date-time
+             * @description UTC instant.
+             */
+            startedAt: string;
+            completedAt: string | null;
+            durationMs: number | null;
+        };
+        AdminTraceDeleteResponse: {
+            deleted: {
+                /** Format: uuid */
+                traceId: string;
+                modelCalls: number;
+                toolCalls: number;
+                messages: number;
+                review: boolean;
+            };
+        };
+        AdminTraceDetailResponse: {
+            /** @enum {string} */
+            view: "formatted" | "raw";
+            /** @description Set on the raw view only. */
+            warning: "Raw trace data contains complete synthetic employee identities and compensation values." | null;
+            redaction: {
+                /** @enum {string} */
+                identities: "PLACEHOLDERS" | "NONE";
+                note: string | null;
+            };
+            trace: {
+                /** Format: uuid */
+                traceId: string;
+                /** Format: uuid */
+                conversationId: string;
+                turnSequence: number;
+                previousTraceId: string | null;
+                /** @description The earliest later trace that links to this one. */
+                nextTraceId: string | null;
+                requestId: string;
+                hrUser: components["schemas"]["AiHrUser"];
+                /** @enum {string} */
+                status: "STARTED" | "COMPLETED" | "FAILED";
+                failureStage: string | null;
+                errorCategory: string | null;
+                model: string;
+                promptVersion: string;
+                promptHash: string;
+                /**
+                 * Format: date-time
+                 * @description UTC instant.
+                 */
+                startedAt: string;
+                completedAt: string | null;
+                durationMs: number | null;
+                inputTokens: number;
+                outputTokens: number;
+                reasoningTokens: number;
+                modelCallCount: number;
+                toolCallCount: number;
+            };
+            /** @description { text, retryOfTraceId } as submitted. */
+            userContent: unknown;
+            /** @description The bounded conversation messages sent to the model. */
+            modelMessages: unknown;
+            modelCalls: components["schemas"]["AdminModelCall"][];
+            toolCalls: components["schemas"]["AdminToolCall"][];
+            /** @description COMPLETED only. A failed trace never has one. */
+            finalResponse: unknown | null;
+            messages: {
+                sequence: number;
+                /** @enum {string} */
+                role: "USER" | "ASSISTANT";
+                /**
+                 * Format: date-time
+                 * @description UTC instant.
+                 */
+                createdAt: string;
+            }[];
+            review: components["schemas"]["AdminTraceReview"] | null;
+        };
+        AdminTraceListItem: {
+            /** Format: uuid */
+            traceId: string;
+            /** Format: uuid */
+            conversationId: string;
+            turnSequence: number;
+            hrUser: components["schemas"]["AiHrUser"];
+            /** @enum {string} */
+            status: "STARTED" | "COMPLETED" | "FAILED";
+            model: string;
+            /** @description Distinct tool names in first-use order. */
+            toolNames: string[];
+            /**
+             * Format: date-time
+             * @description UTC instant.
+             */
+            startedAt: string;
+            completedAt: string | null;
+            durationMs: number | null;
+            inputTokens: number;
+            outputTokens: number;
+            /** @description Count only; reasoning content is never recorded. */
+            reasoningTokens: number;
+            modelCallCount: number;
+            toolCallCount: number;
+            failureStage: string | null;
+            errorCategory: string | null;
+        };
+        AdminTraceListResponse: {
+            /** @description Newest first. */
+            traces: components["schemas"]["AdminTraceListItem"][];
+            page: {
+                number: number;
+                size: number;
+                totalRows: number;
+                totalPages: number;
+            };
+        };
+        AdminTraceOptionsResponse: {
+            /** @description HR users with at least one stored trace or MCP call. */
+            hrUsers: components["schemas"]["AiHrUser"][];
+            models: string[];
+            /** @description Tool names in stored assistant or MCP calls. */
+            toolNames: string[];
+            errorCategories: string[];
+            failureStages: string[];
+            statuses: ("STARTED" | "COMPLETED" | "FAILED")[];
+            /** @description Closed status and stage lists, and the known category values. */
+            enums: {
+                failureStages: ("TRACE_CREATE" | "MODEL_CALL" | "MODEL_TRACE_WRITE" | "TOOL_VALIDATION" | "TOOL_EXECUTION" | "TOOL_TRACE_WRITE" | "FINAL_TRACE_WRITE")[];
+                modelCallStatuses: ("STARTED" | "SUCCEEDED" | "FAILED")[];
+                toolValidationStatuses: ("PENDING" | "VALID" | "REJECTED")[];
+                toolCallStatuses: ("STARTED" | "REJECTED" | "SUCCEEDED" | "FAILED")[];
+                knownCategories: {
+                    traceError: string[];
+                    modelCallFailure: string[];
+                    toolError: string[];
+                    toolRejection: string[];
+                    mcpError: string[];
+                };
+            };
+        };
+        AdminTraceReview: {
+            /** @enum {string} */
+            verdict: "CORRECT" | "PARTIAL" | "INCORRECT";
+            note: string;
+            nominated: boolean;
+            /** @description Send as expectedVersion to replace this review. */
+            version: number;
+            reviewer: components["schemas"]["AiHrUser"];
+            /**
+             * Format: date-time
+             * @description UTC instant.
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description UTC instant.
+             */
+            updatedAt: string;
+        };
+        AdminTraceReviewRequest: {
+            /** @enum {string} */
+            verdict: "CORRECT" | "PARTIAL" | "INCORRECT";
+            /** @default  */
+            note: string;
+            /**
+             * @description Nominated as an evaluation-fixture candidate. Nothing is copied automatically.
+             * @default false
+             */
+            nominated: boolean;
+            /** @description 0 for the first review; otherwise the current review.version. */
+            expectedVersion: number;
+        };
+        AdminTraceReviewResponse: {
+            review: components["schemas"]["AdminTraceReview"];
+        };
+        AdminTraceSummaryResponse: {
+            /** @enum {string} */
+            window: "24h" | "7d" | "30d";
+            /**
+             * Format: date-time
+             * @description Inclusive.
+             */
+            from: string;
+            /**
+             * Format: date-time
+             * @description Inclusive; equal to generatedAt.
+             */
+            to: string;
+            /**
+             * Format: date-time
+             * @description UTC instant.
+             */
+            generatedAt: string;
+            traces: {
+                total: number;
+                completed: number;
+                failed: number;
+                /** @description Still open (STARTED). */
+                started: number;
+            };
+            failures: {
+                failureStage: string | null;
+                errorCategory: string | null;
+                count: number;
+            }[];
+            /** @description COMPLETED traces only. Exact nearest-rank percentiles; null when there are none. */
+            durationMs: {
+                completedCount: number;
+                p50: number | null;
+                p95: number | null;
+                max: number | null;
+            };
+            tokens: {
+                input: number;
+                output: number;
+                /** @description Part of output; count only. */
+                reasoning: number;
+                /** @description input + output. */
+                total: number;
+            };
+            modelCalls: {
+                total: number;
+                byModel: {
+                    model: string;
+                    count: number;
+                }[];
+            };
+            toolCalls: {
+                toolName: string;
+                /** @enum {string} */
+                status: "STARTED" | "REJECTED" | "SUCCEEDED" | "FAILED";
+                count: number;
+            }[];
+            mcpCalls: {
+                toolName: string;
+                /** @enum {string} */
+                status: "STARTED" | "REJECTED" | "SUCCEEDED" | "FAILED";
+                count: number;
+            }[];
+            reviews: {
+                byVerdict: {
+                    /** @enum {string} */
+                    verdict: "CORRECT" | "PARTIAL" | "INCORRECT";
+                    count: number;
+                }[];
+                /** @description Finished traces without a review. */
+                unreviewed: number;
+            };
+            series: {
+                /** @enum {string} */
+                bucket: "HOUR" | "DAY";
+                /** @description UTC-aligned buckets from the one containing from to the one containing to, zero-filled. The first and last are partial. */
+                points: {
+                    /**
+                     * Format: date-time
+                     * @description UTC instant.
+                     */
+                    start: string;
+                    traces: number;
+                    failures: number;
+                }[];
+            };
+        };
+        AiHrUser: {
+            id: number;
+            displayName: string;
+        };
+        AssistantCard: components["schemas"]["EmployeeListCard"] | components["schemas"]["CompensationSummaryCard"] | components["schemas"]["RecentChangesCard"] | components["schemas"]["NoticeCard"];
+        AssistantConversationCreateRequest: Record<string, never>;
+        AssistantConversationDetailResponse: {
+            conversation: components["schemas"]["AssistantConversationSummary"];
+            /** @description Every saved message, in sequence order (not paginated). Missing sequence numbers mean deleted or expired turns. */
+            messages: components["schemas"]["AssistantConversationMessage"][];
+            /** @description Every saved turn, in sequence order. STARTED means the turn has not finished. */
+            turns: components["schemas"]["AssistantConversationTurn"][];
+        };
+        AssistantConversationListResponse: {
+            /** @description Most recently active first. */
+            conversations: components["schemas"]["AssistantConversationSummary"][];
+            page: {
+                number: number;
+                size: number;
+                totalRows: number;
+                totalPages: number;
+            };
+        };
+        AssistantConversationMessage: {
+            /** @description Authoritative order within the conversation. */
+            sequence: number;
+            /** @enum {string} */
+            role: "user" | "assistant";
+            traceId: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description User text, or the assistant answer (plain text). For a withheld answer, a fixed notice. */
+            text: string;
+            /** @description Assistant messages only: tool statuses, cards, limitations. Null when withheld. */
+            response: {
+                toolCalls: {
+                    name: string;
+                    /**
+                     * @description rejected: invalid tool name or arguments, not executed.
+                     * @enum {string}
+                     */
+                    status: "completed" | "rejected" | "failed";
+                }[];
+                cards: components["schemas"]["AssistantCard"][];
+                limitations: string[];
+                /** Format: date-time */
+                generatedAt: string;
+            } | null;
+            /** @description True when the saved answer is hidden because the caller's current employee scope no longer covers the scope recorded with its turn. The user's own message is never withheld. */
+            withheld: boolean;
+        };
+        AssistantConversationResponse: {
+            conversation: components["schemas"]["AssistantConversationSummary"];
+        };
+        AssistantConversationSummary: {
+            /** Format: uuid */
+            conversationId: string;
+            /** Format: date-time */
+            createdAt: string;
+            lastMessageAt: string | null;
+            messageCount: number;
+            /** @description The first 80 characters of the first user message. */
+            title: string | null;
+        };
+        AssistantConversationTurn: {
+            /** Format: uuid */
+            traceId: string;
+            sequence: number;
+            previousTraceId: string | null;
+            retryOfTraceId: string | null;
+            /** @enum {string} */
+            status: "STARTED" | "COMPLETED" | "FAILED";
+            userMessageSequence: number | null;
+            /** @description Null unless COMPLETED. A failed turn has no assistant message. */
+            assistantMessageSequence: number | null;
+            /** @description FAILED turns only: the same public error the message endpoint returned. */
+            error: {
+                /** @enum {string} */
+                code: "VALIDATION_ERROR" | "INVALID_CREDENTIALS" | "UNAUTHENTICATED" | "RATE_LIMITED" | "NOT_FOUND" | "ASSISTANT_UNAVAILABLE" | "FORBIDDEN" | "STALE_VERSION" | "DUPLICATE_OPERATION" | "PENDING_REQUEST_EXISTS" | "REQUEST_NOT_PENDING" | "EMPLOYEE_INELIGIBLE" | "LAST_ACTIVE_ADMIN" | "EMAIL_TAKEN" | "INVALID_SCOPE" | "SELF_PASSWORD_REGENERATION_FORBIDDEN" | "MODEL_PROVIDER_FAILED" | "ASSISTANT_TURN_IN_PROGRESS" | "SERVICE_UNAVAILABLE" | "INTERNAL_ERROR";
+                message: string;
+                /** @description The same safe reason the message endpoint returned for this failure, when it had one. */
+                reason: ("PREVIEW_EXPIRED" | "PREVIEW_INVALID" | "PREVIEW_MISMATCH" | "PERCENTAGE_RANGE" | "INVALID_AMOUNT" | "NEGATIVE_RESULT" | "NO_CHANGE" | "ZERO_BONUS_PERCENTAGE" | "BASE_NOT_POSITIVE" | "SALARY_BAND" | "PAST_EFFECTIVE_DATE" | "EFFECTIVE_BEFORE_CURRENT" | "FUTURE_CHANGE_EXISTS" | "NOTE_REQUIRED" | "IDEMPOTENCY_KEY_REQUIRED" | "MODEL_TIMEOUT" | "MODEL_RATE_LIMITED" | "MODEL_ERROR" | "MODEL_INVALID_RESPONSE" | "MODEL_NOT_CONFIGURED" | "TURN_TIMEOUT" | "TRACE_UNAVAILABLE" | "DELETE_CONFIRMATION_REQUIRED") | null;
+            } | null;
+        };
+        AssistantMessageRequest: {
+            content: string;
+            /**
+             * Format: uuid
+             * @description Set for a user-selected Retry (with a new Idempotency-Key): links the new turn to that earlier turn of this conversation.
+             */
+            retryOfTraceId?: string;
+        };
+        AssistantMoney: {
+            /** @description Exact decimal string. */
+            amount: string;
+            /** @enum {string} */
+            currency: "INR" | "USD";
+        };
+        AssistantTurnResponse: {
             /** @description Model-written text. Treat figures in cards as authoritative. */
             answer: string;
             toolCalls: {
@@ -751,12 +1399,15 @@ export interface components {
             limitations: string[];
             /** Format: date-time */
             generatedAt: string;
-        };
-        AssistantMoney: {
-            /** @description Exact decimal string. */
-            amount: string;
-            /** @enum {string} */
-            currency: "INR" | "USD";
+            /** Format: uuid */
+            conversationId: string;
+            /** Format: uuid */
+            traceId: string;
+            previousTraceId: string | null;
+            userMessageSequence: number;
+            assistantMessageSequence: number;
+            /** @description Replays only can be true: the saved answer is withheld because the caller's current scope no longer covers the scope recorded with the turn; answer is a fixed notice and toolCalls, cards, and limitations are empty. */
+            withheld: boolean;
         };
         CompensationHistoryEntry: {
             version: number;
@@ -1294,13 +1945,13 @@ export interface components {
         ErrorResponse: {
             error: {
                 /** @enum {string} */
-                code: "VALIDATION_ERROR" | "INVALID_CREDENTIALS" | "UNAUTHENTICATED" | "RATE_LIMITED" | "NOT_FOUND" | "ASSISTANT_UNAVAILABLE" | "FORBIDDEN" | "STALE_VERSION" | "DUPLICATE_OPERATION" | "PENDING_REQUEST_EXISTS" | "REQUEST_NOT_PENDING" | "EMPLOYEE_INELIGIBLE" | "LAST_ACTIVE_ADMIN" | "EMAIL_TAKEN" | "INVALID_SCOPE" | "SELF_PASSWORD_REGENERATION_FORBIDDEN" | "SERVICE_UNAVAILABLE" | "INTERNAL_ERROR";
+                code: "VALIDATION_ERROR" | "INVALID_CREDENTIALS" | "UNAUTHENTICATED" | "RATE_LIMITED" | "NOT_FOUND" | "ASSISTANT_UNAVAILABLE" | "FORBIDDEN" | "STALE_VERSION" | "DUPLICATE_OPERATION" | "PENDING_REQUEST_EXISTS" | "REQUEST_NOT_PENDING" | "EMPLOYEE_INELIGIBLE" | "LAST_ACTIVE_ADMIN" | "EMAIL_TAKEN" | "INVALID_SCOPE" | "SELF_PASSWORD_REGENERATION_FORBIDDEN" | "MODEL_PROVIDER_FAILED" | "ASSISTANT_TURN_IN_PROGRESS" | "SERVICE_UNAVAILABLE" | "INTERNAL_ERROR";
                 message: string;
                 /**
                  * @description Present on some VALIDATION_ERROR responses so the client can show the right state.
                  * @enum {string}
                  */
-                reason?: "PREVIEW_EXPIRED" | "PREVIEW_INVALID" | "PREVIEW_MISMATCH" | "PERCENTAGE_RANGE" | "INVALID_AMOUNT" | "NEGATIVE_RESULT" | "NO_CHANGE" | "ZERO_BONUS_PERCENTAGE" | "BASE_NOT_POSITIVE" | "SALARY_BAND" | "PAST_EFFECTIVE_DATE" | "EFFECTIVE_BEFORE_CURRENT" | "FUTURE_CHANGE_EXISTS" | "NOTE_REQUIRED" | "IDEMPOTENCY_KEY_REQUIRED";
+                reason?: "PREVIEW_EXPIRED" | "PREVIEW_INVALID" | "PREVIEW_MISMATCH" | "PERCENTAGE_RANGE" | "INVALID_AMOUNT" | "NEGATIVE_RESULT" | "NO_CHANGE" | "ZERO_BONUS_PERCENTAGE" | "BASE_NOT_POSITIVE" | "SALARY_BAND" | "PAST_EFFECTIVE_DATE" | "EFFECTIVE_BEFORE_CURRENT" | "FUTURE_CHANGE_EXISTS" | "NOTE_REQUIRED" | "IDEMPOTENCY_KEY_REQUIRED" | "MODEL_TIMEOUT" | "MODEL_RATE_LIMITED" | "MODEL_ERROR" | "MODEL_INVALID_RESPONSE" | "MODEL_NOT_CONFIGURED" | "TURN_TIMEOUT" | "TRACE_UNAVAILABLE" | "DELETE_CONFIRMATION_REQUIRED";
             };
         };
         ExchangeRateContext: {
@@ -2153,29 +2804,28 @@ export interface operations {
             };
         };
     };
-    sendAssistantMessages: {
+    listAssistantConversations: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssistantMessagesRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description The answer, tool calls, cards, and limitations. */
+            /** @description Summaries only. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AssistantMessagesResponse"];
+                    "application/json": components["schemas"]["AssistantConversationListResponse"];
                 };
             };
-            /** @description VALIDATION_ERROR: invalid conversation. */
+            /** @description VALIDATION_ERROR */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2202,7 +2852,232 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description ASSISTANT_UNAVAILABLE: no model configured, model timeout, or provider error. Other routes are unaffected. */
+            /** @description ASSISTANT_UNAVAILABLE: conversation storage is unavailable. Other routes are unaffected. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    createAssistantConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AssistantConversationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The new conversation. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversationResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ASSISTANT_UNAVAILABLE: conversation storage is unavailable. Other routes are unaffected. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getAssistantConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Messages in sequence order. A failed turn has a user message and a safe error, never an assistant answer. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversationDetailResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND: unknown and unowned conversations return the same body. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ASSISTANT_UNAVAILABLE: conversation storage is unavailable. Other routes are unaffected. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    sendAssistantConversationMessage: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Generated by the client per submission; a UUID v4 (36 characters) fits. Reuse only to retry the same submission: the same key and command returns the stored result (Idempotency-Replayed: true), or 409 ASSISTANT_TURN_IN_PROGRESS while it is still running. A user-selected Retry sends a new key with retryOfTraceId. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssistantMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description The recorded answer, tool statuses, cards, and limitations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantTurnResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR (IDEMPOTENCY_KEY_REQUIRED, invalid message, or retryOfTraceId outside the conversation). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND: unknown and unowned conversations return the same body. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description DUPLICATE_OPERATION (key reused with different content) or ASSISTANT_TURN_IN_PROGRESS. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description RATE_LIMITED: more than 20 assistant message requests by this HR user in 15 minutes. */
+            429: {
+                headers: {
+                    /** @description Seconds until the current 15-minute window resets. */
+                    "Retry-After"?: number;
+                    /** @description IETF draft-8 RateLimit header: remaining requests (r) and seconds to reset (t). */
+                    RateLimit?: string;
+                    /** @description IETF draft-8 policy: limit (q) and window seconds (w). */
+                    "RateLimit-Policy"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description MODEL_PROVIDER_FAILED, reason MODEL_TIMEOUT, MODEL_RATE_LIMITED, MODEL_ERROR, or MODEL_INVALID_RESPONSE. The failed turn is recorded. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description ASSISTANT_UNAVAILABLE, reason MODEL_NOT_CONFIGURED (the message and a FAILED turn are recorded; no model call), TRACE_UNAVAILABLE (required recording failed; nothing unrecorded ran), or TURN_TIMEOUT. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4584,6 +5459,627 @@ export interface operations {
                 };
             };
             /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listAdminAiTraces: {
+        parameters: {
+            query?: {
+                /** @description UTC calendar date, inclusive: started at or after 00:00 UTC. */
+                from?: string;
+                /** @description UTC calendar date, inclusive: started before 00:00 UTC of the next day. Must not be before from. */
+                to?: string;
+                hrUserId?: number;
+                /** @description STARTED: still in progress. */
+                status?: "STARTED" | "COMPLETED" | "FAILED";
+                /** @description Exact model name. */
+                model?: string;
+                /** @description Exact tool name; traces with at least one call to it. */
+                tool?: string;
+                /** @description Exact trace error category. */
+                errorCategory?: string;
+                page?: number;
+                /** @description Over 100 is a 400, not clamped. */
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of trace summaries. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTraceListResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR: unknown, repeated, or invalid filter. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. Scoped HR always receives this. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getAdminAiTraceOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Values present in stored traces and MCP calls. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTraceOptionsResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR: no query parameters are accepted. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. Scoped HR always receives this. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getAdminAiTraceSummary: {
+        parameters: {
+            query?: {
+                window?: "24h" | "7d" | "30d";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Monitoring summary. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTraceSummaryResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. Scoped HR always receives this. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getAdminAiTrace: {
+        parameters: {
+            query?: {
+                /** @description formatted: employee names, codes, and emails replaced by stable per-record placeholders; salary values shown. raw: exact stored JSON with the synthetic-data warning. Never put trace content in URLs. */
+                view?: "formatted" | "raw";
+            };
+            header?: never;
+            path: {
+                /** @description Unknown, deleted, or malformed IDs give 404. */
+                traceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Trace header, model calls, tool calls, messages, and review. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTraceDetailResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR: invalid view. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. Scoped HR always receives this. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND: unknown or deleted trace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    deleteAdminAiTrace: {
+        parameters: {
+            query?: {
+                /** @description Required: the same trace ID, as explicit confirmation. No request body. */
+                confirm?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Unknown, deleted, or malformed IDs give 404. */
+                traceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What was removed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTraceDeleteResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR, reason DELETE_CONFIRMATION_REQUIRED: confirm missing or different from the path ID. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. Scoped HR always receives this. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND: unknown or already deleted trace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reviewAdminAiTrace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unknown, deleted, or malformed IDs give 404. */
+                traceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminTraceReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description The saved review with its new version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTraceReviewResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR: verdict, note over 2,000 characters, or expectedVersion. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. Scoped HR always receives this. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND: unknown or deleted trace. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION: expectedVersion is not the current version (reload the trace); ASSISTANT_TURN_IN_PROGRESS: the trace is STARTED. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listAdminMcpToolCalls: {
+        parameters: {
+            query?: {
+                /** @description UTC calendar date, inclusive: started at or after 00:00 UTC. */
+                from?: string;
+                /** @description UTC calendar date, inclusive: started before 00:00 UTC of the next day. Must not be before from. */
+                to?: string;
+                hrUserId?: number;
+                /** @description Exact tool name. */
+                tool?: string;
+                status?: "STARTED" | "REJECTED" | "SUCCEEDED" | "FAILED";
+                page?: number;
+                /** @description Over 100 is a 400, not clamped. */
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of MCP call summaries. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminMcpListResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. Scoped HR always receives this. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getAdminMcpToolCall: {
+        parameters: {
+            query?: {
+                /** @description formatted: employee names, codes, and emails replaced by stable per-record placeholders; salary values shown. raw: exact stored JSON with the synthetic-data warning. Never put trace content in URLs. */
+                view?: "formatted" | "raw";
+            };
+            header?: never;
+            path: {
+                /** @description Unknown or malformed IDs give 404. */
+                mcpCallId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Arguments, validation result, result, and safe error. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminMcpDetailResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR: invalid view. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. Scoped HR always receives this. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected. */
             503: {
                 headers: {
                     [name: string]: unknown;

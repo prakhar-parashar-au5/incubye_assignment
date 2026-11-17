@@ -8,11 +8,34 @@ import {
   isDirectoryOptionsResponse,
   isDirectoryResponse,
   isEmployeeDetailResponse,
-  isAssistantMessagesResponse,
+  isAssistantConversationDetailResponse,
+  isAssistantConversationListResponse,
+  isAssistantConversationResponse,
+  isAssistantTurnResponse,
+  isAdminMcpDetailResponse,
+  isAdminMcpListResponse,
+  isAdminTraceDeleteResponse,
+  isAdminTraceDetailResponse,
+  isAdminTraceListResponse,
+  isAdminTraceOptionsResponse,
+  isAdminTraceReviewResponse,
+  isAdminTraceSummaryResponse,
+  type AdminMcpDetailResponse,
+  type AdminMcpListResponse,
+  type AdminTraceDeleteResponse,
+  type AdminTraceDetailResponse,
+  type AdminTraceListResponse,
+  type AdminTraceOptionsResponse,
+  type AdminTraceReviewRequest,
+  type AdminTraceReviewResponse,
+  type AdminTraceSummaryResponse,
   isErrorResponse,
   isLoginResponse,
-  type AssistantMessagesRequest,
-  type AssistantMessagesResponse,
+  type AssistantConversationDetailResponse,
+  type AssistantConversationListResponse,
+  type AssistantConversationResponse,
+  type AssistantMessageRequest,
+  type AssistantTurnResponse,
   type CurrentUserResponse,
   type DirectoryOptionsResponse,
   type DirectoryResponse,
@@ -80,7 +103,7 @@ export type ApiErrorReason = NonNullable<ErrorResponse['error']['reason']>;
 export type ApiResult<T> =
   | { ok: true; data: T }
   /** `reason` is the backend's optional public detail for some VALIDATION_ERROR responses. */
-  | { ok: false; kind: ApiFailureKind; status?: number; reason?: ApiErrorReason };
+  | { ok: false; kind: ApiFailureKind; status?: number; reason?: ApiErrorReason; retryAfterSeconds?: number };
 
 type Env = Readonly<Record<string, string | undefined>>;
 type Logger = (entry: Record<string, string | number | readonly string[]>) => void;
@@ -95,7 +118,7 @@ const defaultLogger: Logger = (entry) => console.error(JSON.stringify(entry));
 
 type RequestSpec<T> = {
   operation: string;
-  method: 'GET' | 'POST' | 'PUT';
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   path: string;
   token?: string;
   body?: unknown;
@@ -167,7 +190,15 @@ export function createApiClient(options: ApiClientOptions = {}) {
     }
 
     if (!response.ok) {
-      if (isErrorResponse(payload)) return fail(payload.error.code, response.status, payload.error.reason);
+      if (isErrorResponse(payload)) {
+        const failure = fail(payload.error.code, response.status, payload.error.reason);
+        // Retry-After (seconds) is documented only on the assistant's 429; it is a number, never content.
+        const retryAfter = response.headers.get('retry-after');
+        if (response.status === 429 && retryAfter && /^\d{1,6}$/.test(retryAfter) && !failure.ok) {
+          return { ...failure, retryAfterSeconds: Number(retryAfter) };
+        }
+        return failure;
+      }
       return fail(response.status >= 500 ? 'UNAVAILABLE' : 'INVALID_RESPONSE', response.status);
     }
     if (spec.validate && !spec.validate(payload)) return fail('INVALID_RESPONSE', response.status);
@@ -225,15 +256,118 @@ export function createApiClient(options: ApiClientOptions = {}) {
         validate: isEmployeeDetailResponse,
       });
     },
-    sendAssistantMessages(token: string, body: AssistantMessagesRequest) {
-      return request<AssistantMessagesResponse>({
-        operation: 'sendAssistantMessages',
+    listAssistantConversations(token: string, query: { page?: number; pageSize?: number }) {
+      return request<AssistantConversationListResponse>({
+        operation: 'listAssistantConversations',
+        method: 'GET',
+        path: `/api/v1/assistant/conversations${querySuffix(query)}`,
+        token,
+        validate: isAssistantConversationListResponse,
+      });
+    },
+    createAssistantConversation(token: string) {
+      return request<AssistantConversationResponse>({
+        operation: 'createAssistantConversation',
         method: 'POST',
-        path: '/api/v1/assistant/messages',
+        path: '/api/v1/assistant/conversations',
+        token,
+        body: {},
+        validate: isAssistantConversationResponse,
+      });
+    },
+    getAssistantConversation(token: string, conversationId: string) {
+      return request<AssistantConversationDetailResponse>({
+        operation: 'getAssistantConversation',
+        method: 'GET',
+        path: `/api/v1/assistant/conversations/${encodeURIComponent(conversationId)}`,
+        token,
+        validate: isAssistantConversationDetailResponse,
+      });
+    },
+    sendAssistantConversationMessage(token: string, conversationId: string, body: AssistantMessageRequest, idempotencyKey: string) {
+      return request<AssistantTurnResponse>({
+        operation: 'sendAssistantConversationMessage',
+        method: 'POST',
+        path: `/api/v1/assistant/conversations/${encodeURIComponent(conversationId)}/messages`,
         token,
         body,
-        validate: isAssistantMessagesResponse,
+        headers: { 'Idempotency-Key': idempotencyKey },
+        validate: isAssistantTurnResponse,
         timeout: 'assistant',
+      });
+    },
+    getAdminAiTraceSummary(token: string, window: AdminTraceSummaryResponse['window']) {
+      return request<AdminTraceSummaryResponse>({
+        operation: 'getAdminAiTraceSummary',
+        method: 'GET',
+        path: `/api/v1/admin/ai-traces/summary${querySuffix({ window })}`,
+        token,
+        validate: isAdminTraceSummaryResponse,
+      });
+    },
+    getAdminAiTraceOptions(token: string) {
+      return request<AdminTraceOptionsResponse>({
+        operation: 'getAdminAiTraceOptions',
+        method: 'GET',
+        path: '/api/v1/admin/ai-traces/options',
+        token,
+        validate: isAdminTraceOptionsResponse,
+      });
+    },
+    listAdminAiTraces(token: string, query: Readonly<Record<string, string | number | undefined>>) {
+      return request<AdminTraceListResponse>({
+        operation: 'listAdminAiTraces',
+        method: 'GET',
+        path: `/api/v1/admin/ai-traces${querySuffix(query)}`,
+        token,
+        validate: isAdminTraceListResponse,
+      });
+    },
+    getAdminAiTrace(token: string, traceId: string, view: 'formatted' | 'raw') {
+      return request<AdminTraceDetailResponse>({
+        operation: 'getAdminAiTrace',
+        method: 'GET',
+        path: `/api/v1/admin/ai-traces/${encodeURIComponent(traceId)}${querySuffix({ view })}`,
+        token,
+        validate: isAdminTraceDetailResponse,
+      });
+    },
+    reviewAdminAiTrace(token: string, traceId: string, body: AdminTraceReviewRequest) {
+      return request<AdminTraceReviewResponse>({
+        operation: 'reviewAdminAiTrace',
+        method: 'POST',
+        path: `/api/v1/admin/ai-traces/${encodeURIComponent(traceId)}/review`,
+        token,
+        body,
+        validate: isAdminTraceReviewResponse,
+      });
+    },
+    deleteAdminAiTrace(token: string, traceId: string) {
+      // Explicit confirmation: the same trace ID in the query string. No request body.
+      return request<AdminTraceDeleteResponse>({
+        operation: 'deleteAdminAiTrace',
+        method: 'DELETE',
+        path: `/api/v1/admin/ai-traces/${encodeURIComponent(traceId)}${querySuffix({ confirm: traceId })}`,
+        token,
+        validate: isAdminTraceDeleteResponse,
+      });
+    },
+    listAdminMcpToolCalls(token: string, query: Readonly<Record<string, string | number | undefined>>) {
+      return request<AdminMcpListResponse>({
+        operation: 'listAdminMcpToolCalls',
+        method: 'GET',
+        path: `/api/v1/admin/mcp-tool-calls${querySuffix(query)}`,
+        token,
+        validate: isAdminMcpListResponse,
+      });
+    },
+    getAdminMcpToolCall(token: string, mcpCallId: string, view: 'formatted' | 'raw') {
+      return request<AdminMcpDetailResponse>({
+        operation: 'getAdminMcpToolCall',
+        method: 'GET',
+        path: `/api/v1/admin/mcp-tool-calls/${encodeURIComponent(mcpCallId)}${querySuffix({ view })}`,
+        token,
+        validate: isAdminMcpDetailResponse,
       });
     },
     previewSalaryAdjustment(token: string, employeeCode: string, command: SalaryAdjustmentCommand) {

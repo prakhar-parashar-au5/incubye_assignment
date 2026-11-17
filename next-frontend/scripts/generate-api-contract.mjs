@@ -28,8 +28,21 @@ const OPERATION_IDS = [
   'listEmployees',
   'getEmployee',
   'getDirectoryOptions',
-  // Read-only compensation assistant (backend Task 08)
-  'sendAssistantMessages',
+  // Saved assistant conversations (AI backend Tasks 03 and 03a). The deprecated browser-history
+  // endpoint, sendAssistantMessages, is deliberately not listed: the frontend no longer calls it.
+  'listAssistantConversations',
+  'createAssistantConversation',
+  'getAssistantConversation',
+  'sendAssistantConversationMessage',
+  // Admin AI monitoring, traces, reviews, deletion, and MCP calls (AI backend Task 04 checkpoint 1).
+  'getAdminAiTraceSummary',
+  'getAdminAiTraceOptions',
+  'listAdminAiTraces',
+  'getAdminAiTrace',
+  'reviewAdminAiTrace',
+  'deleteAdminAiTrace',
+  'listAdminMcpToolCalls',
+  'getAdminMcpToolCall',
   // Salary adjustments and approval requests (backend Task 09)
   'previewSalaryAdjustment',
   'applySalaryAdjustment',

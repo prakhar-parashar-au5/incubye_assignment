@@ -119,3 +119,93 @@ export function reply(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+// Saved-conversation shapes (AssistantConversationDetailResponse and friends). Checked against the
+// generated validators in tests/unit/assistant.test.ts.
+
+export const CONVERSATION_ID = "8f931e82-4092-4e34-b66d-c27ab1f040eb";
+export const TRACE_1 = "11111111-1111-4111-8111-111111111111";
+export const TRACE_2 = "22222222-2222-4222-8222-222222222222";
+export const TRACE_3 = "33333333-3333-4333-8333-333333333333";
+
+export function savedResponse(overrides: Record<string, unknown> = {}) {
+  const full = reply(overrides);
+  return { toolCalls: full.toolCalls, cards: full.cards, limitations: full.limitations, generatedAt: full.generatedAt };
+}
+
+export function summary(overrides: Record<string, unknown> = {}) {
+  return {
+    conversationId: CONVERSATION_ID,
+    createdAt: "2026-11-17T08:00:00.000Z",
+    lastMessageAt: "2026-11-17T08:05:00.000Z",
+    messageCount: 2,
+    title: "Who has the highest annual cash compensation?",
+    ...overrides,
+  };
+}
+
+export function userMessage(sequence: number, text: string, traceId: string) {
+  return { sequence, role: "user", traceId, createdAt: "2026-11-17T08:00:00.000Z", text, response: null, withheld: false };
+}
+
+export function assistantMessage(sequence: number, traceId: string, overrides: Record<string, unknown> = {}) {
+  return {
+    sequence,
+    role: "assistant",
+    traceId,
+    createdAt: "2026-11-17T08:00:05.000Z",
+    text: reply().answer,
+    response: savedResponse(),
+    withheld: false,
+    ...overrides,
+  };
+}
+
+export function turn(sequence: number, traceId: string, status: "STARTED" | "COMPLETED" | "FAILED", overrides: Record<string, unknown> = {}) {
+  return {
+    traceId,
+    sequence,
+    previousTraceId: null,
+    retryOfTraceId: null,
+    status,
+    userMessageSequence: sequence * 2 - 1,
+    assistantMessageSequence: status === "COMPLETED" ? sequence * 2 : null,
+    error: status === "FAILED" ? { code: "ASSISTANT_UNAVAILABLE", message: "The assistant is unavailable.", reason: "MODEL_NOT_CONFIGURED" } : null,
+    ...overrides,
+  };
+}
+
+export const WITHHELD_TEXT = "This saved answer is hidden because your current access no longer covers it.";
+
+/** One completed turn, then a failed turn that was retried by a third, completed turn. */
+export function detail(overrides: Record<string, unknown> = {}) {
+  return {
+    conversation: summary({ messageCount: 5 }),
+    messages: [
+      userMessage(1, "Who has the highest annual cash compensation?", TRACE_1),
+      assistantMessage(2, TRACE_1),
+      userMessage(3, "And in Support?", TRACE_2),
+      userMessage(4, "And in Support?", TRACE_3),
+      assistantMessage(5, TRACE_3, { text: "Second answer." }),
+    ],
+    turns: [
+      turn(1, TRACE_1, "COMPLETED", { userMessageSequence: 1, assistantMessageSequence: 2 }),
+      turn(2, TRACE_2, "FAILED", { userMessageSequence: 3, previousTraceId: TRACE_1 }),
+      turn(3, TRACE_3, "COMPLETED", { userMessageSequence: 4, assistantMessageSequence: 5, previousTraceId: TRACE_2, retryOfTraceId: TRACE_2 }),
+    ],
+    ...overrides,
+  };
+}
+
+export function turnResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    ...reply(),
+    conversationId: CONVERSATION_ID,
+    traceId: TRACE_1,
+    previousTraceId: null,
+    userMessageSequence: 1,
+    assistantMessageSequence: 2,
+    withheld: false,
+    ...overrides,
+  };
+}

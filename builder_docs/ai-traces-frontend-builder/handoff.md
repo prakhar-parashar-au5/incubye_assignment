@@ -80,3 +80,15 @@ builder_docs/ai-traces-frontend-builder/tasks/01-shape-saved-conversations-and-o
 Task 01 is planning only and can run before Backend AI Tasks 03 and 04 finish.
 
 Production implementation remains blocked until Checkpoint B publishes the accepted OpenAPI contract.
+
+## Blocker reporting
+
+Read `docs/27-agent-blocker-reporting-protocol.md`.
+
+If the shape task is blocked or exposes a backend contract issue, write it under:
+
+```text
+builder_docs/ai-traces-frontend-builder/issues/
+```
+
+Then mention the issue path in the response. Do not invent backend fields or patch another lane.
