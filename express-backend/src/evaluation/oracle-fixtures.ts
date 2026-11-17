@@ -12,9 +12,10 @@
 // one-future-change rule, and exact decimal money all apply. Nothing in the
 // normal seed changes.
 //
-// Guards: refuses APP_ENV=production or any APP_ENV outside development, test,
-// and demo; refuses a database whose name does not end in _test or _demo; and
-// requires the caller to repeat that database name. Without `apply` it is a
+// Guards (fixture-guard.ts, shared with eval:trace-fixtures): refuses
+// APP_ENV=production or any APP_ENV outside development, test, and demo;
+// refuses a database whose name does not end in _test or _demo; requires the
+// caller to repeat that name; and checks the connection is to it. Without `apply` it is a
 // dry run: previews only (which write nothing) and a planned manifest.
 //
 // The manifest holds no credentials, connection details, or internal IDs.
@@ -28,43 +29,14 @@ import type { SalaryAdjustmentCommand } from '../http/contract.js';
 import { addMoney } from '../money/decimal.js';
 import type { Currency } from '../source-workbook/constants.js';
 
-export const ORACLE_FIXTURE_APP_ENVS = Object.freeze(['development', 'test', 'demo'] as const);
-export const SAFE_DATABASE_NAME = /^[a-z0-9_]+_(test|demo)$/;
+import { FixtureRefusedError, assertFixtureTarget } from './fixture-guard.js';
+
+export { FixtureRefusedError as OracleFixtureRefusedError, assertFixtureTargetAllowed as assertOracleFixturesAllowed, databaseNameOf } from './fixture-guard.js';
+const OracleFixtureRefusedError = FixtureRefusedError;
 export const FUTURE_EFFECTIVE_DAYS = 45;
 export const RECENT_WINDOW_DAYS = 30;
 const NOTE_PREFIX = 'EVAL-ORACLE-FIXTURE v1';
 const CANDIDATE_LIMIT = 200;
-
-export class OracleFixtureRefusedError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'OracleFixtureRefusedError';
-  }
-}
-
-/** Pure guard, checked before any database work. Inputs are untrusted. */
-export function assertOracleFixturesAllowed({ appEnv, databaseName, confirmDatabase }: { appEnv: unknown; databaseName: unknown; confirmDatabase: unknown }): void {
-  if (appEnv === 'production') throw new OracleFixtureRefusedError('refusing: APP_ENV=production. Oracle fixtures are for an isolated evaluation database only');
-  if (typeof appEnv !== 'string' || !(ORACLE_FIXTURE_APP_ENVS as readonly string[]).includes(appEnv)) {
-    throw new OracleFixtureRefusedError(`refusing: APP_ENV must be one of ${ORACLE_FIXTURE_APP_ENVS.join(', ')}`);
-  }
-  if (typeof databaseName !== 'string' || !SAFE_DATABASE_NAME.test(databaseName)) {
-    throw new OracleFixtureRefusedError('refusing: the database name must end with _test or _demo');
-  }
-  if (confirmDatabase !== databaseName) {
-    throw new OracleFixtureRefusedError('refusing: --database must repeat the target database name exactly');
-  }
-}
-
-/** The database name in a mysql:// URL, or null. Never returns credentials. */
-export function databaseNameOf(databaseUrl: string): string | null {
-  try {
-    const name = decodeURIComponent(new URL(databaseUrl).pathname.replace(/^\//, ''));
-    return name === '' ? null : name;
-  } catch {
-    return null;
-  }
-}
 
 type FixtureId = 'MULTI_VERSION_CURRENT' | 'RECENT_FUTURE_EFFECTIVE';
 interface FixtureSpec { id: FixtureId; cases: string[]; effectiveOffsetDays: number; command: Omit<SalaryAdjustmentCommand, 'effectiveFrom' | 'note'> }
@@ -109,9 +81,7 @@ function stateOf(rows: { version: number; effective_from: string }[], today: str
 export async function prepareOracleFixtures({ pool, apply, clock = () => new Date(), appEnv, databaseName, confirmDatabase }: {
   pool: Pool; apply: boolean; clock?: () => Date; appEnv: unknown; databaseName: string; confirmDatabase: unknown;
 }): Promise<OracleManifest> {
-  assertOracleFixturesAllowed({ appEnv, databaseName, confirmDatabase });
-  const [[connected]] = await pool.query<RowDataPacket[]>('SELECT DATABASE() AS name');
-  if (connected?.name !== databaseName) throw new OracleFixtureRefusedError('refusing: the connection is not to the named database');
+  await assertFixtureTarget(pool, { appEnv, databaseName, confirmDatabase });
 
   const now = clock();
   const today = isoDay(now);

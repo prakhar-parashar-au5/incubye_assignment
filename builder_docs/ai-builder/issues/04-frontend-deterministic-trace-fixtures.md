@@ -1,6 +1,6 @@
 # Blocker: deterministic trace data for the AI-traces frontend (Q-E1, Q-E2)
 
-Status: NEEDS_DECISION
+Status: RESOLVED — Option B (planner, 2026-11-17); implemented in Task 04a
 Task: AI Backend Task 04
 Agent lane: AI backend builder
 Worktree: `/Users/admin/Desktop/Projects/incubyte_take_home_ai_backend`
@@ -46,3 +46,11 @@ See section 7 of `builder_docs/ai-builder/responses/04-mcp-and-admin-observabili
 ## Safe next step
 
 Choose A, B, or C. Nothing else in Task 04 depends on this decision.
+
+## Resolution
+
+Planner decision: **Option B**, implemented in Task 04a (`builder_docs/ai-builder/tasks/04a-trace-ui-fixtures.md`).
+
+`npm run eval:trace-fixtures -- --database <name> [--apply]` writes every trace and MCP shape through the observability repository. It uses the same guards as `eval:oracle-fixtures`. There is no scripted model adapter and no runtime code path: nothing under `src/` outside `src/evaluation/` imports the fixtures, and a test checks this.
+
+Details and the exact command for the traces UI are in `builder_docs/ai-builder/responses/04a-trace-ui-fixtures.md`.

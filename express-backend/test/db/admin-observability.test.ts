@@ -21,6 +21,8 @@ import { createApp } from '../../src/http/app.js';
 import { RAW_TRACE_WARNING } from '../../src/http/contract.js';
 import type { LogEntry } from '../../src/http/request-log.js';
 import { ensureReferenceData } from '../../src/seed/reference-data.js';
+import { SEED_PERSON, seedTrace as seedSharedTrace } from '../../src/evaluation/trace-seed.js';
+import type { SeedTraceInput } from '../../src/evaluation/trace-seed.js';
 import { selectRows } from '../support/db.js';
 import { fakeDashboard, fakeDirectory, fakeHrAccess, fakeInsights, fakeSalaryAdjustments } from '../support/http.js';
 import { must } from '../support/must.js';
@@ -59,47 +61,20 @@ function buildApp(clock: () => Date = () => REAL_NOW) {
 let app: ReturnType<typeof buildApp>;
 const auth = (who = 'meera') => ({ Authorization: `Bearer ${tokens[who] ?? ''}` });
 const db = (iso: string) => iso.replace('T', ' ').replace('Z', '');
-const plusMs = (iso: string, ms: number) => new Date(Date.parse(iso) + ms).toISOString();
 
-const PERSON = { employeeCode: 'ACME00601', name: 'Asha Rao', annualBaseSalary: { amount: '1500000.00', currency: 'INR' } };
+const PERSON = SEED_PERSON;
 
-/** One trace written through the repository, as the recorded assistant would. */
-async function seedTrace({ actor = 'meera', startedAt, status, durationMs = 100, model = 'fake-model', tool, failure, previousTraceId, conversationId, tokens: usage = { inputTokens: 10, outputTokens: 5, reasoningTokens: 1 } }: {
-  actor?: string; startedAt: string; status: 'STARTED' | 'COMPLETED' | 'FAILED'; durationMs?: number; model?: string;
-  tool?: { name: string; outcome: 'SUCCEEDED' | 'FAILED' | 'REJECTED' }; failure?: { stage: string; category: string };
-  previousTraceId?: string; conversationId?: string; tokens?: { inputTokens: number; outputTokens: number; reasoningTokens: number };
+/** Thin adapter over the shared seed helper (src/evaluation/trace-seed.ts): demo-user names and one optional tool. */
+function seedTrace({ actor = 'meera', tool, ...rest }: Omit<SeedTraceInput, 'actorId' | 'actorScope' | 'tools'> & {
+  actor?: string; tool?: { name: string; outcome: 'SUCCEEDED' | 'FAILED' | 'REJECTED' };
 }) {
-  const actorId = must(ids[actor], actor);
-  const conversation = conversationId ?? (await repo.createConversation(actorId, db(startedAt))).id;
-  const trace = await repo.createTrace({
-    conversationId: conversation, actorId, requestId: `req-${startedAt}`, promptVersion: 'v1', promptHash: 'a'.repeat(64), model,
-    userContent: { text: 'How much does Asha Rao (ACME00601) earn?', retryOfTraceId: null },
-    modelMessages: [{ role: 'user', content: 'How much does Asha Rao (ACME00601) earn?' }], startedAt: db(startedAt),
-    ...(previousTraceId === undefined ? {} : { previousTraceId }),
-    actorScope: { role: actor === 'meera' ? 'ADMIN' : 'SCOPED', countries: actor === 'meera' ? [] : ['IN'], departments: actor === 'meera' ? [] : ['Support', 'Tech'] },
+  const admin = actor === 'meera';
+  return seedSharedTrace(repo, {
+    ...rest,
+    actorId: must(ids[actor], actor),
+    actorScope: admin ? { role: 'ADMIN', countries: [], departments: [] } : { role: 'SCOPED', countries: ['IN'], departments: ['Support', 'Tech'] },
+    ...(tool === undefined ? {} : { tools: [tool] }),
   });
-  if (status === 'STARTED') return { traceId: trace.id, conversationId: conversation };
-  const first = await repo.startModelCall({ traceId: trace.id, provider: 'fake', model, input: { messages: [] }, tools: [], promptVersion: 'v1', promptHash: 'a'.repeat(64), startedAt: db(startedAt) });
-  if (tool) {
-    await repo.finishModelCall(first.id, { status: 'SUCCEEDED', output: { text: null }, decisions: [{ callId: 'c1', name: tool.name, arguments: { employeeCode: 'ACME00601' } }], ...usage, latencyMs: 5, completedAt: db(startedAt) });
-    const call = await repo.startToolCall({ traceId: trace.id, modelCallId: first.id, providerToolCallId: 'c1', toolName: tool.name, arguments: { employeeCode: 'ACME00601', authorization: 'Bearer leaked' }, startedAt: db(startedAt) });
-    if (tool.outcome === 'SUCCEEDED') await repo.finishToolCall(call.id, { status: 'SUCCEEDED', result: { data: { employee: PERSON }, cards: [], limitations: [] }, durationMs: 3, completedAt: db(startedAt) });
-    else if (tool.outcome === 'REJECTED') await repo.finishToolCall(call.id, { status: 'REJECTED', validation: { reason: 'INVALID_ARGUMENTS' }, durationMs: 1, completedAt: db(startedAt) });
-    else await repo.finishToolCall(call.id, { status: 'FAILED', errorCategory: 'TOOL_FAILED', safeError: { errorName: 'Error' }, durationMs: 2, completedAt: db(startedAt) });
-    if (status === 'COMPLETED') {
-      const second = await repo.startModelCall({ traceId: trace.id, provider: 'fake', model, input: { messages: [], exchanges: [{ outputs: [{ output: { employee: PERSON } }] }] }, tools: [], promptVersion: 'v1', promptHash: 'a'.repeat(64), startedAt: db(startedAt) });
-      await repo.finishModelCall(second.id, { status: 'SUCCEEDED', output: { text: 'Asha Rao earns INR 1500000.00.' }, decisions: [], latencyMs: 7, completedAt: db(startedAt) });
-    }
-  } else if (status === 'COMPLETED') {
-    await repo.finishModelCall(first.id, { status: 'SUCCEEDED', output: { text: 'Hello.' }, decisions: [], ...usage, latencyMs: 5, completedAt: db(startedAt) });
-  } else {
-    await repo.finishModelCall(first.id, { status: 'FAILED', failureCategory: failure?.category ?? 'timeout', safeError: { category: failure?.category ?? 'timeout' }, latencyMs: 5, completedAt: db(startedAt) });
-  }
-  const completedAt = db(plusMs(startedAt, durationMs));
-  await repo.finishTrace(trace.id, status === 'COMPLETED'
-    ? { status, durationMs, completedAt, finalResponse: { answer: 'Asha Rao earns INR 1500000.00.', toolCalls: [], cards: [], limitations: [], generatedAt: plusMs(startedAt, durationMs) } }
-    : { status, durationMs, completedAt, failureStage: failure?.stage ?? 'MODEL_CALL', errorCategory: failure?.category ?? 'timeout' });
-  return { traceId: trace.id, conversationId: conversation };
 }
 
 before(async () => {
