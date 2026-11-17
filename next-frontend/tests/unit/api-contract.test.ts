@@ -22,65 +22,31 @@ describe("generated frontend contract", () => {
       Object.values(item).map((operation) => (operation as { operationId: string }).operationId),
     );
     expect(operationIds.sort()).toEqual([
-      "getCurrentUser",
-      "getDirectoryOptions",
-      "getEmployee",
-      "listEmployees",
-      "login",
-      "logout",
-      "sendAssistantMessages",
-      "previewSalaryAdjustment",
-      "applySalaryAdjustment",
-      "submitSalaryAdjustmentRequest",
-      "listSalaryAdjustmentRequests",
-      "getSalaryAdjustmentRequest",
-      "approveSalaryAdjustmentRequest",
-      "cancelSalaryAdjustmentRequest",
-      "getDashboardSummary",
-      "getDashboardBreakdown",
-      "getDashboardRecentChanges",
-      "getDashboardWithoutRecentAdjustment",
+      "applySalaryAdjustment", "approveSalaryAdjustmentRequest", "cancelSalaryAdjustmentRequest",
+      "createHrUser", "deactivateHrUser", "getCurrentUser", "getDashboardBreakdown", "getDashboardRecentChanges",
+      "getDashboardSummary", "getDashboardWithoutRecentAdjustment", "getDirectoryOptions", "getEmployee", "getHrUser",
+      "getSalaryAdjustmentRequest", "listEmployees", "listHrUserAccessAudit", "listHrUsers", "listSalaryAdjustmentRequests",
+      "login", "logout", "previewHrUserCreation", "previewHrUserDeactivation", "previewHrUserPasswordRegeneration",
+      "previewHrUserProfile", "previewHrUserPromotion", "previewHrUserReactivation", "previewHrUserScopes",
+      "previewSalaryAdjustment", "promoteHrUser", "reactivateHrUser", "regenerateHrUserPassword", "replaceHrUserScopes",
+      "sendAssistantMessages", "submitSalaryAdjustmentRequest", "updateHrUserProfile",
     ].sort());
     expect(Object.keys(contract.components.schemas).sort()).toEqual([
-      "AssistantCard",
-      "AssistantMessagesRequest",
-      "AssistantMessagesResponse",
-      "AssistantMoney",
-      "CompensationHistoryEntry",
-      "CompensationSummaryCard",
-      "CurrentUserResponse",
-      "DashboardAccess",
-      "DashboardBreakdownGroup",
-      "DashboardBreakdownResponse",
-      "DashboardFilterNote",
-      "DashboardRecentChange",
-      "DashboardRecentChangesResponse",
-      "DashboardSummaryResponse",
-      "DashboardUpcomingChange",
-      "DashboardUsdComparison",
-      "DashboardWithoutAdjustmentResponse",
-      "DirectoryOptionsResponse",
-      "DirectoryResponse",
-      "DirectoryRow",
-      "EmployeeDetailResponse",
-      "EmployeeListCard",
-      "ErrorResponse",
-      "ExchangeRateContext",
-      "LoginRequest",
-      "LoginResponse",
-      "NoticeCard",
-      "RecentChangesCard",
-      "SelectedCompensation",
-      "CompensationRecordView",
-      "SalaryAdjustmentCommand",
-      "SalaryAdjustmentConfirmation",
-      "SalaryAdjustmentPreview",
-      "SalaryAdjustmentResult",
-      "SalaryRequestApproval",
-      "SalaryRequestCancellation",
-      "SalaryRequestList",
-      "SalaryRequestResponse",
-      "SalaryRequestView",
+      "AccessAuditEvent", "AccessAuditResponse", "AccessSummary", "AssistantCard", "AssistantMessagesRequest",
+      "AssistantMessagesResponse", "AssistantMoney", "CompensationHistoryEntry", "CompensationRecordView",
+      "CompensationSummaryCard", "CurrentUserResponse", "DashboardAccess", "DashboardBreakdownGroup",
+      "DashboardBreakdownResponse", "DashboardFilterNote", "DashboardRecentChange", "DashboardRecentChangesResponse",
+      "DashboardSummaryResponse", "DashboardUpcomingChange", "DashboardUsdComparison", "DashboardWithoutAdjustmentResponse",
+      "DirectoryOptionsResponse", "DirectoryResponse", "DirectoryRow", "EmployeeDetailResponse", "EmployeeListCard",
+      "ErrorResponse", "ExchangeRateContext", "HrAccessPreview", "HrUserChangeResult", "HrUserCreatePreviewRequest",
+      "HrUserCreateRequest", "HrUserCreateResult", "HrUserDeactivatePreviewRequest", "HrUserDeactivateRequest",
+      "HrUserDetail", "HrUserDetailResponse", "HrUserListResponse", "HrUserPasswordRegenerationPreview",
+      "HrUserPasswordRegenerationPreviewRequest", "HrUserPasswordRegenerationRequest", "HrUserPasswordRegenerationResult",
+      "HrUserProfilePreviewRequest", "HrUserProfileRequest", "HrUserPromotePreviewRequest", "HrUserPromoteRequest",
+      "HrUserReactivatePreviewRequest", "HrUserReactivateRequest", "HrUserScopesPreviewRequest", "HrUserScopesRequest",
+      "HrUserView", "LoginRequest", "LoginResponse", "NoticeCard", "RecentChangesCard", "SalaryAdjustmentCommand",
+      "SalaryAdjustmentConfirmation", "SalaryAdjustmentPreview", "SalaryAdjustmentResult", "SalaryRequestApproval",
+      "SalaryRequestCancellation", "SalaryRequestList", "SalaryRequestResponse", "SalaryRequestView", "SelectedCompensation",
     ].sort());
   });
 
@@ -104,8 +70,7 @@ describe("generated frontend contract", () => {
       | "PENDING_REQUEST_EXISTS"
       | "REQUEST_NOT_PENDING"
       | "EMPLOYEE_INELIGIBLE"
-      // Shared error enum: these three come from the HR-access operations, which are not in the
-      // frontend allowlist. No allowlisted operation documents them.
+      // HR-access errors are included by the Admin HR access operation allowlist.
       | "LAST_ACTIVE_ADMIN"
       | "EMAIL_TAKEN"
       | "INVALID_SCOPE"
@@ -132,6 +97,22 @@ describe("generated frontend contract", () => {
       | "/api/v1/dashboard/breakdowns"
       | "/api/v1/dashboard/recent-changes"
       | "/api/v1/dashboard/without-recent-adjustment"
+      | "/api/v1/hr-users"
+      | "/api/v1/hr-users/preview"
+      | "/api/v1/hr-users/{hrUserId}"
+      | "/api/v1/hr-users/{hrUserId}/access-audit"
+      | "/api/v1/hr-users/{hrUserId}/profile/preview"
+      | "/api/v1/hr-users/{hrUserId}/profile"
+      | "/api/v1/hr-users/{hrUserId}/promote/preview"
+      | "/api/v1/hr-users/{hrUserId}/promote"
+      | "/api/v1/hr-users/{hrUserId}/scopes/preview"
+      | "/api/v1/hr-users/{hrUserId}/scopes"
+      | "/api/v1/hr-users/{hrUserId}/deactivate/preview"
+      | "/api/v1/hr-users/{hrUserId}/deactivate"
+      | "/api/v1/hr-users/{hrUserId}/reactivate/preview"
+      | "/api/v1/hr-users/{hrUserId}/reactivate"
+      | "/api/v1/hr-users/{hrUserId}/regenerate-temporary-password/preview"
+      | "/api/v1/hr-users/{hrUserId}/regenerate-temporary-password"
     >();
     type Money = components["schemas"]["SelectedCompensation"]["annualBaseSalary"];
     expectTypeOf<Money>().toEqualTypeOf<string>();

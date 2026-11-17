@@ -11,12 +11,29 @@ After login, send the user to `/employees`. Send unauthenticated users who open 
 
 ## Sign-in page
 
-Show two demo accounts:
+Provide two sign-in modes.
+
+### Synthetic demo accounts
+
+Show two quick demo accounts:
 
 - Meera Iyer, Admin HR, all employees.
 - Rohan Mehta, Scoped HR, India, Tech, and Support.
 
-Both accounts use one shared public demo password. Show it under a clear `Synthetic demo credentials` label.
+Both demo accounts use one shared public synthetic password. Show it under a clear `Synthetic demo credentials` label.
+
+### Another HR account
+
+An HR user created or recovered through HR Access must be able to sign in with:
+
+- Email.
+- Temporary or current password.
+
+Label this mode `Another HR account`. Keep the demo-account mode available; do not replace it.
+
+Use the same Express login endpoint, generic invalid-credential response, and login rate limit for both modes. Do not reveal whether an email exists.
+
+Do not remember the email or password in browser storage. Do not put either value in a URL, log, analytics event, page metadata, or client error report. Do not claim that an email was sent.
 
 The Next.js server action calls the Express login API and stores the JWT in an HTTP-only cookie. Do not place the JWT in browser JavaScript or local storage.
 

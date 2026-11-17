@@ -344,10 +344,390 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hr-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin HR: search, filter, sort, and page HR users
+         * @description Active users by default. Filtering, sorting, LIMIT, and OFFSET run in MySQL.
+         */
+        get: operations["listHrUsers"];
+        put?: never;
+        /**
+         * Admin HR: create the exact previewed HR user
+         * @description Generates a random temporary password and returns it once, in this response only. Only its Argon2id hash is stored. No email is sent. A replay with the same Idempotency-Key returns the user with temporaryPassword null.
+         */
+        post: operations["createHrUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: preview a new HR user
+         * @description Writes nothing. Returns the old and proposed access, the estimated accessible employee count, the sessions that would be revoked, and a five-minute preview token.
+         */
+        post: operations["previewHrUserCreation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin HR: one HR user with current scope and accessible employee count */
+        get: operations["getHrUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}/access-audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin HR: immutable access audit events for one HR user, newest first */
+        get: operations["listHrUserAccessAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}/profile/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: preview a display-name change
+         * @description Writes nothing. Returns the old and proposed access, the estimated accessible employee count, the sessions that would be revoked, and a five-minute preview token.
+         */
+        post: operations["previewHrUserProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: change the display name
+         * @description Email and role cannot change. Sessions are not revoked. Send the previewed body with previewToken and an Idempotency-Key. The change, any session revocation, the version increment, and the audit event commit in one transaction. A no-change confirmation writes nothing.
+         */
+        post: operations["updateHrUserProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}/promote/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: preview Scoped-to-Admin promotion
+         * @description Writes nothing. Returns the old and proposed access, the estimated accessible employee count, the sessions that would be revoked, and a five-minute preview token.
+         */
+        post: operations["previewHrUserPromotion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}/promote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: promote Scoped HR to Admin HR
+         * @description Removes every scope row and revokes every active session of the user. Admin-to-Scoped demotion is not supported. Send the previewed body with previewToken and an Idempotency-Key. The change, any session revocation, the version increment, and the audit event commit in one transaction. A no-change confirmation writes nothing.
+         */
+        post: operations["promoteHrUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}/scopes/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: preview replacing country and department scopes
+         * @description Writes nothing. Returns the old and proposed access, the estimated accessible employee count, the sessions that would be revoked, and a five-minute preview token.
+         */
+        post: operations["previewHrUserScopes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}/scopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Admin HR: replace country and department scopes together
+         * @description Both lists are replaced in one transaction. Takes effect on the user's next request; sessions are not revoked. Send the previewed body with previewToken and an Idempotency-Key. The change, any session revocation, the version increment, and the audit event commit in one transaction. A no-change confirmation writes nothing.
+         */
+        put: operations["replaceHrUserScopes"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}/deactivate/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: preview deactivation
+         * @description Writes nothing. Returns the old and proposed access, the estimated accessible employee count, the sessions that would be revoked, and a five-minute preview token.
+         */
+        post: operations["previewHrUserDeactivation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: deactivate access
+         * @description Requires a reason. Revokes every active session of the user in the same transaction. The last active Admin cannot be deactivated. Send the previewed body with previewToken and an Idempotency-Key. The change, any session revocation, the version increment, and the audit event commit in one transaction. A no-change confirmation writes nothing.
+         */
+        post: operations["deactivateHrUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}/reactivate/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: preview reactivation
+         * @description Writes nothing. Returns the old and proposed access, the estimated accessible employee count, the sessions that would be revoked, and a five-minute preview token.
+         */
+        post: operations["previewHrUserReactivation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: reactivate access
+         * @description Requires a reason. Restores the stored role and scopes. Old sessions stay revoked; the user signs in again. Send the previewed body with previewToken and an Idempotency-Key. The change, any session revocation, the version increment, and the audit event commit in one transaction. A no-change confirmation writes nothing.
+         */
+        post: operations["reactivateHrUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}/regenerate-temporary-password/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: preview regenerating a temporary password
+         * @description Writes nothing and contains no password. Shows the target, current version, the active sessions that will be revoked, the warning, the reason, and a five-minute preview token.
+         */
+        post: operations["previewHrUserPasswordRegeneration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/hr-users/{hrUserId}/regenerate-temporary-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin HR: regenerate a temporary password
+         * @description Account recovery, for example after a lost creation response. Stores only the Argon2id hash of a new random password, revokes every active session, increments the version, and writes one TEMPORARY_PASSWORD_REGENERATED audit event in one transaction, then returns the password once. No email is sent. A replay with the same Idempotency-Key does not regenerate again: it returns temporaryPassword null and credentialRecoveryRequired true. An Admin cannot regenerate their own password (another active Admin must do it).
+         */
+        post: operations["regenerateHrUserPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AccessAuditEvent: {
+            /** @enum {string} */
+            action: "HR_USER_CREATED" | "COUNTRY_SCOPES_CHANGED" | "DEPARTMENT_SCOPES_CHANGED" | "HR_USER_ACTIVATED" | "HR_USER_DEACTIVATED" | "DISPLAY_NAME_CHANGED" | "SCOPES_REPLACED" | "HR_USER_PROMOTED" | "TEMPORARY_PASSWORD_REGENERATED";
+            /** Format: date-time */
+            occurredAt: string;
+            /** @description Null for system setup. */
+            actor: {
+                hrUserId: number;
+                displayName: string;
+            } | null;
+            target: {
+                hrUserId: number;
+                displayName: string;
+                email: string;
+            };
+            before: {
+                /** @description Null for events written before display names were audited. */
+                displayName: string | null;
+                /** @enum {string} */
+                role: "ADMIN" | "SCOPED";
+                /** @enum {string} */
+                status: "ACTIVE" | "INACTIVE";
+                countries: string[];
+                departments: string[];
+            } | null;
+            after: {
+                /** @description Null for events written before display names were audited. */
+                displayName: string | null;
+                /** @enum {string} */
+                role: "ADMIN" | "SCOPED";
+                /** @enum {string} */
+                status: "ACTIVE" | "INACTIVE";
+                countries: string[];
+                departments: string[];
+            };
+            reason: string | null;
+            /** @description Null only for events written before migration 004. */
+            resultingVersion: number | null;
+            revokedSessionCount: number | null;
+        };
+        AccessAuditResponse: {
+            hrUserId: number;
+            /** @description Newest first. */
+            events: components["schemas"]["AccessAuditEvent"][];
+            page: {
+                number: number;
+                size: number;
+                totalRows: number;
+                totalPages: number;
+            };
+        };
+        AccessSummary: {
+            /** @enum {string} */
+            kind: "ALL_EMPLOYEES" | "SCOPED" | "NO_EMPLOYEES" | "INACTIVE";
+            text: string;
+            /** @description The exact country x department cross-product. Empty for ALL_EMPLOYEES, NO_EMPLOYEES, and INACTIVE. */
+            combinations: {
+                country: string;
+                countryName: string;
+                department: string;
+            }[];
+        };
         AssistantCard: components["schemas"]["EmployeeListCard"] | components["schemas"]["CompensationSummaryCard"] | components["schemas"]["RecentChangesCard"] | components["schemas"]["NoticeCard"];
         AssistantMessagesRequest: {
             messages: {
@@ -936,6 +1316,253 @@ export interface components {
             effectiveDate: string;
             /** Format: date-time */
             retrievedAt: string;
+        };
+        HrAccessPreview: {
+            /** @enum {string} */
+            operation: "CREATE" | "PROFILE" | "PROMOTE" | "SCOPES" | "DEACTIVATE" | "REACTIVATE" | "REGENERATE_PASSWORD";
+            /** @description Null for CREATE. */
+            hrUserId: number | null;
+            email: string;
+            /** @description Null for CREATE. */
+            expectedVersion: number | null;
+            /** @description False when the confirmation would change nothing (no version or audit event). */
+            changed: boolean;
+            changedFields: ("displayName" | "role" | "status" | "countries" | "departments")[];
+            /** @description Null for CREATE. */
+            current: {
+                displayName: string;
+                /** @enum {string} */
+                role: "ADMIN" | "SCOPED";
+                /** @enum {string} */
+                status: "ACTIVE" | "INACTIVE";
+                countries: string[];
+                departments: string[];
+                accessSummary: components["schemas"]["AccessSummary"];
+                /** @description Estimated with current employee data and the scope policy. */
+                accessibleEmployeeCount: number;
+            } | null;
+            proposed: {
+                displayName: string;
+                /** @enum {string} */
+                role: "ADMIN" | "SCOPED";
+                /** @enum {string} */
+                status: "ACTIVE" | "INACTIVE";
+                countries: string[];
+                departments: string[];
+                accessSummary: components["schemas"]["AccessSummary"];
+                /** @description Estimated with current employee data and the scope policy. */
+                accessibleEmployeeCount: number;
+            };
+            sessionsToRevoke: number;
+            reason: string | null;
+            /** @description Five minutes. Bound to this actor, session, operation, target, version, and command. */
+            previewToken: string;
+            /** Format: date-time */
+            previewExpiresAt: string;
+        };
+        HrUserChangeResult: {
+            /** @description Current state (for a replay: the state now). */
+            hrUser: components["schemas"]["HrUserDetail"];
+            changed: boolean;
+            /** @description The event this operation wrote; null when nothing changed. */
+            auditEvent: components["schemas"]["AccessAuditEvent"] | null;
+            revokedSessionCount: number;
+        };
+        HrUserCreatePreviewRequest: {
+            /**
+             * Format: email
+             * @description Unique without case sensitivity. Cannot change later.
+             */
+            email: string;
+            displayName: string;
+            /** @enum {string} */
+            role: "ADMIN" | "SCOPED";
+            /** @description Empty for ADMIN. At least one for SCOPED. */
+            countries: string[];
+            /** @description Empty for ADMIN. At least one for SCOPED. */
+            departments: string[];
+        };
+        HrUserCreateRequest: {
+            /**
+             * Format: email
+             * @description Unique without case sensitivity. Cannot change later.
+             */
+            email: string;
+            displayName: string;
+            /** @enum {string} */
+            role: "ADMIN" | "SCOPED";
+            /** @description Empty for ADMIN. At least one for SCOPED. */
+            countries: string[];
+            /** @description Empty for ADMIN. At least one for SCOPED. */
+            departments: string[];
+            previewToken: string;
+        };
+        HrUserCreateResult: {
+            hrUser: components["schemas"]["HrUserDetail"];
+            auditEvent: components["schemas"]["AccessAuditEvent"];
+            /** @description Returned once, in the original successful response only. Null for an idempotent replay. */
+            temporaryPassword: string | null;
+            /** @description False when temporaryPassword is present. True for a replay: the account exists, and the Admin must regenerate a temporary password to get one. */
+            credentialRecoveryRequired: boolean;
+            temporaryPasswordNotice: string;
+        };
+        HrUserDeactivatePreviewRequest: {
+            /** @description hr_users.version the preview was made against. */
+            expectedVersion: number;
+            reason: string;
+        };
+        HrUserDeactivateRequest: {
+            /** @description hr_users.version the preview was made against. */
+            expectedVersion: number;
+            reason: string;
+            previewToken: string;
+        };
+        HrUserDetail: {
+            hrUserId: number;
+            displayName: string;
+            email: string;
+            /** @enum {string} */
+            role: "ADMIN" | "SCOPED";
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE";
+            /** @description Always empty for ADMIN. */
+            countries: string[];
+            /** @description Always empty for ADMIN. */
+            departments: string[];
+            accessSummary: components["schemas"]["AccessSummary"];
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Employees the user can access now, from current employee data. */
+            accessibleEmployeeCount: number;
+            /** @description "This HR user currently has access to no employees." when the count is zero. */
+            noAccessMessage: string | null;
+        };
+        HrUserDetailResponse: {
+            hrUser: components["schemas"]["HrUserDetail"];
+        };
+        HrUserListResponse: {
+            users: components["schemas"]["HrUserView"][];
+            page: {
+                number: number;
+                size: number;
+                totalRows: number;
+                totalPages: number;
+            };
+            /** @constant */
+            emptyMessage: "No HR users match these filters.";
+        };
+        HrUserPasswordRegenerationPreview: {
+            /** @constant */
+            operation: "REGENERATE_PASSWORD";
+            target: {
+                hrUserId: number;
+                displayName: string;
+                email: string;
+                /** @enum {string} */
+                role: "ADMIN" | "SCOPED";
+                /** @enum {string} */
+                status: "ACTIVE" | "INACTIVE";
+            };
+            expectedVersion: number;
+            sessionsToRevoke: number;
+            /** @constant */
+            warning: "Confirming replaces this HR user's password. Every previous password and every active session stops working.";
+            reason: string;
+            /** @description Five minutes. Bound to this actor, session, target, version, and reason. */
+            previewToken: string;
+            /** Format: date-time */
+            previewExpiresAt: string;
+        };
+        HrUserPasswordRegenerationPreviewRequest: {
+            /** @description hr_users.version the preview was made against. */
+            expectedVersion: number;
+            reason: string;
+        };
+        HrUserPasswordRegenerationRequest: {
+            /** @description hr_users.version the preview was made against. */
+            expectedVersion: number;
+            reason: string;
+            previewToken: string;
+        };
+        HrUserPasswordRegenerationResult: {
+            hrUser: components["schemas"]["HrUserDetail"];
+            auditEvent: components["schemas"]["AccessAuditEvent"];
+            revokedSessionCount: number;
+            /** @description The new temporary password, once. Null for an idempotent replay. */
+            temporaryPassword: string | null;
+            /** @description True for a replay: preview and confirm a new regeneration (new Idempotency-Key) to get a password. */
+            credentialRecoveryRequired: boolean;
+            temporaryPasswordNotice: string;
+        };
+        HrUserProfilePreviewRequest: {
+            /** @description hr_users.version the preview was made against. */
+            expectedVersion: number;
+            displayName: string;
+        };
+        HrUserProfileRequest: {
+            /** @description hr_users.version the preview was made against. */
+            expectedVersion: number;
+            displayName: string;
+            previewToken: string;
+        };
+        HrUserPromotePreviewRequest: {
+            /** @description hr_users.version the preview was made against. */
+            expectedVersion: number;
+        };
+        HrUserPromoteRequest: {
+            /** @description hr_users.version the preview was made against. */
+            expectedVersion: number;
+            previewToken: string;
+        };
+        HrUserReactivatePreviewRequest: {
+            /** @description hr_users.version the preview was made against. */
+            expectedVersion: number;
+            reason: string;
+        };
+        HrUserReactivateRequest: {
+            /** @description hr_users.version the preview was made against. */
+            expectedVersion: number;
+            reason: string;
+            previewToken: string;
+        };
+        HrUserScopesPreviewRequest: {
+            /** @description hr_users.version the preview was made against. */
+            expectedVersion: number;
+            /** @description ISO country codes. Unknown codes return 422 INVALID_SCOPE. */
+            countries: string[];
+            /** @description Exact department names. Unknown names return 422 INVALID_SCOPE. */
+            departments: string[];
+        };
+        HrUserScopesRequest: {
+            /** @description hr_users.version the preview was made against. */
+            expectedVersion: number;
+            /** @description ISO country codes. Unknown codes return 422 INVALID_SCOPE. */
+            countries: string[];
+            /** @description Exact department names. Unknown names return 422 INVALID_SCOPE. */
+            departments: string[];
+            previewToken: string;
+        };
+        HrUserView: {
+            hrUserId: number;
+            displayName: string;
+            email: string;
+            /** @enum {string} */
+            role: "ADMIN" | "SCOPED";
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE";
+            /** @description Always empty for ADMIN. */
+            countries: string[];
+            /** @description Always empty for ADMIN. */
+            departments: string[];
+            accessSummary: components["schemas"]["AccessSummary"];
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         LoginRequest: {
             /** Format: email */
@@ -2449,6 +3076,1514 @@ export interface operations {
                 };
             };
             /** @description SERVICE_UNAVAILABLE */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listHrUsers: {
+        parameters: {
+            query?: {
+                /** @description Display name (partial, case-insensitive) or exact email (case-insensitive). Wildcards are literal. */
+                q?: string;
+                role?: "ADMIN" | "SCOPED";
+                /** @description ALL includes inactive users. */
+                status?: "ACTIVE" | "INACTIVE" | "ALL";
+                /** @description Users whose access includes this country. Admin HR matches every country. */
+                country?: "IN" | "US";
+                /** @description Users whose access includes this department. Admin HR matches every department. */
+                department?: "Tech" | "HR" | "Finance" | "Operations" | "Support";
+                /** @description Ties break on HR user ID. */
+                sort?: "updatedAt" | "name" | "email";
+                /** @description Default: desc for updatedAt, asc for name and email. */
+                direction?: "asc" | "desc";
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrUserListResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR: invalid, unknown, or repeated parameter. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    createHrUser: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The new HR user, its audit event, and the one-time temporary password. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrUserCreateResult"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EMAIL_TAKEN or DUPLICATE_OPERATION. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INVALID_SCOPE: scopes on an Admin, a Scoped user without a country and a department, or an unknown value. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    previewHrUserCreation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserCreatePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description The exact preview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrAccessPreview"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description EMAIL_TAKEN */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INVALID_SCOPE */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getHrUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The HR user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrUserDetailResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listHrUserAccessAudit: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessAuditResponse"];
+                };
+            };
+            /** @description VALIDATION_ERROR */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    previewHrUserProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserProfilePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description The exact preview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrAccessPreview"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    updateHrUserProfile: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description The resulting HR user and the audit event (or the original result for a replay). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrUserChangeResult"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION or DUPLICATE_OPERATION. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    previewHrUserPromotion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserPromotePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description The exact preview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrAccessPreview"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    promoteHrUser: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserPromoteRequest"];
+            };
+        };
+        responses: {
+            /** @description The resulting HR user and the audit event (or the original result for a replay). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrUserChangeResult"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION or DUPLICATE_OPERATION. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    previewHrUserScopes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserScopesPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description The exact preview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrAccessPreview"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INVALID_SCOPE: unknown value, or scopes on an Admin. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    replaceHrUserScopes: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserScopesRequest"];
+            };
+        };
+        responses: {
+            /** @description The resulting HR user and the audit event (or the original result for a replay). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrUserChangeResult"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION or DUPLICATE_OPERATION. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INVALID_SCOPE: unknown value, or scopes on an Admin. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    previewHrUserDeactivation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserDeactivatePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description The exact preview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrAccessPreview"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION or LAST_ACTIVE_ADMIN. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    deactivateHrUser: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserDeactivateRequest"];
+            };
+        };
+        responses: {
+            /** @description The resulting HR user and the audit event (or the original result for a replay). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrUserChangeResult"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION, DUPLICATE_OPERATION, or LAST_ACTIVE_ADMIN. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    previewHrUserReactivation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserReactivatePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description The exact preview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrAccessPreview"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reactivateHrUser: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserReactivateRequest"];
+            };
+        };
+        responses: {
+            /** @description The resulting HR user and the audit event (or the original result for a replay). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrUserChangeResult"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION or DUPLICATE_OPERATION. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    previewHrUserPasswordRegeneration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserPasswordRegenerationPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description The exact preview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrUserPasswordRegenerationPreview"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION, or SELF_PASSWORD_REGENERATION_FORBIDDEN when the target is the caller. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    regenerateHrUserPassword: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Unique per operation attempt; reuse it only to retry the same command. The same key with the same command returns the original result (with an Idempotency-Replayed: true header); with different data it returns DUPLICATE_OPERATION. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                hrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HrUserPasswordRegenerationRequest"];
+            };
+        };
+        responses: {
+            /** @description The new temporary password once (or the original outcome without a password for a replay). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HrUserPasswordRegenerationResult"];
+                };
+            };
+            /** @description VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_INVALID, PREVIEW_MISMATCH, or IDEMPOTENCY_KEY_REQUIRED. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHENTICATED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description FORBIDDEN: only active Admin HR. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description STALE_VERSION, DUPLICATE_OPERATION, or SELF_PASSWORD_REGENERATION_FORBIDDEN when the target is the caller. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description INTERNAL_ERROR */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SERVICE_UNAVAILABLE: database unavailable or a lock wait timed out. Do not assume the change applied; retry with the same Idempotency-Key. */
             503: {
                 headers: {
                     [name: string]: unknown;

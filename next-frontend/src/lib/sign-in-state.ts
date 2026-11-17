@@ -14,17 +14,17 @@ export type SignInErrorCode =
   | 'SERVICE_ERROR';
 
 export type SignInState = {
-  account: DemoAccountKey;
+  account: DemoAccountKey | 'another';
   error?: SignInErrorCode;
 };
 
 export const INITIAL_SIGN_IN_STATE: SignInState = { account: 'meera' };
 
 export const SIGN_IN_ERROR_MESSAGES: Record<SignInErrorCode, string> = {
-  ACCOUNT_REQUIRED: 'Choose a demo account.',
-  PASSWORD_REQUIRED: 'Enter the demo password.',
-  PASSWORD_REJECTED: 'Enter the demo password exactly as shown.',
-  INVALID_CREDENTIALS: 'That password is not correct for this account. Use the synthetic demo password shown above.',
+  ACCOUNT_REQUIRED: 'Choose a sign-in option.',
+  PASSWORD_REQUIRED: 'Enter your password.',
+  PASSWORD_REJECTED: 'Enter a valid password.',
+  INVALID_CREDENTIALS: 'That email or password is not correct. Check your details and try again.',
   RATE_LIMITED: 'Too many failed attempts for this account. Wait 15 minutes, then try again.',
   UNAVAILABLE: 'Sign-in is unavailable because the compensation service did not respond. Try again in a moment.',
   NOT_CONFIGURED: 'Sign-in is unavailable because this deployment is not fully configured.',

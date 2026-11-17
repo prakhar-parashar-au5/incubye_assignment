@@ -43,6 +43,24 @@ const OPERATION_IDS = [
   'getDashboardBreakdown',
   'getDashboardRecentChanges',
   'getDashboardWithoutRecentAdjustment',
+  // Admin HR access management (backend Task 11)
+  'listHrUsers',
+  'previewHrUserCreation',
+  'createHrUser',
+  'getHrUser',
+  'listHrUserAccessAudit',
+  'previewHrUserProfile',
+  'updateHrUserProfile',
+  'previewHrUserPromotion',
+  'promoteHrUser',
+  'previewHrUserScopes',
+  'replaceHrUserScopes',
+  'previewHrUserDeactivation',
+  'deactivateHrUser',
+  'previewHrUserReactivation',
+  'reactivateHrUser',
+  'previewHrUserPasswordRegeneration',
+  'regenerateHrUserPassword',
 ];
 
 function collectRefs(value, found) {

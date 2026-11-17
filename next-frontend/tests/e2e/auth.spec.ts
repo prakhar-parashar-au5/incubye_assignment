@@ -123,7 +123,7 @@ test("an incorrect password shows a public error and keeps Rohan selected", asyn
   test.skip(testInfo.project.name !== "desktop", "limits failed attempts against the shared backend");
   await signInWithKeyboard(page, "Rohan Mehta", "synthetic-wrong-password");
   const password = page.getByLabel("Password");
-  await expect(password).toHaveAccessibleDescription(/not correct for this account/);
+  await expect(password).toHaveAccessibleDescription(/email or password is not correct/);
   await expect(password).toBeFocused();
   await expect(page.getByRole("radio", { name: "Rohan Mehta" })).toBeChecked();
   expect(page.url()).toMatch(/\/sign-in$/);
@@ -174,11 +174,13 @@ test("desktop uses the rail and mobile uses the compact header", async ({ page }
     await expect(rail).toBeHidden();
     await expect(mobileMenu).toBeVisible();
   }
-  // Future sections are listed but are not links or buttons. Dashboard is built (Task 04).
-  for (const label of ["Salary Reviews", "HR Access"]) {
+  // Salary Reviews is not built; HR Access is an Admin-only route.
+  for (const label of ["Salary Reviews"]) {
     await expect(page.getByRole("link", { name: label })).toHaveCount(0);
     await expect(page.getByRole("button", { name: label })).toHaveCount(0);
   }
+  // On mobile the link sits in the closed Menu disclosure, so check the navigation markup directly.
+  await expect(page.locator('nav[aria-label="Main"] a[href="/hr-access"]').first()).toHaveText("HR Access");
   await expect(page.locator('nav[aria-label="Main"] a[href="/dashboard"]').first()).toHaveText("Dashboard");
   await page.screenshot({ path: testInfo.outputPath(`employees-${testInfo.project.name}.png`), fullPage: true });
 });

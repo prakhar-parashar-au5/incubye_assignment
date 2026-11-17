@@ -71,6 +71,24 @@ describe("signIn Server Action", () => {
     });
   });
 
+  it("accepts an HR account email through the same login endpoint without reflecting credentials", async () => {
+    const backend = fakeFetch(loginOk());
+    vi.stubGlobal("fetch", backend.fetch);
+    const location = await redirectOf(signIn(INITIAL_SIGN_IN_STATE, form({ account: "another", email: "new.hr@acme.com", password: "temporary-secret" })));
+    expect(location).toBe("/employees");
+    expect(backend.requests[0].body).toEqual({ email: "new.hr@acme.com", password: "temporary-secret" });
+    expect(jar.get("acme_session")?.options?.httpOnly).toBe(true);
+  });
+
+  it("does not send malformed Other HR account credentials to the backend", async () => {
+    const backend = fakeFetch();
+    vi.stubGlobal("fetch", backend.fetch);
+    const state = await signIn(INITIAL_SIGN_IN_STATE, form({ account: "another", email: "not-an-email", password: "temporary-secret" }));
+    expect(state).toEqual({ account: "another", error: "INVALID_CREDENTIALS" });
+    expect(JSON.stringify(state)).not.toContain("temporary-secret");
+    expect(backend.requests).toHaveLength(0);
+  });
+
   it("uses a Secure __Host- cookie in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubGlobal("fetch", fakeFetch(loginOk()).fetch);

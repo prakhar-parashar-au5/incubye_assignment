@@ -10,6 +10,7 @@ import { readSessionToken } from '@/server/session-cookie';
 // current database session, status, and scopes; nothing is cached across requests.
 
 export type HrUser = {
+  id: CurrentUserResponse['user']['id'];
   displayName: string;
   role: CurrentUserResponse['user']['role'];
   countries: readonly string[];
@@ -33,6 +34,7 @@ export async function resolveSession(token: string | undefined, client: ApiClien
     return {
       kind: 'signed-in',
       user: {
+        id: result.data.user.id,
         displayName: result.data.user.displayName,
         role: result.data.user.role,
         countries: result.data.scope.countries,

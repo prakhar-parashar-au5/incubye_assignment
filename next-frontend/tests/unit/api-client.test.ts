@@ -32,6 +32,24 @@ describe("server-only API client", () => {
     expect(backend.requests[1]).toMatchObject({ url: "http://backend.test:3000/api/v1/auth/logout", method: "POST" });
   });
 
+  it("uses the OpenAPI HR-access paths, validates list responses, and keeps idempotency keys in headers", async () => {
+    const backend = fakeFetch(
+      jsonResponse(200, { users: [], page: { number: 1, size: 25, totalRows: 0, totalPages: 0 }, emptyMessage: "No HR users match these filters." }),
+      jsonResponse(201, {}),
+    );
+    const api = client(backend.fetch);
+    expect((await api.listHrUsers(SAMPLE_TOKEN, { status: "ALL", page: 1, pageSize: 25 })).ok).toBe(true);
+    expect(await api.createHrUser(SAMPLE_TOKEN, {
+      email: "qa.hr@example.com", displayName: "QA HR", role: "SCOPED", countries: ["IN"], departments: ["Tech"], previewToken: "opaque-preview",
+    }, "idempotency-key-123456")).toMatchObject({ ok: false, kind: "INVALID_RESPONSE" });
+    expect(backend.requests[0].url).toBe("http://backend.test:3000/api/v1/hr-users?status=ALL&page=1&pageSize=25");
+    expect(backend.requests[1]).toMatchObject({
+      url: "http://backend.test:3000/api/v1/hr-users", method: "POST",
+      headers: { authorization: `Bearer ${SAMPLE_TOKEN}`, "idempotency-key": "idempotency-key-123456" },
+      body: { email: "qa.hr@example.com", displayName: "QA HR", role: "SCOPED", countries: ["IN"], departments: ["Tech"], previewToken: "opaque-preview" },
+    });
+  });
+
   it.each([
     [400, "VALIDATION_ERROR"],
     [401, "INVALID_CREDENTIALS"],
