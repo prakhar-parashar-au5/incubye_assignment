@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>F2: Admin asks the assistant &quot;Who earns the most in Tech in India?&quot;</title>
+<style>
+  :root {
+    --ground: #f7f5f1; --ink: #18233a; --muted: #4a5467; --line: #dcd7cd; --surface: #ffffff;
+    --accent: #2a57c0; --db: #8a5a00; --db-wash: #fbf4e4; --ai: #6b4fa0; --ai-wash: #f1edf8;
+    --error: #b3261e; --ok: #1d6e46;
+    --t-browser: #efece6; --t-next-server: #e9eef8; --t-express: #edf5f0; --t-mysql: #faf4e6; --t-openai: #f3effa;
+    --sans: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.45; }
+  .page { max-width: 1440px; margin: 0 auto; padding: 32px 32px 40px; }
+  header h1 { font-size: 26px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 15px; max-width: 72ch; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 16px 0 20px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { display: inline-block; width: 22px; height: 0; border-top: 2px solid var(--ink); }
+  .sw.dashed { border-top-style: dashed; border-color: var(--accent); }
+  .grid { --gutter: 3rem; --edgecol: 19rem; position: relative; }
+  .heads, .row { display: grid; grid-template-columns: var(--gutter) var(--edgecol) 1fr; }
+  .heads .lanes { display: grid; grid-template-columns: repeat(5, 1fr); }
+  .lane-head { font-size: 12px; font-weight: 600; text-transform: none; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: center; }
+  .bands { position: absolute; top: 0; bottom: 0; left: calc(var(--gutter) + var(--edgecol)); right: 0; display: grid; grid-template-columns: repeat(5, 1fr); z-index: 0; }
+  .band { border-left: 1px solid var(--line); }
+  .band:last-child { border-right: 1px solid var(--line); }
+  .lane-browser { background: var(--t-browser); } .lane-next-server { background: var(--t-next-server); } .lane-express { background: var(--t-express); }
+  .lane-mysql { background: var(--t-mysql); } .lane-openai { background: var(--t-openai); }
+  .lane-head.lane-browser, .lane-head.lane-next-server, .lane-head.lane-express, .lane-head.lane-mysql, .lane-head.lane-openai { background: none; }
+  .row { position: relative; z-index: 1; break-inside: avoid; page-break-inside: avoid; }
+  .num { position: relative; }
+  .num::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 2px solid var(--line); }
+  .row.start .num::before { top: 50%; }
+  .dot { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin: 12px 0 0 calc(50% - 13px); border-radius: 50%; background: var(--ink); color: #fff; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .dot-back { background: var(--surface); color: var(--accent); border: 2px dashed var(--accent); }
+  .edge { padding: 12px 14px 12px 4px; border-bottom: 1px solid #ebe7df; min-width: 0; }
+  .trigger { font-weight: 600; padding-top: 14px; }
+  .from { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  .elabel { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+  .sync { font-size: 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-weight: 400; }
+  .payload { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
+  .note { font-size: 11.5px; margin-top: 6px; padding: 5px 8px; border-radius: 6px; }
+  .fail-note { background: #fcf1f0; color: #7d1a14; border: 1px solid #e3b3ae; }
+  .scope-note { background: #e6ecf8; color: var(--ink); border: 1px solid #c3d0ec; }
+  .alt { margin-top: 8px; padding: 6px 9px; font-size: 11.5px; border-left: 3px solid var(--muted); background: var(--surface); border-radius: 0 6px 6px 0; color: var(--ink); }
+  .alt-title { font-weight: 600; }
+  .alt-result { color: var(--muted); margin-top: 2px; }
+  .lanes { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; padding: 10px 0; min-height: 76px; }
+  .cell { position: relative; z-index: 2; padding: 0 8px; display: flex; justify-content: center; }
+  .h { position: absolute; top: 0; height: 0; border-top: 2px solid var(--ink); z-index: 1; }
+  .v { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--ink); z-index: 1; }
+  .dashed { border-color: var(--accent) !important; border-style: dashed !important; }
+  .row:last-child .v { bottom: 50%; }
+  .card, .pill { width: 100%; max-width: 230px; background: var(--surface); border: 1px solid #c9c3b7; border-radius: 10px; padding: 7px 10px; }
+  .pill { border-radius: 999px; text-align: center; border: 2px solid var(--ink); padding: 8px 16px; }
+  .pill .where { display: none; }
+  .label { font-size: 12.5px; font-weight: 600; line-height: 1.3; }
+  .mono { font-family: var(--mono); }
+  .sym { font-size: 11px; color: var(--accent); overflow-wrap: anywhere; margin-top: 2px; }
+  .where { font-size: 10px; color: var(--muted); overflow-wrap: anywhere; margin-top: 1px; }
+  .persona { display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em; border-radius: 4px; padding: 0 5px; margin-bottom: 3px; }
+  .who { display: inline-block; font-size: 10.5px; font-weight: 700; border-radius: 4px; padding: 1px 6px; margin: 2px 0 4px; }
+  .p-0 { background: #e6ecf8; color: #2249a3; border: 1px solid #c3d0ec; }
+  .p-1 { background: #eef7f1; color: #1d6e46; border: 1px solid #b9dcc8; }
+  .p-2 { background: #ece8e0; color: #4a5467; border: 1px solid #dcd7cd; }
+  .pill .persona { display: block; width: fit-content; margin: 0 auto 3px; }
+  .again { margin-left: 6px; font-size: 10px; font-weight: 500; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; justify-content: inherit; }
+  .badge { font-size: 9.5px; font-weight: 600; border-radius: 4px; padding: 1px 5px; }
+  .badge.obs { background: var(--db-wash); color: var(--db); border: 1px solid #e5cf9f; }
+  .badge.fail { background: #fcf1f0; color: var(--error); border: 1px solid #e3b3ae; }
+  .badge.scope { background: #e6ecf8; color: var(--accent); border: 1px solid #c3d0ec; }
+  /* Cylinder: a fixed-height elliptical cap over a body that grows with its text. */
+  .cyl { position: relative; width: 100%; max-width: 210px; margin-top: 10px; background: var(--surface); border: 2px solid var(--db); border-top: none; border-radius: 0 0 50% 50% / 0 0 12px 12px; padding: 0 0 8px; }
+  .cyl::before { content: ""; position: absolute; left: -2px; right: -2px; top: -10px; height: 20px; border: 2px solid var(--db); border-radius: 50%; background: var(--db-wash); }
+  .cyl-text { position: relative; padding: 16px 12px 4px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .cyl-text .mono { font-size: 11.5px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+  .op { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; color: var(--db); }
+  .cyl .badges { position: relative; justify-content: center; margin-top: 4px; }
+  .hex { position: relative; width: 100%; max-width: 210px; height: 80px; }
+  .hex svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .hex-shape { fill: var(--ai-wash); stroke: var(--ai); stroke-width: 2; vector-effect: non-scaling-stroke; }
+  .hex-text { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 26px; }
+  .hex-text strong { font-size: 12.5px; color: var(--ai); }
+  .hex-text .mono { font-size: 10.5px; color: var(--ink); }
+  footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+  footer ul { margin: 8px 0 0; padding-left: 18px; }
+  footer li { margin: 3px 0; }
+  footer p { margin: 4px 0; }
+  @media print {
+    html, body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { padding: 12px; max-width: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>F2: Admin asks the assistant &quot;Who earns the most in Tech in India?&quot;</h1>
+    <p>Meera Iyer (Admin HR). 35 code steps across 5 layers, in 41 numbered calls from the click to the screen. In the HTML, hover a box to read what it does.</p>
+  </header>
+  <div class="legend">
+    <span><i class="sw"></i> request going deeper</span>
+    <span><i class="sw dashed"></i> response coming back</span>
+    <span><span class="badge obs">writes trace</span> AI observability write</span>
+    <span><span class="badge fail">fails closed</span> stops if this step fails</span>
+    <span><span class="badge scope">scope rule</span> access scope applied</span>
+    <span>Cylinder: MySQL table · Hexagon: OpenAI · <span class="sync">sync</span> no await</span>
+  </div>
+  <div class="grid">
+    <div class="bands" aria-hidden="true"><div class="band lane-browser"></div><div class="band lane-next-server"></div><div class="band lane-express"></div><div class="band lane-mysql"></div><div class="band lane-openai"></div></div>
+    <div class="heads"><div></div><div class="lane-head" style="text-align:left">Call and payload</div><div class="lanes" style="padding:0;min-height:0"><div class="lane-head lane-browser">Browser</div><div class="lane-head lane-next-server">Next server</div><div class="lane-head lane-express">Express</div><div class="lane-head lane-mysql">MySQL</div><div class="lane-head lane-openai">OpenAI</div></div></div>
+    <div class="row start">
+    <div class="num"></div>
+    <div class="edge"><div class="trigger">Type the question in the composer on /assistant (new conversation) and press Enter</div></div>
+    <div class="lanes"><div class="cell" style="grid-column:1"><div class="pill kind-ui-event" title="Trims the draft, blocks empty or &gt;2,000-character text, clears the draft, and starts a submission.">
+    <div class="label">Enter in composer</div>
+    <div class="mono sym">function send</div>
+    <div class="where">next-frontend/…/app/assistant/assistant-chat.tsx:225</div>
+    
+  </div></div></div>
+  </div>
+<div class="row">
+      <div class="num"><span class="dot">1</span></div>
+      <div class="edge">
+        
+        <div class="elabel">send(draft) → run({ content, key: newKey() }) <span class="sync">sync</span></div>
+        <div class="payload">{ content, key }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:10%"></div>
+        <div class="cell" style="grid-column:1"><div class="card kind-browser" title="Shows the pending user message, creates the Idempotency-Key (crypto.randomUUID via newKey), and calls the Server Action inside a transition.">
+    <div class="label">run(): key + transition</div>
+    <div class="mono sym">function run</div>
+    <div class="where">next-frontend/…/app/assistant/assistant-chat.tsx:201</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">2</span></div>
+      <div class="edge">
+        
+        <div class="elabel">Server Action POST (startTransition)</div>
+        <div class="payload">{ conversationId: null, content, idempotencyKey }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:10%;width:20%"></div><div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-server-action" title="Untrusted entry point: validates { conversationId|null, content, idempotencyKey, retryOfTraceId? }, reads the session cookie, and calls Express.">
+    <div class="label">sendConversationMessage</div>
+    <div class="mono sym">sendConversationMessage</div>
+    <div class="where">next-frontend/…/server/actions/assistant.ts:83</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">3</span></div>
+      <div class="edge">
+        
+        <div class="elabel">client.createAssistantConversation(token) → POST /api/v1/assistant/conversations (first message only)</div>
+        <div class="payload">AssistantConversationCreateRequest {} → AssistantConversationResponse</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:30%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-route-handler" title="requireAuth, 1 kB JSON parser, then conversations.create(principal); 201 AssistantConversationResponse.">
+    <div class="label">POST /assistant/conversations</div>
+    <div class="mono sym">router.post(PATHS.assistantConversations</div>
+    <div class="where">express-backend/…/http/assistant-routes.ts:84</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">4</span></div>
+      <div class="edge">
+        
+        <div class="elabel">conversations.create → store.createConversation: INSERT INTO ai_conversations</div>
+        <div class="payload">[id, hr_user_id, created_at] → AssistantConversationSummary</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="New conversation row owned by the HR user.">
+      <div class="cyl-text"><span class="mono">ai_<wbr>conversations</span><span class="op">INSERT</span></div>
+      <div class="badges"><span class="badge obs">writes trace</span></div>
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">5</span></div>
+      <div class="edge">
+        <div class="from">from sendConversationMessage</div>
+        <div class="elabel">client.sendAssistantConversationMessage(token, conversationId, body, key)</div>
+        <div class="payload">AssistantMessageRequest { content }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:30%;width:40%"></div><div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-api-client" title="POST …/messages with Authorization: Bearer, the Idempotency-Key header, one message only, the assistant timeout, and isAssistantTurnResponse as validator.">
+    <div class="label">sendAssistantConversationMessage</div>
+    <div class="mono sym">sendAssistantConversationMessage</div>
+    <div class="where">next-frontend/…/server/api/client.ts:287</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">6</span></div>
+      <div class="edge">
+        
+        <div class="elabel">POST /api/v1/assistant/conversations/{conversationId}/messages</div>
+        <div class="payload">Authorization: Bearer, Idempotency-Key, AssistantMessageRequest</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:30%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-middleware" title="Reloads the principal (session, status, role, scopes) from MySQL for this request; failure is 401.">
+    <div class="label">requireAuth</div>
+    <div class="mono sym">requireAuth</div>
+    <div class="where">express-backend/…/http/auth-routes.ts:29</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">7</span></div>
+      <div class="edge">
+        
+        <div class="elabel">next() <span class="sync">sync</span></div>
+        <div class="payload">res.locals.principal</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-middleware" title="20 message submissions per HR user per 15 minutes; over the limit is 429 with Retry-After.">
+    <div class="label">assistantRequestLimiter</div>
+    <div class="mono sym">assistantRequestLimiter</div>
+    <div class="where">express-backend/…/http/rate-limit.ts:164</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">8</span></div>
+      <div class="edge">
+        
+        <div class="elabel">next() (under 20 per 15 min) <span class="sync">sync</span></div>
+        <div class="payload">req</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-route-handler" title="12 kB parser; requires an Idempotency-Key matching ASSISTANT_IDEMPOTENCY_KEY; parses AssistantMessageRequest; calls conversations.submit.">
+    <div class="label">POST …/messages</div>
+    <div class="mono sym">PATHS.assistantConversationMessages</div>
+    <div class="where">express-backend/…/http/assistant-routes.ts:94</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">9</span></div>
+      <div class="edge">
+        
+        <div class="elabel">conversations.submit(principal, conversationId, body, key, requestId)</div>
+        <div class="payload">Principal, { content }, Idempotency-Key</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Owns the turn: loads the owned conversation (store.readConversation, else 404), idempotency, history, trace creation, runTurn, finalisation; maps failures to public errors.">
+    <div class="label">conversations.submit</div>
+    <div class="mono sym">async function submit</div>
+    <div class="where">express-backend/…/assistant/conversation-service.ts:322</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">10</span></div>
+      <div class="edge">
+        
+        <div class="elabel">store.findTraceByIdempotency(conversationId, key)</div>
+        <div class="payload">SELECT ai_traces ⋈ ai_messages → existing trace | null</div>
+        
+        <aside class="alt"><div class="alt-title">Branch: Same Idempotency-Key again</div><div>If Send again after an unconfirmed send reuses the key with the same content.</div><div class="alt-result">No new trace and no model call: the stored result is returned with Idempotency-Replayed: true (or 409 ASSISTANT_TURN_IN_PROGRESS while it still runs; different content with the same key is 409 DUPLICATE_OPERATION).</div></aside>
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-repository" title="Looks up a trace in this conversation with the same Idempotency-Key (SELECT ai_traces ⋈ ai_messages); a hit replays instead of running a new turn.">
+    <div class="label">findTraceByIdempotency</div>
+    <div class="mono sym">async findTraceByIdempotency</div>
+    <div class="where">express-backend/…/assistant/observability/repository.ts:341</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">11</span></div>
+      <div class="edge">
+        <div class="from">from conversations.submit</div>
+        <div class="elabel">selectHistory(conversation, { principal }) + the new user message <span class="sync">sync</span></div>
+        <div class="payload">→ ModelMessage[]</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Bounded server-side history: up to 4 recent COMPLETED turns and 16,000 characters, dropping turns the caller's current scope no longer covers; the browser's history is never used.">
+    <div class="label">selectHistory</div>
+    <div class="mono sym">selectHistory</div>
+    <div class="where">express-backend/…/assistant/conversation-service.ts:171</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">12</span></div>
+      <div class="edge">
+        <div class="from">from conversations.submit</div>
+        <div class="elabel">store.createTrace({ …, idempotencyKey, commandHash, actorScope, modelMessages })</div>
+        <div class="payload">→ { id: traceId, userMessageSequence }</div>
+        <div class="note fail-note"><b>Fails closed:</b> TRACE_CREATE: if this write fails the API returns 503 TRACE_UNAVAILABLE and OpenAI is never called; a reused key with different content is 409 DUPLICATE_OPERATION.</div>
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-repository" title="One transaction: STARTED trace (prompt version assistant-instructions-v2 and its hash, model, actor scope snapshot, exact model messages, key + command hash) and the user message.">
+    <div class="label">createTrace</div>
+    <div class="mono sym">async createTrace</div>
+    <div class="where">express-backend/…/assistant/observability/repository.ts:181</div>
+    <div class="badges"><span class="badge obs">writes trace</span><span class="badge fail">fails closed</span></div>
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">13</span></div>
+      <div class="edge">
+        
+        <div class="elabel">INSERT INTO ai_traces (… status STARTED)</div>
+        <div class="payload">trace row</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="The trace row, status STARTED.">
+      <div class="cyl-text"><span class="mono">ai_<wbr>traces</span><span class="op">INSERT</span></div>
+      <div class="badges"><span class="badge obs">writes trace</span></div>
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">14</span></div>
+      <div class="edge">
+        <div class="from">from createTrace</div>
+        <div class="elabel">INSERT INTO ai_messages (role USER)</div>
+        <div class="payload">{ text, retryOfTraceId }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="The USER message of this turn (the ASSISTANT message is inserted the same way in finishTrace).">
+      <div class="cyl-text"><span class="mono">ai_<wbr>messages</span><span class="op">INSERT</span></div>
+      <div class="badges"><span class="badge obs">writes trace</span></div>
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">15</span></div>
+      <div class="edge">
+        <div class="from">from conversations.submit</div>
+        <div class="elabel">assistant.runTurn({ principal, messages, prompt, recorder })</div>
+        <div class="payload">ModelMessage[] → AssistantMessagesResponse</div>
+        <div class="note fail-note"><b>Fails closed:</b> No model configured: TurnFailure(MODEL_CALL, not_configured) before any provider or tool call; the turn is finalised FAILED.</div>
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="The tool loop with a turn deadline: record attempt → call model → record outcome → for each tool: record attempt → validate/run → record outcome → next model call.">
+    <div class="label">assistant.runTurn</div>
+    <div class="mono sym">async function runTurn</div>
+    <div class="where">express-backend/…/assistant/assistant-service.ts:255</div>
+    <div class="badges"><span class="badge fail">fails closed</span></div>
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">16</span></div>
+      <div class="edge">
+        
+        <div class="elabel">persist(MODEL_TRACE_WRITE, recorder.startModelCall) — model call 1</div>
+        <div class="payload">{ provider, model, input, tools, promptVersion: assistant-instructions-v2, promptHash }</div>
+        <div class="note fail-note"><b>Fails closed:</b> MODEL_TRACE_WRITE: persist() throws TurnFailure, so no unrecorded provider call is made.</div>
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="startModelCall: the exact model input (instructions, messages, earlier exchanges) and tool schemas, before the provider call.">
+      <div class="cyl-text"><span class="mono">ai_<wbr>model_<wbr>calls</span><span class="op">INSERT</span></div>
+      <div class="badges"><span class="badge obs">writes trace</span><span class="badge fail">fails closed</span></div>
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">17</span></div>
+      <div class="edge">
+        <div class="from">from assistant.runTurn</div>
+        <div class="elabel">session.next([], signal) — model call 1</div>
+        <div class="payload">instructions + messages + tool schemas</div>
+        
+        <aside class="alt"><div class="alt-title">Branch: Model call fails or times out</div><div>If responses.create throws (timeout, rate limit, provider error, invalid response).</div><div class="alt-result">finishModelCall records FAILED with a safe category; TurnFailure(MODEL_CALL) → failTrace marks the trace FAILED; the API returns 502 MODEL_PROVIDER_FAILED; the UI shows the recorded failed turn with Retry (new key, retryOfTraceId).</div></aside>
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Appends tool outputs to the replayed input and calls the Responses API (store: false, tool_choice auto, parallel tool calls, no SDK retries).">
+    <div class="label">OpenAI adapter session.next</div>
+    <div class="mono sym">async next</div>
+    <div class="where">express-backend/…/assistant/openai-model.ts:97</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">18</span></div>
+      <div class="edge">
+        
+        <div class="elabel">POST /v1/responses (responses.create, store: false)</div>
+        <div class="payload">{ model, instructions, input, tools, tool_choice: auto }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:40%"></div><div class="v solid" style="left:90%"></div>
+        <div class="cell" style="grid-column:5"><div class="hex" title="The language model: returns either function_call items (tool decisions) or answer text, plus token usage.">
+      <svg viewBox="0 0 200 80" preserveAspectRatio="none" aria-hidden="true"><polygon points="22,2 178,2 198,40 178,78 22,78 2,40" class="hex-shape"/></svg>
+      <div class="hex-text"><strong>OpenAI Responses API</strong><span class="mono">client.responses.create</span></div>
+    </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">19</span></div>
+      <div class="edge">
+        
+        <div class="elabel">Response: function_call get_top_compensated_employees</div>
+        <div class="payload">{ call_id, name, arguments: { metric, currency, limit } }, usage</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:40%"></div><div class="v dashed" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Appends tool outputs to the replayed input and calls the Responses API (store: false, tool_choice auto, parallel tool calls, no SDK retries).">
+    <div class="label">OpenAI adapter session.next<span class="again">again</span></div>
+    <div class="mono sym">async next</div>
+    <div class="where">express-backend/…/assistant/openai-model.ts:97</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">20</span></div>
+      <div class="edge">
+        <div class="from">from assistant.runTurn</div>
+        <div class="elabel">persist(MODEL_TRACE_WRITE, recorder.finishModelCall) — SUCCEEDED, tool decision recorded</div>
+        <div class="payload">{ output, decisions[], tokens, latencyMs }</div>
+        <div class="note fail-note"><b>Fails closed:</b> MODEL_TRACE_WRITE: if the outcome cannot be saved, the reply's text and tool decisions are never used.</div>
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="finishModelCall: SUCCEEDED with output text, tool decisions (scrubbed JSON arguments), tokens, latency, provider request ID — or FAILED with a safe category.">
+      <div class="cyl-text"><span class="mono">ai_<wbr>model_<wbr>calls</span><span class="op">UPDATE</span></div>
+      <div class="badges"><span class="badge obs">writes trace</span><span class="badge fail">fails closed</span></div>
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">21</span></div>
+      <div class="edge">
+        <div class="from">from assistant.runTurn</div>
+        <div class="elabel">persist(TOOL_TRACE_WRITE, recorder.startToolCall)</div>
+        <div class="payload">{ modelCallId, providerToolCallId, toolName, arguments }</div>
+        <div class="note fail-note"><b>Fails closed:</b> TOOL_TRACE_WRITE: the tool is not validated or run without this row.</div>
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="startToolCall: tool name, provider call ID, requested arguments; only after the parent model call is SUCCEEDED.">
+      <div class="cyl-text"><span class="mono">ai_<wbr>tool_<wbr>calls</span><span class="op">INSERT</span></div>
+      <div class="badges"><span class="badge obs">writes trace</span><span class="badge fail">fails closed</span></div>
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">22</span></div>
+      <div class="edge">
+        <div class="from">from assistant.runTurn</div>
+        <div class="elabel">decideTool → tools.run(name, args, { principal, asOf, now })</div>
+        <div class="payload">unknown args → validated ToolInput</div>
+        
+        <aside class="alt"><div class="alt-title">Branch: Rejected tool call</div><div>If unknown tool name or arguments fail TOOL_INPUT_SCHEMAS (for example a department argument the tool does not have).</div><div class="alt-result">The tool never runs; ai_tool_calls is finished REJECTED with the validation errors, and the error text goes back to the model as the tool output for the next model call.</div></aside>
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Unknown name → REJECTED UNKNOWN_TOOL; TOOL_INPUT_SCHEMAS[name].safeParse(args) fails → REJECTED INVALID_ARGUMENTS; otherwise calls the handler with the server principal.">
+    <div class="label">tools.run → runTyped (validation)</div>
+    <div class="mono sym">runTyped</div>
+    <div class="where">express-backend/…/assistant/tools.ts:328</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">23</span></div>
+      <div class="edge">
+        
+        <div class="elabel">handlers.get_top_compensated_employees(parsed.data, context)</div>
+        <div class="payload">{ metric, currency, limit } → ToolResult { data, cards, limitations }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Ranks by { metric, currency, limit } (no department or country argument exists), checks every row with assertPermitted, builds an employee_list card, and adds limitations through withScope (scopeLimitation for Scoped HR).">
+    <div class="label">get_top_compensated_employees</div>
+    <div class="mono sym">get_top_compensated_employees</div>
+    <div class="where">express-backend/…/assistant/tools.ts:221</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">24</span></div>
+      <div class="edge">
+        
+        <div class="elabel">insights.topCompensated(principal, { metric, currency, limit }, asOf)</div>
+        <div class="payload">→ InsightEmployeeRow[]</div>
+        <div class="note scope-note"><b>Scope:</b> scopeCondition(principal) in the WHERE clause, the same rule as the directory: ADMIN sees all; SCOPED only their countries AND departments. The model cannot pass identity or scope.</div>
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-repository" title="Read-only ranking SQL over currently working employees; native currency, or USD equivalent via the saved rate.">
+    <div class="label">insights.topCompensated</div>
+    <div class="mono sym">async function topCompensated</div>
+    <div class="where">express-backend/…/assistant/compensation-insights.ts:111</div>
+    <div class="badges"><span class="badge scope">scope rule</span></div>
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">25</span></div>
+      <div class="edge">
+        
+        <div class="elabel">SELECT … FROM employees e JOIN job_titles JOIN departments WHERE scope AND CURRENTLY_WORKING ORDER BY rank_value DESC LIMIT ?</div>
+        <div class="payload">params → rows</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Employees in scope, joined to job titles and departments (FROM_EMPLOYEES).">
+      <div class="cyl-text"><span class="mono">employees</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">26</span></div>
+      <div class="edge">
+        
+        <div class="elabel">LEFT JOIN LATERAL (… FROM compensation_records c …) AS sc <span class="sync">sync</span></div>
+        <div class="payload">selected compensation per employee → rank_value</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="SELECTED_COMPENSATION LATERAL join (used by topCompensated at compensation-insights.ts:127): the selected record per employee, which the ranking orders by base or cash.">
+      <div class="cyl-text"><span class="mono">compensation_<wbr>records</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">27</span></div>
+      <div class="edge">
+        <div class="from">from get_top_compensated_employees</div>
+        <div class="elabel">withScope(principal, ['Ranks currently working employees only.']) <span class="sync">sync</span></div>
+        <div class="payload">Principal → limitations[] (null for Admin HR)</div>
+        <div class="note scope-note"><b>Scope:</b> Scoped HR results always carry 'Covers only employees in your access: …' so a scoped figure is never presented as company-wide; for this Admin flow it returns null.</div>
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Fixed coverage statement from the principal's current scope, prepended to ranking, summary, and recent-change limitations. Admin HR: null (nothing added).">
+    <div class="label">scopeLimitation</div>
+    <div class="mono sym">export function scopeLimitation</div>
+    <div class="where">express-backend/…/assistant/tools.ts:63</div>
+    <div class="badges"><span class="badge scope">scope rule</span></div>
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">28</span></div>
+      <div class="edge">
+        <div class="from">from assistant.runTurn</div>
+        <div class="elabel">persist(TOOL_TRACE_WRITE, recorder.finishToolCall) — SUCCEEDED with complete result</div>
+        <div class="payload">RecordedToolOutcome { status, result, durationMs }</div>
+        <div class="note fail-note"><b>Fails closed:</b> TOOL_TRACE_WRITE: cards are not used and the next model call is not made until this outcome is saved.</div>
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="finishToolCall: SUCCEEDED with the complete structured result, or REJECTED with validation errors, or FAILED with a safe category; duration.">
+      <div class="cyl-text"><span class="mono">ai_<wbr>tool_<wbr>calls</span><span class="op">UPDATE</span></div>
+      <div class="badges"><span class="badge obs">writes trace</span><span class="badge fail">fails closed</span></div>
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">29</span></div>
+      <div class="edge">
+        <div class="from">from assistant.runTurn</div>
+        <div class="elabel">persist(MODEL_TRACE_WRITE, recorder.startModelCall) — model call 2 (input includes the tool exchange)</div>
+        <div class="payload">{ input: { messages, exchanges } }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="startModelCall: the exact model input (instructions, messages, earlier exchanges) and tool schemas, before the provider call.">
+      <div class="cyl-text"><span class="mono">ai_<wbr>model_<wbr>calls</span><span class="op">INSERT</span><span class="again">again</span></div>
+      <div class="badges"><span class="badge obs">writes trace</span><span class="badge fail">fails closed</span></div>
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">30</span></div>
+      <div class="edge">
+        <div class="from">from assistant.runTurn</div>
+        <div class="elabel">session.next(outputs, signal) — model call 2</div>
+        <div class="payload">ModelToolOutput[] { callId, output }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Appends tool outputs to the replayed input and calls the Responses API (store: false, tool_choice auto, parallel tool calls, no SDK retries).">
+    <div class="label">OpenAI adapter session.next<span class="again">again</span></div>
+    <div class="mono sym">async next</div>
+    <div class="where">express-backend/…/assistant/openai-model.ts:97</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">31</span></div>
+      <div class="edge">
+        
+        <div class="elabel">POST /v1/responses with function_call_output — model call 2</div>
+        <div class="payload">input + [{ type: function_call_output, call_id, output }]</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:40%"></div><div class="v solid" style="left:90%"></div>
+        <div class="cell" style="grid-column:5"><div class="hex" title="The language model: returns either function_call items (tool decisions) or answer text, plus token usage.">
+      <svg viewBox="0 0 200 80" preserveAspectRatio="none" aria-hidden="true"><polygon points="22,2 178,2 198,40 178,78 22,78 2,40" class="hex-shape"/></svg>
+      <div class="hex-text"><strong>OpenAI Responses API</strong><span class="mono">client.responses.create</span><span class="again">again</span></div>
+    </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">32</span></div>
+      <div class="edge">
+        
+        <div class="elabel">Response: answer text</div>
+        <div class="payload">{ text }, usage</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:40%"></div><div class="v dashed" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="The tool loop with a turn deadline: record attempt → call model → record outcome → for each tool: record attempt → validate/run → record outcome → next model call.">
+    <div class="label">assistant.runTurn<span class="again">again</span></div>
+    <div class="mono sym">async function runTurn</div>
+    <div class="where">express-backend/…/assistant/assistant-service.ts:255</div>
+    <div class="badges"><span class="badge fail">fails closed</span></div>
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">33</span></div>
+      <div class="edge">
+        
+        <div class="elabel">persist(MODEL_TRACE_WRITE, recorder.finishModelCall) — model call 2 SUCCEEDED</div>
+        <div class="payload">{ output: { text }, decisions: [] }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="finishModelCall: SUCCEEDED with output text, tool decisions (scrubbed JSON arguments), tokens, latency, provider request ID — or FAILED with a safe category.">
+      <div class="cyl-text"><span class="mono">ai_<wbr>model_<wbr>calls</span><span class="op">UPDATE</span><span class="again">again</span></div>
+      <div class="badges"><span class="badge obs">writes trace</span><span class="badge fail">fails closed</span></div>
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">34</span></div>
+      <div class="edge">
+        <div class="from">from conversations.submit</div>
+        <div class="elabel">store.finishTrace(traceId, { status: COMPLETED, finalResponse })</div>
+        <div class="payload">AssistantMessagesResponse { answer, toolCalls, cards, limitations }</div>
+        <div class="note fail-note"><b>Fails closed:</b> FINAL_TRACE_WRITE: if this fails the trace is marked FAILED and the API returns 503; the answer is never returned unrecorded.</div>
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-repository" title="One transaction: ASSISTANT message with the final response, then the trace COMPLETED with totals summed from its model and tool calls.">
+    <div class="label">finishTrace</div>
+    <div class="mono sym">async finishTrace</div>
+    <div class="where">express-backend/…/assistant/observability/repository.ts:261</div>
+    <div class="badges"><span class="badge obs">writes trace</span><span class="badge fail">fails closed</span></div>
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">35</span></div>
+      <div class="edge">
+        
+        <div class="elabel">INSERT INTO ai_messages (role ASSISTANT)</div>
+        <div class="payload">final response JSON</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="The USER message of this turn (the ASSISTANT message is inserted the same way in finishTrace).">
+      <div class="cyl-text"><span class="mono">ai_<wbr>messages</span><span class="op">INSERT</span><span class="again">again</span></div>
+      <div class="badges"><span class="badge obs">writes trace</span></div>
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">36</span></div>
+      <div class="edge">
+        <div class="from">from finishTrace</div>
+        <div class="elabel">UPDATE ai_traces SET status = COMPLETED, totals …</div>
+        <div class="payload">duration, tokens, model_call_count 2, tool_call_count 1</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Terminal status, final response, duration, token totals, model and tool call counts.">
+      <div class="cyl-text"><span class="mono">ai_<wbr>traces</span><span class="op">UPDATE</span></div>
+      <div class="badges"><span class="badge obs">writes trace</span></div>
+    </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">37</span></div>
+      <div class="edge">
+        <div class="from">from conversations.submit</div>
+        <div class="elabel">return { value, replayed: false } <span class="sync">sync</span></div>
+        <div class="payload">AssistantTurnResponse</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:20%"></div><div class="v dashed" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-response" title="Validated turn response: answer, toolCalls, cards, limitations, trace and sequence IDs, withheld.">
+    <div class="label">AssistantTurnResponse.parse</div>
+    <div class="mono sym">AssistantTurnResponse.parse</div>
+    <div class="where">express-backend/…/http/assistant-routes.ts:102</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">38</span></div>
+      <div class="edge">
+        
+        <div class="elabel">200 application/json (Cache-Control: no-store)</div>
+        <div class="payload">AssistantTurnResponse</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:30%;width:20%"></div><div class="v dashed" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-response" title="The Next server rejects any response that breaks the generated contract (shown as an unconfirmed send).">
+    <div class="label">isAssistantTurnResponse (Ajv)</div>
+    <div class="mono sym">isAssistantTurnResponse</div>
+    <div class="where">next-frontend/…/server/api/contract.ts:99</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">39</span></div>
+      <div class="edge">
+        
+        <div class="elabel">action returns { ok, conversationId } → router.replace(/assistant/{id}) → GET /api/v1/assistant/conversations/{id}</div>
+        <div class="payload">AssistantConversationDetailResponse</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-next-route" title="After router.replace, loads the saved conversation (GET …/conversations/{id}) and the list; 404 for unknown or unowned IDs.">
+    <div class="label">/assistant/[id] Server Component</div>
+    <div class="mono sym">async function Conversation</div>
+    <div class="where">next-frontend/…/app/assistant/[conversationId]/page.tsx:44</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">40</span></div>
+      <div class="edge">
+        
+        <div class="elabel">buildThread(detail, currentScope) <span class="sync">sync</span></div>
+        <div class="payload">messages + turns → ThreadItem[]</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v dashed" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-render" title="Orders messages by sequence, attaches turn states, and re-filters cards to the current scope (filterCardsToScope).">
+    <div class="label">buildThread</div>
+    <div class="mono sym">buildThread</div>
+    <div class="where">next-frontend/…/lib/assistant.ts:103</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">41</span></div>
+      <div class="edge">
+        
+        <div class="elabel">&lt;AssistantChat items={…}&gt; → AnswerView (RSC payload to browser)</div>
+        <div class="payload">ThreadItem { kind: answer, text, response.cards }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:10%;width:20%"></div><div class="v dashed" style="left:10%"></div>
+        <div class="cell" style="grid-column:1"><div class="pill kind-render" title="Client component: model text as plain text, tool activity, AssistantCardView cards in native currency with rate context, limitations.">
+    <div class="label">AnswerView + cards</div>
+    <div class="mono sym">AnswerView</div>
+    <div class="where">next-frontend/…/app/assistant/assistant-chat.tsx:66</div>
+    
+  </div></div>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <p>Traced at master 9236ac4, re-checked after the merge of master with AI Task 05 (feat/architecture-flows). Generated from flows/F2-assistant-tool-call.json.</p>
+    <p>Step order confirmed against trace <span class="mono">88f78a0a-c3c3-452a-a9ce-b87bf81929b0</span>. Read-only browse of http://localhost:3224/admin/ai-traces as Meera Iyer (Admin HR), 2026-11-17. No messages sent, no review, no delete.</p>
+    <ul><li>Observability writes: steps 4, 12, 13, 14, 16, 20, 21, 28, 29, 33, 34, 35, 36. Every model and tool step is written before (attempt) and after (outcome) it runs.</li><li>Fail-closed points: createTrace (TRACE_CREATE), every persist(MODEL_TRACE_WRITE | TOOL_TRACE_WRITE) in runTurn, and finishTrace (FINAL_TRACE_WRITE). A failed write stops the turn; nothing unrecorded runs or is returned.</li><li>Model call 2 reuses the same nodes (orders 29–33); the arrows at those orders are the second model call.</li><li>Product finding: no assistant tool accepts a department or country, so &quot;in Tech in India&quot; cannot be passed as a filter. The model can only restrict by currency (INR) or rank everyone; the Admin's scope is ALL. This is how the code behaves today, not an invented step.</li><li>Secrets: a key-based scrubber replaces secret-named fields (authorization, cookie, password, token, API key, database URL, reasoning) before persistence; the provider key and the JWT are not part of any recorded input.</li><li>AI Task 05: every ranking, summary, and recent-change tool result for Scoped HR now starts its limitations with scopeLimitation's fixed coverage statement; Admin HR gets none.</li></ul>
+  </footer>
+</div>
+</body>
+</html>

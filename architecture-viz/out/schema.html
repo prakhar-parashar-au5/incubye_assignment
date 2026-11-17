@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Database schema</title>
+<style>
+  :root { --ground: #f7f5f1; --ink: #18233a; --muted: #4a5467; --line: #dcd7cd; --surface: #fff; --accent: #2a57c0; --db: #8a5a00; --db-wash: #fbf4e4;
+    --sans: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 13px; line-height: 1.4; }
+  .page { max-width: 1440px; margin: 0 auto; padding: 32px; }
+  header h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 15px; max-width: 80ch; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 14px 0 6px; font-size: 12px; color: var(--muted); align-items: center; }
+  .group { margin-top: 26px; break-inside: avoid-page; }
+  .group h2 { font-size: 16px; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .count { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 12px; align-items: start; }
+  .card { background: var(--surface); border: 1px solid #c9c3b7; border-top: 3px solid var(--db); border-radius: 8px; padding: 8px 10px 10px; break-inside: avoid; }
+  .card h3 { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin: 0 0 6px; font-size: 13.5px; }
+  .src { font-size: 10.5px; font-weight: 400; color: var(--muted); font-family: var(--mono); }
+  .mono { font-family: var(--mono); }
+  table.cols { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .cols td { border-top: 1px solid #efebe4; padding: 2px 4px 2px 0; vertical-align: top; }
+  .cn { font-family: var(--mono); white-space: nowrap; }
+  .ct { font-family: var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+  .later .cn { color: var(--accent); }
+  .null { color: #8a8f99; }
+  .added { color: var(--accent); font-size: 10px; }
+  .mk { display: inline-block; font: 600 9px var(--sans); border-radius: 3px; padding: 0 3px; margin-left: 4px; vertical-align: 1px; }
+  .pk { background: var(--ink); color: #fff; } .fk { background: #e6ecf8; color: var(--accent); border: 1px solid #c3d0ec; }
+  .uq { background: var(--db-wash); color: var(--db); border: 1px solid #e5cf9f; } .ix { background: #ece8e0; color: var(--muted); }
+  ul.idx { list-style: none; margin: 6px 0 0; padding: 6px 0 0; border-top: 1px solid var(--line); font-size: 11px; }
+  ul.idx li { margin: 1px 0; overflow-wrap: anywhere; } ul.idx .mk { margin: 0 5px 0 0; }
+  .ref { color: var(--accent); text-decoration: none; font-size: 10.5px; } .del { color: #b3261e; font-weight: 600; }
+  .checks { margin-top: 5px; font-size: 10.5px; color: var(--muted); overflow-wrap: anywhere; }
+  ul.notes { margin: 10px 0 0; padding: 8px 12px 8px 26px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; font-size: 12.5px; }
+  ul.notes li { margin: 3px 0; } .cite { color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
+  .fact { font-size: 11px; color: var(--ink); overflow-wrap: anywhere; }
+  footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+  footer ol { margin: 6px 0; padding-left: 20px; columns: 2; } footer p { margin: 4px 0; }
+  @media print { html, body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .page { padding: 10px; } }
+</style>
+</head>
+<body><div class="page">
+  <header>
+    <h1>Database schema</h1>
+    <p>20 tables and 31 foreign keys, generated from the 8 migration files (and the migration runner's own table), not from a live database.</p>
+  </header>
+  <div class="legend">
+    <span><span class="mk pk">PK</span> primary key</span><span><span class="mk fk">FK</span> foreign key (→ target)</span><span><span class="mk uq">UQ</span> unique</span>
+    <span><span class="mk ix">KEY</span> index</span><span><span class="null">null</span> nullable</span><span><span class="added">+003</span> added by a later migration</span><span><span class="del">CASCADE</span> / <span class="del">SET NULL</span> non-RESTRICT delete rule</span>
+  </div>
+  <section class="group" id="g-people">
+      <h2>People and organisation <span class="count">5 tables</span></h2>
+      <div class="cards"><section class="card" id="t-employees">
+    <h3><span class="mono">employees</span><span class="src">001_initial_schema.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">employee_code<span class="mk uq">UQ</span></td>
+        <td class="ct">CHAR(9)</td>
+      </tr><tr>
+        <td class="cn">first_name</td>
+        <td class="ct">VARCHAR(100)</td>
+      </tr><tr>
+        <td class="cn">last_name</td>
+        <td class="ct">VARCHAR(100)</td>
+      </tr><tr>
+        <td class="cn">email<span class="mk uq">UQ</span></td>
+        <td class="ct">VARCHAR(254)</td>
+      </tr><tr>
+        <td class="cn">job_title_id<span class="mk fk">FK</span></td>
+        <td class="ct">SMALLINT UNSIGNED<br><a class="ref" href="#t-job_titles">→ job_titles.id</a></td>
+      </tr><tr>
+        <td class="cn">country_code<span class="mk fk">FK</span></td>
+        <td class="ct">CHAR(2)<br><a class="ref" href="#t-countries">→ countries.code</a></td>
+      </tr><tr>
+        <td class="cn">employment_status</td>
+        <td class="ct">ENUM(3 values)</td>
+      </tr><tr>
+        <td class="cn">hire_date</td>
+        <td class="ct">DATE</td>
+      </tr><tr>
+        <td class="cn">employment_end_date</td>
+        <td class="ct">DATE<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">version</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">created_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr>
+        <td class="cn">updated_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk uq">UNIQUE</span><span class="mono">uk_employees_employee_code</span> (employee_code)</li><li><span class="mk uq">UNIQUE</span><span class="mono">uk_employees_email</span> (email)</li><li><span class="mk ix">KEY</span><span class="mono">idx_employees_job_title</span> (job_title_id)</li><li><span class="mk ix">KEY</span><span class="mono">idx_employees_country</span> (country_code)</li></ul>
+    <div class="checks"><b>6 CHECK</b> <span class="mono">employees_employee_code</span>, <span class="mono">employees_first_name</span>, <span class="mono">employees_last_name</span>, <span class="mono">employees_end_date_status</span>, <span class="mono">employees_end_after_hire</span>, <span class="mono">employees_version</span></div>
+  </section><section class="card" id="t-countries">
+    <h3><span class="mono">countries</span><span class="src">001_initial_schema.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">code<span class="mk pk">PK</span></td>
+        <td class="ct">CHAR(2)</td>
+      </tr><tr>
+        <td class="cn">name<span class="mk uq">UQ</span></td>
+        <td class="ct">VARCHAR(100)</td>
+      </tr><tr>
+        <td class="cn">currency</td>
+        <td class="ct">ENUM('INR', 'USD')</td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk uq">UNIQUE</span><span class="mono">uk_countries_name</span> (name)</li></ul>
+    <div class="checks"><b>1 CHECK</b> <span class="mono">countries_code</span></div>
+  </section><section class="card" id="t-departments">
+    <h3><span class="mono">departments</span><span class="src">001_initial_schema.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">SMALLINT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">name<span class="mk uq">UQ</span></td>
+        <td class="ct">VARCHAR(100)</td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk uq">UNIQUE</span><span class="mono">uk_departments_name</span> (name)</li></ul>
+    
+  </section><section class="card" id="t-job_titles">
+    <h3><span class="mono">job_titles</span><span class="src">001_initial_schema.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">SMALLINT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">department_id<span class="mk fk">FK</span></td>
+        <td class="ct">SMALLINT UNSIGNED<br><a class="ref" href="#t-departments">→ departments.id</a></td>
+      </tr><tr>
+        <td class="cn">name</td>
+        <td class="ct">VARCHAR(100)</td>
+      </tr><tr>
+        <td class="cn">level</td>
+        <td class="ct">ENUM(5 values)</td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk uq">UNIQUE</span><span class="mono">uk_job_titles_department_name_level</span> (department_id, name, level)</li></ul>
+    
+  </section><section class="card" id="t-salary_bands">
+    <h3><span class="mono">salary_bands</span><span class="src">003_salary_adjustments.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">SMALLINT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">job_title_id<span class="mk fk">FK</span></td>
+        <td class="ct">SMALLINT UNSIGNED<br><a class="ref" href="#t-job_titles">→ job_titles.id</a></td>
+      </tr><tr>
+        <td class="cn">country_code<span class="mk fk">FK</span></td>
+        <td class="ct">CHAR(2)<br><a class="ref" href="#t-countries">→ countries.code</a></td>
+      </tr><tr>
+        <td class="cn">currency</td>
+        <td class="ct">ENUM('INR', 'USD')</td>
+      </tr><tr>
+        <td class="cn">min_annual_base_salary</td>
+        <td class="ct">DECIMAL(15, 2)</td>
+      </tr><tr>
+        <td class="cn">max_annual_base_salary</td>
+        <td class="ct">DECIMAL(15, 2)</td>
+      </tr><tr>
+        <td class="cn">max_annual_bonus</td>
+        <td class="ct">DECIMAL(15, 2)</td>
+      </tr><tr>
+        <td class="cn">min_percentage_increase</td>
+        <td class="ct">SMALLINT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">max_percentage_increase</td>
+        <td class="ct">SMALLINT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">min_percentage_decrease</td>
+        <td class="ct">SMALLINT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">max_percentage_decrease</td>
+        <td class="ct">SMALLINT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">created_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr>
+        <td class="cn">updated_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk uq">UNIQUE</span><span class="mono">uk_salary_bands_title_country_currency</span> (job_title_id, country_code, currency)</li></ul>
+    <div class="checks"><b>4 CHECK</b> <span class="mono">salary_bands_base_range</span>, <span class="mono">salary_bands_bonus</span>, <span class="mono">salary_bands_increase</span>, <span class="mono">salary_bands_decrease</span></div>
+  </section></div>
+      <ul class="notes"><li>Department and level are reached through job_title_id, so an employee cannot hold an HR title in the Tech department. Current salary is not stored here. <span class="cite">001_initial_schema.sql:36</span></li><li>Product policy: one band per job title, country, and currency. The initial rows are inserted by the reference-data step of the seed (job titles do not exist when migrations run), from the approved synthetic ranges. <span class="cite">003_salary_adjustments.sql:8</span></li></ul>
+    </section><section class="group" id="g-compensation">
+      <h2>Compensation <span class="count">2 tables</span></h2>
+      <div class="cards"><section class="card" id="t-compensation_records">
+    <h3><span class="mono">compensation_records</span><span class="src">001_initial_schema.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">BIGINT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">employee_id<span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<br><a class="ref" href="#t-employees">→ employees.id</a></td>
+      </tr><tr>
+        <td class="cn">version</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">annual_base_salary</td>
+        <td class="ct">DECIMAL(15, 2)</td>
+      </tr><tr>
+        <td class="cn">annual_bonus</td>
+        <td class="ct">DECIMAL(15, 2)</td>
+      </tr><tr>
+        <td class="cn">currency</td>
+        <td class="ct">ENUM('INR', 'USD')</td>
+      </tr><tr>
+        <td class="cn">pay_frequency</td>
+        <td class="ct">ENUM('MONTHLY', 'ANNUAL')</td>
+      </tr><tr>
+        <td class="cn">effective_from</td>
+        <td class="ct">DATE</td>
+      </tr><tr>
+        <td class="cn">change_reason</td>
+        <td class="ct">ENUM(6 values)</td>
+      </tr><tr>
+        <td class="cn">created_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr class="later">
+        <td class="cn">previous_compensation_record_id<span class="mk fk">FK</span></td>
+        <td class="ct">BIGINT UNSIGNED<span class="null"> null</span><span class="added"> +003</span><br><a class="ref" href="#t-compensation_records">→ compensation_records.id</a></td>
+      </tr><tr class="later">
+        <td class="cn">changed_by_hr_user_id<span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span><span class="added"> +003</span><br><a class="ref" href="#t-hr_users">→ hr_users.id</a></td>
+      </tr><tr class="later">
+        <td class="cn">source_request_id<span class="mk fk">FK</span><span class="mk uq">UQ</span></td>
+        <td class="ct">BIGINT UNSIGNED<span class="null"> null</span><span class="added"> +003</span><br><a class="ref" href="#t-compensation_change_requests">→ compensation_change_requests.id</a></td>
+      </tr><tr class="later">
+        <td class="cn">change_note</td>
+        <td class="ct">VARCHAR(2000)<span class="null"> null</span><span class="added"> +003</span></td>
+      </tr><tr class="later">
+        <td class="cn">operation_idempotency_key</td>
+        <td class="ct">VARCHAR(128)<span class="null"> null</span><span class="added"> +003</span></td>
+      </tr><tr class="later">
+        <td class="cn">operation_fingerprint</td>
+        <td class="ct">CHAR(64)<span class="null"> null</span><span class="added"> +003</span></td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk uq">UNIQUE</span><span class="mono">uk_compensation_employee_version</span> (employee_id, version)</li><li><span class="mk ix">KEY</span><span class="mono">idx_compensation_employee_effective</span> (employee_id, effective_from, version)</li><li><span class="mk uq">UNIQUE</span><span class="mono">uk_compensation_operation_key</span> (changed_by_hr_user_id, operation_idempotency_key) <span class="added">+003</span></li><li><span class="mk uq">UNIQUE</span><span class="mono">uk_compensation_source_request</span> (source_request_id) <span class="added">+003</span></li></ul>
+    <div class="checks"><b>7 CHECK</b> <span class="mono">compensation_salary_positive</span>, <span class="mono">compensation_bonus_non_negative</span>, <span class="mono">compensation_version</span>, <span class="mono">compensation_initial_import</span>, <span class="mono">compensation_fingerprint_format</span>, <span class="mono">compensation_direct_fingerprint</span>, <span class="mono">compensation_correction_note</span></div>
+  </section><section class="card" id="t-compensation_change_requests">
+    <h3><span class="mono">compensation_change_requests</span><span class="src">003_salary_adjustments.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">BIGINT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">public_id<span class="mk uq">UQ</span></td>
+        <td class="ct">CHAR(36)</td>
+      </tr><tr>
+        <td class="cn">employee_id<span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<br><a class="ref" href="#t-employees">→ employees.id</a></td>
+      </tr><tr>
+        <td class="cn">requested_by_hr_user_id<span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<br><a class="ref" href="#t-hr_users">→ hr_users.id</a></td>
+      </tr><tr>
+        <td class="cn">adjustment_target</td>
+        <td class="ct">ENUM('BASE_SALARY', 'ANNUAL_BONUS')</td>
+      </tr><tr>
+        <td class="cn">adjustment_method</td>
+        <td class="ct">ENUM(5 values)</td>
+      </tr><tr>
+        <td class="cn">input_value</td>
+        <td class="ct">DECIMAL(15, 2)</td>
+      </tr><tr>
+        <td class="cn">currency</td>
+        <td class="ct">ENUM('INR', 'USD')</td>
+      </tr><tr>
+        <td class="cn">previous_target_value</td>
+        <td class="ct">DECIMAL(15, 2)</td>
+      </tr><tr>
+        <td class="cn">proposed_target_value</td>
+        <td class="ct">DECIMAL(15, 2)</td>
+      </tr><tr>
+        <td class="cn">requested_against_version</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">base_compensation_version</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">effective_from</td>
+        <td class="ct">DATE</td>
+      </tr><tr>
+        <td class="cn">change_reason</td>
+        <td class="ct">ENUM(5 values)</td>
+      </tr><tr>
+        <td class="cn">note</td>
+        <td class="ct">VARCHAR(2000)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">status</td>
+        <td class="ct">ENUM(4 values)</td>
+      </tr><tr>
+        <td class="cn">decided_by_hr_user_id<span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span><br><a class="ref" href="#t-hr_users">→ hr_users.id</a></td>
+      </tr><tr>
+        <td class="cn">decided_at</td>
+        <td class="ct">DATETIME(3)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">decision_note</td>
+        <td class="ct">VARCHAR(2000)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">request_idempotency_key</td>
+        <td class="ct">VARCHAR(128)</td>
+      </tr><tr>
+        <td class="cn">decision_idempotency_key</td>
+        <td class="ct">VARCHAR(128)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">created_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr>
+        <td class="cn">updated_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr>
+        <td class="cn">pending_employee_id<span class="mk uq">UQ</span></td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span><span class="null"> generated</span></td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk uq">UNIQUE</span><span class="mono">uk_ccr_public_id</span> (public_id)</li><li><span class="mk uq">UNIQUE</span><span class="mono">uk_ccr_one_pending</span> (pending_employee_id)</li><li><span class="mk uq">UNIQUE</span><span class="mono">uk_ccr_request_key</span> (requested_by_hr_user_id, request_idempotency_key)</li><li><span class="mk uq">UNIQUE</span><span class="mono">uk_ccr_decision_key</span> (decided_by_hr_user_id, decision_idempotency_key)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ccr_employee_status</span> (employee_id, status)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ccr_status_created</span> (status, created_at)</li></ul>
+    <div class="checks"><b>4 CHECK</b> <span class="mono">ccr_values</span>, <span class="mono">ccr_changes_value</span>, <span class="mono">ccr_correction_note</span>, <span class="mono">ccr_decision</span></div>
+  </section></div>
+      <ul class="notes"><li>Immutable compensation history. annual_base_salary is authoritative; no monthly value is stored. Currency is stored per record so an older record keeps its currency if the employee later changes country. DECIMAL(15,2) rounds a third decimal place instead of failing, so the application must reject more than two decimal places before insert. <span class="cite">001_initial_schema.sql:73</span></li><li>Highest compensation version when the request was made (the expected version). <span class="cite">003_salary_adjustments.sql:55</span></li><li>employee_id while PENDING, otherwise NULL: the unique key allows one pending request per employee. <span class="cite">003_salary_adjustments.sql:72</span></li><li class="fact mono">UNIQUE KEY uk_compensation_employee_version (employee_id, version): one row per employee and version.</li></ul>
+    </section><section class="group" id="g-access">
+      <h2>Access <span class="count">5 tables</span></h2>
+      <div class="cards"><section class="card" id="t-hr_users">
+    <h3><span class="mono">hr_users</span><span class="src">002_hr_access_control.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">email<span class="mk uq">UQ</span></td>
+        <td class="ct">VARCHAR(254)</td>
+      </tr><tr>
+        <td class="cn">display_name</td>
+        <td class="ct">VARCHAR(100)</td>
+      </tr><tr>
+        <td class="cn">password_hash</td>
+        <td class="ct">VARCHAR(255)</td>
+      </tr><tr>
+        <td class="cn">role</td>
+        <td class="ct">ENUM('ADMIN', 'SCOPED')</td>
+      </tr><tr>
+        <td class="cn">status</td>
+        <td class="ct">ENUM('ACTIVE', 'INACTIVE')</td>
+      </tr><tr>
+        <td class="cn">version</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">created_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr>
+        <td class="cn">updated_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk uq">UNIQUE</span><span class="mono">uk_hr_users_email</span> (email)</li></ul>
+    <div class="checks"><b>3 CHECK</b> <span class="mono">hr_users_password_hash</span>, <span class="mono">hr_users_display_name</span>, <span class="mono">hr_users_version</span></div>
+  </section><section class="card" id="t-hr_user_country_scopes">
+    <h3><span class="mono">hr_user_country_scopes</span><span class="src">002_hr_access_control.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">hr_user_id<span class="mk pk">PK</span><span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<br><a class="ref" href="#t-hr_users">→ hr_users.id</a></td>
+      </tr><tr>
+        <td class="cn">country_code<span class="mk pk">PK</span><span class="mk fk">FK</span></td>
+        <td class="ct">CHAR(2)<br><a class="ref" href="#t-countries">→ countries.code</a></td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk ix">KEY</span><span class="mono">idx_hr_country_scopes_country</span> (country_code)</li></ul>
+    
+  </section><section class="card" id="t-hr_user_department_scopes">
+    <h3><span class="mono">hr_user_department_scopes</span><span class="src">002_hr_access_control.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">hr_user_id<span class="mk pk">PK</span><span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<br><a class="ref" href="#t-hr_users">→ hr_users.id</a></td>
+      </tr><tr>
+        <td class="cn">department_id<span class="mk pk">PK</span><span class="mk fk">FK</span></td>
+        <td class="ct">SMALLINT UNSIGNED<br><a class="ref" href="#t-departments">→ departments.id</a></td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk ix">KEY</span><span class="mono">idx_hr_department_scopes_department</span> (department_id)</li></ul>
+    
+  </section><section class="card" id="t-hr_sessions">
+    <h3><span class="mono">hr_sessions</span><span class="src">002_hr_access_control.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">CHAR(36)</td>
+      </tr><tr>
+        <td class="cn">hr_user_id<span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<br><a class="ref" href="#t-hr_users">→ hr_users.id</a></td>
+      </tr><tr>
+        <td class="cn">created_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr>
+        <td class="cn">expires_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr>
+        <td class="cn">revoked_at</td>
+        <td class="ct">DATETIME(3)<span class="null"> null</span></td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk ix">KEY</span><span class="mono">idx_hr_sessions_user</span> (hr_user_id)</li></ul>
+    <div class="checks"><b>1 CHECK</b> <span class="mono">hr_sessions_expiry</span></div>
+  </section><section class="card" id="t-access_audit_events">
+    <h3><span class="mono">access_audit_events</span><span class="src">002_hr_access_control.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">BIGINT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">actor_hr_user_id<span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span><br><a class="ref" href="#t-hr_users">→ hr_users.id</a></td>
+      </tr><tr>
+        <td class="cn">target_hr_user_id<span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<br><a class="ref" href="#t-hr_users">→ hr_users.id</a></td>
+      </tr><tr>
+        <td class="cn">action</td>
+        <td class="ct">ENUM(9 values)</td>
+      </tr><tr>
+        <td class="cn">before_state</td>
+        <td class="ct">JSON<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">after_state</td>
+        <td class="ct">JSON</td>
+      </tr><tr>
+        <td class="cn">created_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr class="later">
+        <td class="cn">reason</td>
+        <td class="ct">VARCHAR(2000)<span class="null"> null</span><span class="added"> +004</span></td>
+      </tr><tr class="later">
+        <td class="cn">resulting_version</td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span><span class="added"> +004</span></td>
+      </tr><tr class="later">
+        <td class="cn">revoked_session_count</td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span><span class="added"> +004</span></td>
+      </tr><tr class="later">
+        <td class="cn">operation_idempotency_key</td>
+        <td class="ct">VARCHAR(128)<span class="null"> null</span><span class="added"> +004</span></td>
+      </tr><tr class="later">
+        <td class="cn">operation_fingerprint</td>
+        <td class="ct">CHAR(64)<span class="null"> null</span><span class="added"> +004</span></td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk ix">KEY</span><span class="mono">idx_access_audit_target</span> (target_hr_user_id, created_at)</li><li><span class="mk ix">KEY</span><span class="mono">idx_access_audit_actor</span> (actor_hr_user_id, created_at)</li><li><span class="mk uq">UNIQUE</span><span class="mono">uk_access_audit_operation_key</span> (actor_hr_user_id, operation_idempotency_key) <span class="added">+004</span></li></ul>
+    <div class="checks"><b>6 CHECK</b> <span class="mono">access_audit_operation</span>, <span class="mono">access_audit_operation_actor</span>, <span class="mono">access_audit_fingerprint_format</span>, <span class="mono">access_audit_reason</span>, <span class="mono">access_audit_status_reason</span>, <span class="mono">access_audit_regeneration</span></div>
+  </section></div>
+      <ul class="notes"><li>Scope rule: employee country IN countries AND employee department IN departments. No rows in either table means no employee access for a SCOPED user. <span class="cite">002_hr_access_control.sql:25</span></li><li>HR users, scopes, sessions, and access audit from docs/10-access-control-design.md. Forward-only. All foreign keys RESTRICT: HR users are deactivated, never deleted, so sessions, scopes, and audit history stay attached. <span class="cite">002_hr_access_control.sql:2</span></li><li>Append-only access history. actor_hr_user_id is NULL only for system actions (the documented demo-user setup), never for an HR request. States hold role, status, countries, and departments only: never passwords, password hashes, JWTs, or session IDs. <span class="cite">002_hr_access_control.sql:65</span></li></ul>
+    </section><section class="group" id="g-ai">
+      <h2>AI observability <span class="count">7 tables</span></h2>
+      <div class="cards"><section class="card" id="t-ai_conversations">
+    <h3><span class="mono">ai_conversations</span><span class="src">005_ai_observability.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">CHAR(36)</td>
+      </tr><tr>
+        <td class="cn">hr_user_id<span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<br><a class="ref" href="#t-hr_users">→ hr_users.id</a></td>
+      </tr><tr>
+        <td class="cn">created_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk ix">KEY</span><span class="mono">idx_ai_conversations_owner</span> (hr_user_id, created_at)</li></ul>
+    
+  </section><section class="card" id="t-ai_messages">
+    <h3><span class="mono">ai_messages</span><span class="src">005_ai_observability.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">BIGINT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">conversation_id<span class="mk fk">FK</span></td>
+        <td class="ct">CHAR(36)<br><a class="ref" href="#t-ai_conversations">→ ai_conversations.id</a></td>
+      </tr><tr>
+        <td class="cn">trace_id<span class="mk fk">FK</span></td>
+        <td class="ct">CHAR(36)<span class="null"> null</span><br><a class="ref" href="#t-ai_traces">→ ai_traces.id <span class="del">CASCADE</span></a></td>
+      </tr><tr>
+        <td class="cn">sequence</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">role</td>
+        <td class="ct">ENUM('USER', 'ASSISTANT')</td>
+      </tr><tr>
+        <td class="cn">content</td>
+        <td class="ct">JSON</td>
+      </tr><tr>
+        <td class="cn">created_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk uq">UNIQUE</span><span class="mono">uk_ai_messages_conversation_sequence</span> (conversation_id, sequence)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ai_messages_trace</span> (trace_id)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ai_messages_created</span> (created_at)</li></ul>
+    
+  </section><section class="card" id="t-ai_traces">
+    <h3><span class="mono">ai_traces</span><span class="src">005_ai_observability.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">CHAR(36)</td>
+      </tr><tr>
+        <td class="cn">conversation_id<span class="mk fk">FK</span></td>
+        <td class="ct">CHAR(36)<br><a class="ref" href="#t-ai_conversations">→ ai_conversations.id</a></td>
+      </tr><tr>
+        <td class="cn">previous_trace_id<span class="mk fk">FK</span></td>
+        <td class="ct">CHAR(36)<span class="null"> null</span><br><a class="ref" href="#t-ai_traces">→ ai_traces.id <span class="del">SET NULL</span></a></td>
+      </tr><tr>
+        <td class="cn">hr_user_id<span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<br><a class="ref" href="#t-hr_users">→ hr_users.id</a></td>
+      </tr><tr>
+        <td class="cn">sequence</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">request_id</td>
+        <td class="ct">VARCHAR(100)</td>
+      </tr><tr>
+        <td class="cn">idempotency_key</td>
+        <td class="ct">VARCHAR(100)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">command_hash</td>
+        <td class="ct">CHAR(64)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">status</td>
+        <td class="ct">ENUM('STARTED', 'COMPLETED', 'FAILED')</td>
+      </tr><tr>
+        <td class="cn">failure_stage</td>
+        <td class="ct">VARCHAR(40)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">error_category</td>
+        <td class="ct">VARCHAR(80)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">model</td>
+        <td class="ct">VARCHAR(120)</td>
+      </tr><tr>
+        <td class="cn">prompt_version</td>
+        <td class="ct">VARCHAR(80)</td>
+      </tr><tr>
+        <td class="cn">prompt_hash</td>
+        <td class="ct">CHAR(64)</td>
+      </tr><tr>
+        <td class="cn">user_content</td>
+        <td class="ct">JSON</td>
+      </tr><tr>
+        <td class="cn">model_messages</td>
+        <td class="ct">JSON</td>
+      </tr><tr>
+        <td class="cn">final_response</td>
+        <td class="ct">JSON<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">user_message_id</td>
+        <td class="ct">BIGINT UNSIGNED<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">final_message_id</td>
+        <td class="ct">BIGINT UNSIGNED<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">started_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr>
+        <td class="cn">completed_at</td>
+        <td class="ct">DATETIME(3)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">duration_ms</td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">input_tokens</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">output_tokens</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">reasoning_tokens</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">model_call_count</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">tool_call_count</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr class="later">
+        <td class="cn">actor_role</td>
+        <td class="ct">ENUM('ADMIN', 'SCOPED')<span class="null"> null</span><span class="added"> +007</span></td>
+      </tr><tr class="later">
+        <td class="cn">actor_countries</td>
+        <td class="ct">JSON<span class="null"> null</span><span class="added"> +007</span></td>
+      </tr><tr class="later">
+        <td class="cn">actor_departments</td>
+        <td class="ct">JSON<span class="null"> null</span><span class="added"> +007</span></td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk uq">UNIQUE</span><span class="mono">uk_ai_traces_conversation_sequence</span> (conversation_id, sequence)</li><li><span class="mk uq">UNIQUE</span><span class="mono">uk_ai_traces_idempotency</span> (conversation_id, idempotency_key)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ai_traces_started</span> (started_at, id)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ai_traces_actor</span> (hr_user_id, started_at)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ai_traces_status</span> (status, started_at)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ai_traces_model</span> (model, started_at)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ai_traces_error</span> (error_category, started_at)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ai_traces_previous</span> (previous_trace_id)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ai_traces_summary</span> (started_at, status, duration_ms, failure_stage, error_category, input_tokens, output_tokens, reasoning_tokens) <span class="added">+008</span></li></ul>
+    <div class="checks"><b>3 CHECK</b> <span class="mono">ai_traces_duration</span>, <span class="mono">ai_traces_status_time</span>, <span class="mono">ai_traces_actor_scope</span></div>
+  </section><section class="card" id="t-ai_model_calls">
+    <h3><span class="mono">ai_model_calls</span><span class="src">005_ai_observability.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">BIGINT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">trace_id<span class="mk fk">FK</span></td>
+        <td class="ct">CHAR(36)<br><a class="ref" href="#t-ai_traces">→ ai_traces.id <span class="del">CASCADE</span></a></td>
+      </tr><tr>
+        <td class="cn">sequence</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">provider_request_id</td>
+        <td class="ct">VARCHAR(120)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">provider</td>
+        <td class="ct">VARCHAR(80)</td>
+      </tr><tr>
+        <td class="cn">model</td>
+        <td class="ct">VARCHAR(120)</td>
+      </tr><tr>
+        <td class="cn">input_messages</td>
+        <td class="ct">JSON</td>
+      </tr><tr>
+        <td class="cn">tool_schemas</td>
+        <td class="ct">JSON</td>
+      </tr><tr>
+        <td class="cn">prompt_version</td>
+        <td class="ct">VARCHAR(80)</td>
+      </tr><tr>
+        <td class="cn">prompt_hash</td>
+        <td class="ct">CHAR(64)</td>
+      </tr><tr>
+        <td class="cn">output_content</td>
+        <td class="ct">JSON<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">tool_decisions</td>
+        <td class="ct">JSON<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">status</td>
+        <td class="ct">ENUM('STARTED', 'SUCCEEDED', 'FAILED')</td>
+      </tr><tr>
+        <td class="cn">failure_category</td>
+        <td class="ct">VARCHAR(80)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">safe_error</td>
+        <td class="ct">JSON<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">input_tokens</td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">output_tokens</td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">total_tokens</td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">reasoning_tokens</td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">started_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr>
+        <td class="cn">completed_at</td>
+        <td class="ct">DATETIME(3)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">latency_ms</td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span></td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk uq">UNIQUE</span><span class="mono">uk_ai_model_calls_trace_sequence</span> (trace_id, sequence)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ai_model_calls_started</span> (started_at)</li></ul>
+    <div class="checks"><b>1 CHECK</b> <span class="mono">ai_model_calls_latency</span></div>
+  </section><section class="card" id="t-ai_tool_calls">
+    <h3><span class="mono">ai_tool_calls</span><span class="src">005_ai_observability.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">BIGINT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">trace_id<span class="mk fk">FK</span></td>
+        <td class="ct">CHAR(36)<br><a class="ref" href="#t-ai_traces">→ ai_traces.id <span class="del">CASCADE</span></a></td>
+      </tr><tr>
+        <td class="cn">model_call_id<span class="mk fk">FK</span></td>
+        <td class="ct">BIGINT UNSIGNED<br><a class="ref" href="#t-ai_model_calls">→ ai_model_calls.id <span class="del">CASCADE</span></a></td>
+      </tr><tr>
+        <td class="cn">provider_tool_call_id</td>
+        <td class="ct">VARCHAR(120)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">sequence</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">tool_name</td>
+        <td class="ct">VARCHAR(120)</td>
+      </tr><tr>
+        <td class="cn">requested_arguments</td>
+        <td class="ct">JSON</td>
+      </tr><tr>
+        <td class="cn">validation_status</td>
+        <td class="ct">ENUM('PENDING', 'VALID', 'REJECTED')</td>
+      </tr><tr>
+        <td class="cn">validation_errors</td>
+        <td class="ct">JSON<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">status</td>
+        <td class="ct">ENUM(4 values)</td>
+      </tr><tr>
+        <td class="cn">result</td>
+        <td class="ct">JSON<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">error_category</td>
+        <td class="ct">VARCHAR(80)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">safe_error</td>
+        <td class="ct">JSON<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">started_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr>
+        <td class="cn">completed_at</td>
+        <td class="ct">DATETIME(3)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">duration_ms</td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span></td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk uq">UNIQUE</span><span class="mono">uk_ai_tool_calls_trace_sequence</span> (trace_id, sequence)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ai_tool_name</span> (tool_name, started_at)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ai_tool_model</span> (model_call_id)</li><li><span class="mk ix">KEY</span><span class="mono">idx_ai_tool_started</span> (started_at)</li></ul>
+    <div class="checks"><b>1 CHECK</b> <span class="mono">ai_tool_calls_duration</span></div>
+  </section><section class="card" id="t-ai_trace_reviews">
+    <h3><span class="mono">ai_trace_reviews</span><span class="src">005_ai_observability.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">trace_id<span class="mk pk">PK</span><span class="mk fk">FK</span></td>
+        <td class="ct">CHAR(36)<br><a class="ref" href="#t-ai_traces">→ ai_traces.id <span class="del">CASCADE</span></a></td>
+      </tr><tr>
+        <td class="cn">reviewer_hr_user_id<span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<br><a class="ref" href="#t-hr_users">→ hr_users.id</a></td>
+      </tr><tr>
+        <td class="cn">verdict</td>
+        <td class="ct">ENUM('CORRECT', 'PARTIAL', 'INCORRECT')</td>
+      </tr><tr>
+        <td class="cn">note</td>
+        <td class="ct">VARCHAR(2000)</td>
+      </tr><tr>
+        <td class="cn">nominated</td>
+        <td class="ct">BOOLEAN</td>
+      </tr><tr>
+        <td class="cn">version</td>
+        <td class="ct">INT UNSIGNED</td>
+      </tr><tr>
+        <td class="cn">created_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr>
+        <td class="cn">updated_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk ix">KEY</span><span class="mono">idx_ai_reviews_reviewer</span> (reviewer_hr_user_id, updated_at)</li></ul>
+    <div class="checks"><b>1 CHECK</b> <span class="mono">ai_reviews_version</span></div>
+  </section><section class="card" id="t-mcp_tool_calls">
+    <h3><span class="mono">mcp_tool_calls</span><span class="src">005_ai_observability.sql</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">id<span class="mk pk">PK</span></td>
+        <td class="ct">CHAR(36)</td>
+      </tr><tr>
+        <td class="cn">request_id</td>
+        <td class="ct">VARCHAR(100)</td>
+      </tr><tr>
+        <td class="cn">hr_user_id<span class="mk fk">FK</span></td>
+        <td class="ct">INT UNSIGNED<br><a class="ref" href="#t-hr_users">→ hr_users.id</a></td>
+      </tr><tr>
+        <td class="cn">tool_name</td>
+        <td class="ct">VARCHAR(120)</td>
+      </tr><tr>
+        <td class="cn">requested_arguments</td>
+        <td class="ct">JSON</td>
+      </tr><tr>
+        <td class="cn">validation_status</td>
+        <td class="ct">ENUM('PENDING', 'VALID', 'REJECTED')</td>
+      </tr><tr>
+        <td class="cn">status</td>
+        <td class="ct">ENUM(4 values)</td>
+      </tr><tr>
+        <td class="cn">result</td>
+        <td class="ct">JSON<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">validation_errors</td>
+        <td class="ct">JSON<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">error_category</td>
+        <td class="ct">VARCHAR(80)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">safe_error</td>
+        <td class="ct">JSON<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">started_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr><tr>
+        <td class="cn">completed_at</td>
+        <td class="ct">DATETIME(3)<span class="null"> null</span></td>
+      </tr><tr>
+        <td class="cn">duration_ms</td>
+        <td class="ct">INT UNSIGNED<span class="null"> null</span></td>
+      </tr></tbody></table>
+    <ul class="idx"><li><span class="mk ix">KEY</span><span class="mono">idx_mcp_started</span> (started_at, id)</li><li><span class="mk ix">KEY</span><span class="mono">idx_mcp_actor</span> (hr_user_id, started_at)</li><li><span class="mk ix">KEY</span><span class="mono">idx_mcp_tool</span> (tool_name, started_at)</li></ul>
+    <div class="checks"><b>1 CHECK</b> <span class="mono">mcp_tool_duration</span></div>
+  </section></div>
+      <ul class="notes"><li>Synthetic-data AI observability. Times are UTC, supplied by the application. Turn-owned messages cascade with their trace; conversations survive turn deletion. <span class="cite">005_ai_observability.sql:1</span></li><li>AI Task 03a (Option C): the actor's authorization at trace time, so a saved answer is shown again only while the current scope still covers it. Role plus sorted country codes and department names. No session ID, and no second authorization model: these columns are evidence, not grants. NULL on every column means a trace recorded before this migration; the application treats it as uncovered for Scoped HR (fail closed). <span class="cite">007_ai_trace_actor_scope.sql:2</span></li><li>AI Task 04: the Admin monitoring summary reads every trace started in a window of up to 30 days. With 10,000 traces over 90 days, EXPLAIN showed the 30-day status count using a full index scan and the duration percentiles using a full table scan (type ALL). This covering index lets the status, failure, duration, token, and time-series aggregates read a range of one narrow index instead of the table. Forward-only. See builder_docs/ai-builder/responses/04-mcp-and-admin-observability-api.md. <span class="cite">008_ai_trace_summary_index.sql:2</span></li><li class="fact mono">CHECK chk_ai_traces_actor_scope (007_ai_trace_actor_scope.sql): ( (actor_role IS NULL AND actor_countries IS NULL AND actor_departments IS NULL) OR (actor_role IS NOT NULL AND actor_countries IS NOT NULL AND actor_departments IS NOT NULL AND JSON_TYPE(actor_countries) = 'ARRAY' AND JSON_TYPE(actor_departments) = 'ARRAY') )</li><li class="fact mono">KEY idx_ai_traces_summary (008_ai_trace_summary_index.sql): (started_at, status, duration_ms, failure_stage, error_category, input_tokens, output_tokens, reasoning_tokens)</li></ul>
+    </section><section class="group" id="g-runner">
+      <h2>Migration bookkeeping <span class="count">1 table</span></h2>
+      <div class="cards"><section class="card" id="t-schema_migrations">
+    <h3><span class="mono">schema_migrations</span><span class="src">migrate.ts</span></h3>
+    <table class="cols"><tbody><tr>
+        <td class="cn">name<span class="mk pk">PK</span></td>
+        <td class="ct">VARCHAR(255)</td>
+      </tr><tr>
+        <td class="cn">applied_at</td>
+        <td class="ct">DATETIME(3)</td>
+      </tr></tbody></table>
+    
+    
+  </section></div>
+      <ul class="notes"><li>Created by the migration runner (express-backend/src/db/migrate.ts) before it applies the files; one row per applied migration.</li></ul>
+    </section>
+  <footer>
+    <p>Migrations parsed, in order:</p>
+    <ol><li class="mono">001_initial_schema.sql</li><li class="mono">002_hr_access_control.sql</li><li class="mono">003_salary_adjustments.sql</li><li class="mono">004_hr_access_management.sql</li><li class="mono">005_ai_observability.sql</li><li class="mono">006_temporary_password_regeneration.sql</li><li class="mono">007_ai_trace_actor_scope.sql</li><li class="mono">008_ai_trace_summary_index.sql</li></ol>
+    <p>Traced at master 9236ac4 with AI Task 05 merged (feat/architecture-flows); commit ID not read, no Git in this lane. Generated by architecture-viz/schema.ts from express-backend/db/migrations/.</p>
+  </footer>
+</div></body></html>
