@@ -72,3 +72,15 @@ tester_docs/ai-assistant-tester/tasks/01-live-assistant-and-trace-evaluation.md
 ```
 
 Read it only after the Checkpoint C start condition is met.
+
+## Blocker reporting
+
+Read `docs/27-agent-blocker-reporting-protocol.md` before starting.
+
+If Checkpoint C, runtime provenance, database isolation, provider availability, or trace reconciliation blocks the run, write:
+
+```text
+tester_docs/ai-assistant-tester/issues/<task-id>-<short-problem>.md
+```
+
+Mention it in the evaluator response and stop the blocked run. Do not repair the candidate.
