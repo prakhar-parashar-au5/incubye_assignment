@@ -1,0 +1,8 @@
+ Test Files  18 passed (18)
+      Tests  299 passed (299)
+   Start at  23:07:47
+   Duration  2.47s (tests 27%, import 23%, environment 22%, setup 16%, transform 12%)
+
+real 3.32
+user 15.36
+sys 4.00

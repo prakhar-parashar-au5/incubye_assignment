@@ -1,0 +1,184 @@
+MySQL 8.4.13; employees=10000; compensation_records=10012; runs=25; asOf=2026-11-14
+
+=== default first page (Admin)  {}
+--- rows plan
+-> Limit: 25 row(s)  (cost=34800 rows=25) (actual time=6.43..6.88 rows=25 loops=1)
+    -> Nested loop left join  (cost=34800 rows=19726) (actual time=6.43..6.88 rows=25 loops=1)
+        -> Nested loop inner join  (cost=7923 rows=9863) (actual time=6.11..6.13 rows=25 loops=1)
+            -> Nested loop inner join  (cost=4471 rows=9863) (actual time=6.08..6.1 rows=25 loops=1)
+                -> Invalidate materialized tables (row from e)  (cost=1019 rows=9863) (actual time=6.06..6.06 rows=25 loops=1)
+                    -> Sort: e.first_name, e.last_name, e.employee_code  (cost=1019 rows=9863) (actual time=6.06..6.06 rows=25 loops=1)
+                        -> Table scan on e  (cost=1019 rows=9863) (actual time=0.234..2.22 rows=10000 loops=1)
+                -> Single-row index lookup on jt using PRIMARY (id=e.job_title_id)  (cost=0.25 rows=1) (actual time=950e-6..963e-6 rows=1 loops=25)
+            -> Single-row index lookup on d using PRIMARY (id=jt.department_id)  (cost=0.25 rows=1) (actual time=0.00115..0.00117 rows=1 loops=25)
+        -> Table scan on sc  (cost=2.53..2.53 rows=0) (actual time=0.0292..0.0292 rows=1 loops=25)
+            -> Materialize (invalidate on row from e)  (cost=0.2..0.2 rows=2) (actual time=0.029..0.029 rows=1 loops=25)
+                -> Limit: 1 row(s)  (actual time=0.0277..0.0277 rows=1 loops=25)
+                    -> Sort: `(case when (e.employment_status = 'SOON_TO_JOIN') then c.effective_from end)`, c.effective_from DESC, c.version DESC, limit input to 1 row(s) per chunk  (actual time=0.0276..0.0276 rows=1 loops=25)
+                        -> Stream results  (cost=0.354 rows=1.01) (actual time=0.0267..0.0268 rows=1 loops=25)
+                            -> Filter: (0 <> (case e.employment_status when 'CURRENTLY_WORKING' then (c.effective_from <= DATE'2026-11-14') when 'SOON_TO_JOIN' then (c.effective_from > DATE'2026-11-14') when 'LEFT' then (c.effective_from <= e.employment_end_date) end))  (cost=0.354 rows=1.01) (actual time=0.0261..0.0263 rows=1 loops=25)
+                                -> Index lookup on c using uk_compensation_employee_version (employee_id=e.id)  (cost=0.354 rows=1.01) (actual time=0.0258..0.0259 rows=1 loops=25)
+
+--- count plan
+-> Aggregate: count(0)  (cost=1992 rows=1) (actual time=1.43..1.43 rows=1 loops=1)
+    -> Nested loop inner join  (cost=1006 rows=9863) (actual time=0.0468..1.18 rows=10000 loops=1)
+        -> Nested loop inner join  (cost=6.86 rows=44) (actual time=0.0353..0.0483 rows=44 loops=1)
+            -> Covering index scan on d using uk_departments_name  (cost=0.75 rows=5) (actual time=0.01..0.0112 rows=5 loops=1)
+            -> Covering index lookup on jt using uk_job_titles_department_name_level (department_id=d.id)  (cost=0.519 rows=8.8) (actual time=0.0049..0.00554 rows=8.8 loops=5)
+        -> Covering index lookup on e using idx_employees_job_title (job_title_id=jt.id)  (cost=0.8 rows=224) (actual time=0.00159..0.0167 rows=227 loops=44)
+
+--- rows+count: median 6.5 ms, slowest 8.0 ms over 25 runs
+
+=== exact employee code (Admin)  {"q":"ACME05000"}
+--- rows plan
+-> Limit: 25 row(s)  (cost=34800 rows=25) (actual time=3.66..3.66 rows=1 loops=1)
+    -> Nested loop left join  (cost=34800 rows=19726) (actual time=3.66..3.66 rows=1 loops=1)
+        -> Nested loop inner join  (cost=7923 rows=9863) (actual time=3.65..3.65 rows=1 loops=1)
+            -> Nested loop inner join  (cost=4471 rows=9863) (actual time=3.65..3.65 rows=1 loops=1)
+                -> Invalidate materialized tables (row from e)  (cost=1019 rows=9863) (actual time=3.65..3.65 rows=1 loops=1)
+                    -> Sort: e.first_name, e.last_name, e.employee_code  (cost=1019 rows=9863) (actual time=3.65..3.65 rows=1 loops=1)
+                        -> Filter: ((e.employee_code like 'ACME05000%') or (e.first_name like '%ACME05000%') or (e.last_name like '%ACME05000%') or (concat(e.first_name,' ',e.last_name) like '%ACME05000%') or (e.email = 'ACME05000'))  (cost=1019 rows=9863) (actual time=1.79..3.64 rows=1 loops=1)
+                            -> Table scan on e  (cost=1019 rows=9863) (actual time=0.0161..1.54 rows=10000 loops=1)
+                -> Single-row index lookup on jt using PRIMARY (id=e.job_title_id)  (cost=0.25 rows=1) (actual time=0.00133..0.00133 rows=1 loops=1)
+            -> Single-row index lookup on d using PRIMARY (id=jt.department_id)  (cost=0.25 rows=1) (actual time=667e-6..709e-6 rows=1 loops=1)
+        -> Table scan on sc  (cost=2.53..2.53 rows=0) (actual time=0.0113..0.0113 rows=1 loops=1)
+            -> Materialize (invalidate on row from e)  (cost=0.2..0.2 rows=2) (actual time=0.011..0.011 rows=1 loops=1)
+                -> Limit: 1 row(s)  (actual time=0.008..0.00804 rows=1 loops=1)
+                    -> Sort: `(case when (e.employment_status = 'SOON_TO_JOIN') then c.effective_from end)`, c.effective_from DESC, c.version DESC, limit input to 1 row(s) per chunk  (actual time=0.00788..0.00788 rows=1 loops=1)
+                        -> Stream results  (cost=0.354 rows=1.01) (actual time=0.00592..0.00625 rows=1 loops=1)
+                            -> Filter: (0 <> (case e.employment_status when 'CURRENTLY_WORKING' then (c.effective_from <= DATE'2026-11-14') when 'SOON_TO_JOIN' then (c.effective_from > DATE'2026-11-14') when 'LEFT' then (c.effective_from <= e.employment_end_date) end))  (cost=0.354 rows=1.01) (actual time=0.00475..0.00496 rows=1 loops=1)
+                                -> Index lookup on c using uk_compensation_employee_version (employee_id=e.id)  (cost=0.354 rows=1.01) (actual time=0.00396..0.00417 rows=1 loops=1)
+
+--- count plan
+-> Aggregate: count(0)  (cost=4445 rows=1) (actual time=6.25..6.25 rows=1 loops=1)
+    -> Nested loop inner join  (cost=3459 rows=9863) (actual time=4.42..6.25 rows=1 loops=1)
+        -> Nested loop inner join  (cost=6.86 rows=44) (actual time=0.0115..0.0248 rows=44 loops=1)
+            -> Covering index scan on d using uk_departments_name  (cost=0.75 rows=5) (actual time=0.00742..0.00954 rows=5 loops=1)
+            -> Covering index lookup on jt using uk_job_titles_department_name_level (department_id=d.id)  (cost=0.519 rows=8.8) (actual time=0.00176..0.0025 rows=8.8 loops=5)
+        -> Filter: ((e.employee_code like 'ACME05000%') or (e.first_name like '%ACME05000%') or (e.last_name like '%ACME05000%') or (concat(e.first_name,' ',e.last_name) like '%ACME05000%') or (e.email = 'ACME05000'))  (cost=56.5 rows=224) (actual time=0.138..0.141 rows=0.0227 loops=44)
+            -> Index lookup on e using idx_employees_job_title (job_title_id=jt.id)  (cost=56.5 rows=224) (actual time=0.00978..0.0913 rows=227 loops=44)
+
+--- rows+count: median 11.2 ms, slowest 20.1 ms over 25 runs
+
+=== partial name (Admin)  {"q":"sneha"}
+--- rows plan
+-> Limit: 25 row(s)  (cost=34800 rows=25) (actual time=3.61..3.78 rows=25 loops=1)
+    -> Nested loop left join  (cost=34800 rows=19726) (actual time=3.61..3.78 rows=25 loops=1)
+        -> Nested loop inner join  (cost=7923 rows=9863) (actual time=3.51..3.54 rows=25 loops=1)
+            -> Nested loop inner join  (cost=4471 rows=9863) (actual time=3.51..3.52 rows=25 loops=1)
+                -> Invalidate materialized tables (row from e)  (cost=1019 rows=9863) (actual time=3.51..3.51 rows=25 loops=1)
+                    -> Sort: e.first_name, e.last_name, e.employee_code  (cost=1019 rows=9863) (actual time=3.51..3.51 rows=25 loops=1)
+                        -> Filter: ((e.employee_code like 'SNEHA%') or (e.first_name like '%sneha%') or (e.last_name like '%sneha%') or (concat(e.first_name,' ',e.last_name) like '%sneha%') or (e.email = 'sneha'))  (cost=1019 rows=9863) (actual time=0.0227..3.43 rows=233 loops=1)
+                            -> Table scan on e  (cost=1019 rows=9863) (actual time=0.0211..1.73 rows=10000 loops=1)
+                -> Single-row index lookup on jt using PRIMARY (id=e.job_title_id)  (cost=0.25 rows=1) (actual time=478e-6..490e-6 rows=1 loops=25)
+            -> Single-row index lookup on d using PRIMARY (id=jt.department_id)  (cost=0.25 rows=1) (actual time=353e-6..370e-6 rows=1 loops=25)
+        -> Table scan on sc  (cost=2.53..2.53 rows=0) (actual time=0.0095..0.00954 rows=1 loops=25)
+            -> Materialize (invalidate on row from e)  (cost=0.2..0.2 rows=2) (actual time=0.00936..0.00936 rows=1 loops=25)
+                -> Limit: 1 row(s)  (actual time=0.00763..0.00764 rows=1 loops=25)
+                    -> Sort: `(case when (e.employment_status = 'SOON_TO_JOIN') then c.effective_from end)`, c.effective_from DESC, c.version DESC, limit input to 1 row(s) per chunk  (actual time=0.00755..0.00755 rows=1 loops=25)
+                        -> Stream results  (cost=0.354 rows=1.01) (actual time=0.00676..0.00691 rows=1 loops=25)
+                            -> Filter: (0 <> (case e.employment_status when 'CURRENTLY_WORKING' then (c.effective_from <= DATE'2026-11-14') when 'SOON_TO_JOIN' then (c.effective_from > DATE'2026-11-14') when 'LEFT' then (c.effective_from <= e.employment_end_date) end))  (cost=0.354 rows=1.01) (actual time=0.00623..0.00635 rows=1 loops=25)
+                                -> Index lookup on c using uk_compensation_employee_version (employee_id=e.id)  (cost=0.354 rows=1.01) (actual time=0.00585..0.00595 rows=1 loops=25)
+
+--- count plan
+-> Aggregate: count(0)  (cost=4445 rows=1) (actual time=5.66..5.66 rows=1 loops=1)
+    -> Nested loop inner join  (cost=3459 rows=9863) (actual time=0.0734..5.65 rows=233 loops=1)
+        -> Nested loop inner join  (cost=6.86 rows=44) (actual time=0.00875..0.0201 rows=44 loops=1)
+            -> Covering index scan on d using uk_departments_name  (cost=0.75 rows=5) (actual time=0.00508..0.00671 rows=5 loops=1)
+            -> Covering index lookup on jt using uk_job_titles_department_name_level (department_id=d.id)  (cost=0.519 rows=8.8) (actual time=0.00131..0.00225 rows=8.8 loops=5)
+        -> Filter: ((e.employee_code like 'SNEHA%') or (e.first_name like '%sneha%') or (e.last_name like '%sneha%') or (concat(e.first_name,' ',e.last_name) like '%sneha%') or (e.email = 'sneha'))  (cost=56.5 rows=224) (actual time=0.0279..0.128 rows=5.3 loops=44)
+            -> Index lookup on e using idx_employees_job_title (job_title_id=jt.id)  (cost=56.5 rows=224) (actual time=0.00972..0.0901 rows=227 loops=44)
+
+--- rows+count: median 10.2 ms, slowest 11.5 ms over 25 runs
+
+=== scoped country and department filters (Rohan)  {"department":"Tech","country":"IN"}
+--- rows plan
+-> Limit: 25 row(s)  (cost=9751 rows=25) (actual time=6.63..6.83 rows=25 loops=1)
+    -> Nested loop left join  (cost=9751 rows=4773) (actual time=6.63..6.82 rows=25 loops=1)
+        -> Nested loop inner join  (cost=3247 rows=2386) (actual time=6.6..6.64 rows=25 loops=1)
+            -> Invalidate materialized tables (row from e)  (cost=797 rows=7000) (actual time=6.59..6.6 rows=65 loops=1)
+                -> Sort: e.first_name, e.last_name, e.employee_code  (cost=797 rows=7000) (actual time=6.59..6.6 rows=65 loops=1)
+                    -> Index lookup on e using idx_employees_country (country_code='IN')  (cost=797 rows=7000) (actual time=0.0386..2.85 rows=7000 loops=1)
+            -> Filter: (jt.department_id = '1')  (cost=0.25 rows=0.341) (actual time=444e-6..463e-6 rows=0.385 loops=65)
+                -> Single-row index lookup on jt using PRIMARY (id=e.job_title_id)  (cost=0.25 rows=1) (actual time=336e-6..351e-6 rows=1 loops=65)
+        -> Table scan on sc  (cost=2.53..2.53 rows=0) (actual time=0.00731..0.00736 rows=1 loops=25)
+            -> Materialize (invalidate on row from e)  (cost=0.2..0.2 rows=2) (actual time=0.00718..0.00718 rows=1 loops=25)
+                -> Limit: 1 row(s)  (actual time=0.00665..0.00666 rows=1 loops=25)
+                    -> Sort: `(case when (e.employment_status = 'SOON_TO_JOIN') then c.effective_from end)`, c.effective_from DESC, c.version DESC, limit input to 1 row(s) per chunk  (actual time=0.00658..0.00658 rows=1 loops=25)
+                        -> Stream results  (cost=0.354 rows=1.01) (actual time=0.00594..0.00611 rows=1 loops=25)
+                            -> Filter: (0 <> (case e.employment_status when 'CURRENTLY_WORKING' then (c.effective_from <= DATE'2026-11-14') when 'SOON_TO_JOIN' then (c.effective_from > DATE'2026-11-14') when 'LEFT' then (c.effective_from <= e.employment_end_date) end))  (cost=0.354 rows=1.01) (actual time=0.00552..0.00564 rows=1 loops=25)
+                                -> Index lookup on c using uk_compensation_employee_version (employee_id=e.id)  (cost=0.354 rows=1.01) (actual time=0.00517..0.00527 rows=1 loops=25)
+
+--- count plan
+-> Aggregate: count(0)  (cost=1417 rows=1) (actual time=1.87..1.87 rows=1 loops=1)
+    -> Nested loop inner join  (cost=1179 rows=2386) (actual time=0.0154..1.81 rows=2844 loops=1)
+        -> Covering index lookup on jt using uk_job_titles_department_name_level (department_id='1')  (cost=1.92 rows=15) (actual time=0.0015..0.00288 rows=15 loops=1)
+        -> Filter: (e.country_code = 'IN')  (cost=57.1 rows=159) (actual time=0.00901..0.114 rows=190 loops=15)
+            -> Index lookup on e using idx_employees_job_title (job_title_id=jt.id)  (cost=57.1 rows=224) (actual time=0.00886..0.0997 rows=267 loops=15)
+
+--- rows+count: median 9.3 ms, slowest 13.4 ms over 25 runs
+
+=== salary sort, base, desc (Admin)  {"sort":"annualBaseSalary","direction":"desc","comparisonCurrency":"USD"}
+--- rows plan
+-> Limit: 25 row(s)  (actual time=37.8..37.8 rows=25 loops=1)
+    -> Sort: `(sort_usd is null)`, sort_usd DESC, e.employee_code, limit input to 25 row(s) per chunk  (actual time=37.8..37.8 rows=25 loops=1)
+        -> Stream results  (cost=30336 rows=19726) (actual time=0.0472..36 rows=10000 loops=1)
+            -> Nested loop left join  (cost=30336 rows=19726) (actual time=0.042..28.4 rows=10000 loops=1)
+                -> Nested loop inner join  (cost=3459 rows=9863) (actual time=0.0252..5.68 rows=10000 loops=1)
+                    -> Nested loop inner join  (cost=6.86 rows=44) (actual time=0.00796..0.0349 rows=44 loops=1)
+                        -> Covering index scan on d using uk_departments_name  (cost=0.75 rows=5) (actual time=0.00483..0.0115 rows=5 loops=1)
+                        -> Covering index lookup on jt using uk_job_titles_department_name_level (department_id=d.id)  (cost=0.519 rows=8.8) (actual time=0.00151..0.00412 rows=8.8 loops=5)
+                    -> Invalidate materialized tables (row from e)  (cost=56.5 rows=224) (actual time=0.0113..0.12 rows=227 loops=44)
+                        -> Index lookup on e using idx_employees_job_title (job_title_id=jt.id)  (cost=56.5 rows=224) (actual time=0.0113..0.113 rows=227 loops=44)
+                -> Table scan on sc  (cost=2.53..2.53 rows=0) (actual time=0.00213..0.00218 rows=1 loops=10000)
+                    -> Materialize (invalidate on row from e)  (cost=0.2..0.2 rows=2) (actual time=0.00201..0.00201 rows=1 loops=10000)
+                        -> Limit: 1 row(s)  (actual time=0.00176..0.00178 rows=1 loops=10000)
+                            -> Sort: `(case when (e.employment_status = 'SOON_TO_JOIN') then c.effective_from end)`, c.effective_from DESC, c.version DESC, limit input to 1 row(s) per chunk  (actual time=0.00169..0.00169 rows=1 loops=10000)
+                                -> Stream results  (cost=0.354 rows=1.01) (actual time=0.00122..0.00138 rows=1 loops=10000)
+                                    -> Filter: (0 <> (case e.employment_status when 'CURRENTLY_WORKING' then (c.effective_from <= DATE'2026-11-14') when 'SOON_TO_JOIN' then (c.effective_from > DATE'2026-11-14') when 'LEFT' then (c.effective_from <= e.employment_end_date) end))  (cost=0.354 rows=1.01) (actual time=983e-6..0.00111 rows=1 loops=10000)
+                                        -> Index lookup on c using uk_compensation_employee_version (employee_id=e.id)  (cost=0.354 rows=1.01) (actual time=805e-6..899e-6 rows=1 loops=10000)
+
+--- count plan
+-> Aggregate: count(0)  (cost=1992 rows=1) (actual time=1.14..1.14 rows=1 loops=1)
+    -> Nested loop inner join  (cost=1006 rows=9863) (actual time=0.0159..0.945 rows=10000 loops=1)
+        -> Nested loop inner join  (cost=6.86 rows=44) (actual time=0.0105..0.0177 rows=44 loops=1)
+            -> Covering index scan on d using uk_departments_name  (cost=0.75 rows=5) (actual time=0.00713..0.00775 rows=5 loops=1)
+            -> Covering index lookup on jt using uk_job_titles_department_name_level (department_id=d.id)  (cost=0.519 rows=8.8) (actual time=0.00103..0.00153 rows=8.8 loops=5)
+        -> Covering index lookup on e using idx_employees_job_title (job_title_id=jt.id)  (cost=0.8 rows=224) (actual time=0.00142..0.0134 rows=227 loops=44)
+
+--- rows+count: median 30.7 ms, slowest 33.2 ms over 25 runs
+
+=== salary sort, cash, page 150 (Rohan)  {"sort":"annualCashCompensation","comparisonCurrency":"USD","page":"150"}
+--- rows plan
+-> Limit/Offset: 25/3725 row(s)  (actual time=20.3..20.3 rows=25 loops=1)
+    -> Sort: `(sort_usd is null)`, sort_usd, e.employee_code, limit input to 3750 row(s) per chunk  (actual time=20..20.3 rows=3750 loops=1)
+        -> Stream results  (cost=9014 rows=5600) (actual time=0.0715..18 rows=4599 loops=1)
+            -> Nested loop left join  (cost=9014 rows=5600) (actual time=0.0658..14 rows=4599 loops=1)
+                -> Nested loop inner join  (cost=1384 rows=2800) (actual time=0.0463..3.76 rows=4599 loops=1)
+                    -> Nested loop inner join  (cost=3.12 rows=17.6) (actual time=0.0206..0.03 rows=21 loops=1)
+                        -> Filter: (d.`name` in ('Support','Tech'))  (cost=0.672 rows=2) (actual time=0.0179..0.0208 rows=2 loops=1)
+                            -> Covering index range scan on d using uk_departments_name over (name = 'Support') OR (name = 'Tech')  (cost=0.672 rows=2) (actual time=0.0101..0.0124 rows=2 loops=1)
+                        -> Covering index lookup on jt using uk_job_titles_department_name_level (department_id=d.id)  (cost=0.783 rows=8.8) (actual time=0.00165..0.00354 rows=10.5 loops=2)
+                    -> Invalidate materialized tables (row from e)  (cost=56.9 rows=159) (actual time=0.0111..0.17 rows=219 loops=21)
+                        -> Filter: (e.country_code = 'IN')  (cost=56.9 rows=159) (actual time=0.011..0.164 rows=219 loops=21)
+                            -> Index lookup on e using idx_employees_job_title (job_title_id=jt.id)  (cost=56.9 rows=224) (actual time=0.0108..0.149 rows=310 loops=21)
+                -> Table scan on sc  (cost=2.53..2.53 rows=0) (actual time=0.00208..0.00214 rows=1 loops=4599)
+                    -> Materialize (invalidate on row from e)  (cost=0.2..0.2 rows=2) (actual time=0.00196..0.00196 rows=1 loops=4599)
+                        -> Limit: 1 row(s)  (actual time=0.0017..0.00172 rows=1 loops=4599)
+                            -> Sort: `(case when (e.employment_status = 'SOON_TO_JOIN') then c.effective_from end)`, c.effective_from DESC, c.version DESC, limit input to 1 row(s) per chunk  (actual time=0.00163..0.00163 rows=1 loops=4599)
+                                -> Stream results  (cost=0.354 rows=1.01) (actual time=0.00118..0.00134 rows=1 loops=4599)
+                                    -> Filter: (0 <> (case e.employment_status when 'CURRENTLY_WORKING' then (c.effective_from <= DATE'2026-11-14') when 'SOON_TO_JOIN' then (c.effective_from > DATE'2026-11-14') when 'LEFT' then (c.effective_from <= e.employment_end_date) end))  (cost=0.354 rows=1.01) (actual time=953e-6..0.00108 rows=1 loops=4599)
+                                        -> Index lookup on c using uk_compensation_employee_version (employee_id=e.id)  (cost=0.354 rows=1.01) (actual time=777e-6..867e-6 rows=1 loops=4599)
+
+--- count plan
+-> Aggregate: count(0)  (cost=1664 rows=1) (actual time=2.66..2.66 rows=1 loops=1)
+    -> Nested loop inner join  (cost=1384 rows=2800) (actual time=0.0263..2.57 rows=4599 loops=1)
+        -> Nested loop inner join  (cost=3.12 rows=17.6) (actual time=0.00912..0.0172 rows=21 loops=1)
+            -> Filter: (d.`name` in ('Support','Tech'))  (cost=0.672 rows=2) (actual time=0.00637..0.00987 rows=2 loops=1)
+                -> Covering index range scan on d using uk_departments_name over (name = 'Support') OR (name = 'Tech')  (cost=0.672 rows=2) (actual time=0.00563..0.00812 rows=2 loops=1)
+            -> Covering index lookup on jt using uk_job_titles_department_name_level (department_id=d.id)  (cost=0.783 rows=8.8) (actual time=0.00169..0.00314 rows=10.5 loops=2)
+        -> Filter: (e.country_code = 'IN')  (cost=56.9 rows=159) (actual time=0.00816..0.115 rows=219 loops=21)
+            -> Index lookup on e using idx_employees_job_title (job_title_id=jt.id)  (cost=56.9 rows=224) (actual time=0.00803..0.104 rows=310 loops=21)
+
+--- rows+count: median 20.1 ms, slowest 22.9 ms over 25 runs
+

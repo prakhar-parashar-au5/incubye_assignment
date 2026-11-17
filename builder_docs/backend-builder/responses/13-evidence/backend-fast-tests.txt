@@ -1,0 +1,3410 @@
+
+> acme-express-backend@0.1.0 test
+> node --import tsx --test "test/*.test.ts"
+
+TAP version 13
+# Subtest: canAccessEmployee
+    # Subtest: Admin HR can access every employee
+    ok 1 - Admin HR can access every employee
+      ---
+      duration_ms: 0.438083
+      type: 'test'
+      ...
+    # Subtest: Scoped HR can access an employee when country and department both match
+    ok 2 - Scoped HR can access an employee when country and department both match
+      ---
+      duration_ms: 0.044041
+      type: 'test'
+      ...
+    # Subtest: rejects when only the country matches
+    ok 3 - rejects when only the country matches
+      ---
+      duration_ms: 0.039459
+      type: 'test'
+      ...
+    # Subtest: rejects when only the department matches
+    ok 4 - rejects when only the department matches
+      ---
+      duration_ms: 0.035542
+      type: 'test'
+      ...
+    # Subtest: rejects when neither matches
+    ok 5 - rejects when neither matches
+      ---
+      duration_ms: 0.0825
+      type: 'test'
+      ...
+    # Subtest: multiple countries use OR within the country list
+    ok 6 - multiple countries use OR within the country list
+      ---
+      duration_ms: 0.04125
+      type: 'test'
+      ...
+    # Subtest: multiple departments use OR within the department list
+    ok 7 - multiple departments use OR within the department list
+      ---
+      duration_ms: 0.086542
+      type: 'test'
+      ...
+    # Subtest: country and department lists combine as a cross product (AND across dimensions)
+    ok 8 - country and department lists combine as a cross product (AND across dimensions)
+      ---
+      duration_ms: 0.119542
+      type: 'test'
+      ...
+    # Subtest: an empty country list grants no access
+    ok 9 - an empty country list grants no access
+      ---
+      duration_ms: 0.122667
+      type: 'test'
+      ...
+    # Subtest: an empty department list grants no access
+    ok 10 - an empty department list grants no access
+      ---
+      duration_ms: 0.533416
+      type: 'test'
+      ...
+    # Subtest: an INACTIVE HR user, admin or scoped, has no access
+    ok 11 - an INACTIVE HR user, admin or scoped, has no access
+      ---
+      duration_ms: 0.183584
+      type: 'test'
+      ...
+    # Subtest: an unknown role has no access
+    ok 12 - an unknown role has no access
+      ---
+      duration_ms: 0.076875
+      type: 'test'
+      ...
+    # Subtest: matches exact values only
+    ok 13 - matches exact values only
+      ---
+      duration_ms: 0.119417
+      type: 'test'
+      ...
+    1..13
+ok 1 - canAccessEmployee
+  ---
+  duration_ms: 2.652875
+  type: 'suite'
+  ...
+# Subtest: canManageHrUsers
+    # Subtest: Admin HR can manage HR users
+    ok 1 - Admin HR can manage HR users
+      ---
+      duration_ms: 0.067166
+      type: 'test'
+      ...
+    # Subtest: Scoped HR cannot manage HR users
+    ok 2 - Scoped HR cannot manage HR users
+      ---
+      duration_ms: 0.030917
+      type: 'test'
+      ...
+    # Subtest: an INACTIVE admin cannot manage HR users
+    ok 3 - an INACTIVE admin cannot manage HR users
+      ---
+      duration_ms: 0.029833
+      type: 'test'
+      ...
+    1..3
+ok 2 - canManageHrUsers
+  ---
+  duration_ms: 0.182042
+  type: 'suite'
+  ...
+# Subtest: owned conversations
+    # Subtest: create, list, and read are owner-only; unknown, unowned, and malformed IDs give the same 404
+    ok 1 - create, list, and read are owner-only; unknown, unowned, and malformed IDs give the same 404
+      ---
+      duration_ms: 8.207417
+      type: 'test'
+      ...
+    1..1
+ok 3 - owned conversations
+  ---
+  duration_ms: 8.599792
+  type: 'suite'
+  ...
+# Subtest: recorded turns
+    # Subtest: a no-tool turn records one model call with telemetry, then the final message
+    ok 1 - a no-tool turn records one model call with telemetry, then the final message
+      ---
+      duration_ms: 1.205375
+      type: 'test'
+      ...
+    # Subtest: a one-tool turn records attempt and outcome around each step, with the server principal
+    ok 2 - a one-tool turn records attempt and outcome around each step, with the server principal
+      ---
+      duration_ms: 1.073833
+      type: 'test'
+      ...
+    # Subtest: a multi-tool turn records every call once in execution order
+    ok 3 - a multi-tool turn records every call once in execution order
+      ---
+      duration_ms: 1.064666
+      type: 'test'
+      ...
+    # Subtest: unknown tools and invalid arguments are recorded REJECTED with their arguments and are not executed
+    ok 4 - unknown tools and invalid arguments are recorded REJECTED with their arguments and are not executed
+      ---
+      duration_ms: 1.147375
+      type: 'test'
+      ...
+    # Subtest: a failed tool is recorded FAILED with a safe category and the turn continues
+    ok 5 - a failed tool is recorded FAILED with a safe category and the turn continues
+      ---
+      duration_ms: 0.741625
+      type: 'test'
+      ...
+    # Subtest: a model timeout fails the trace at MODEL_CALL with no assistant message
+    ok 6 - a model timeout fails the trace at MODEL_CALL with no assistant message
+      ---
+      duration_ms: 69.116083
+      type: 'test'
+      ...
+    # Subtest: a provider failure keeps its provider request ID and a safe category
+    ok 7 - a provider failure keeps its provider request ID and a safe category
+      ---
+      duration_ms: 2.143625
+      type: 'test'
+      ...
+    # Subtest: the turn deadline during a tool fails the tool call and the trace at TOOL_EXECUTION
+    ok 8 - the turn deadline during a tool fails the tool call and the trace at TOOL_EXECUTION
+      ---
+      duration_ms: 59.662833
+      type: 'test'
+      ...
+    1..8
+ok 4 - recorded turns
+  ---
+  duration_ms: 136.609334
+  type: 'suite'
+  ...
+# Subtest: fail-closed persistence
+    # Subtest: trace creation failure prevents the provider call
+    ok 1 - trace creation failure prevents the provider call
+      ---
+      duration_ms: 2.816709
+      type: 'test'
+      ...
+    # Subtest: model-attempt persistence failure prevents the provider call
+    ok 2 - model-attempt persistence failure prevents the provider call
+      ---
+      duration_ms: 0.490292
+      type: 'test'
+      ...
+    # Subtest: model-outcome persistence failure prevents tool execution and returning provider text
+    ok 3 - model-outcome persistence failure prevents tool execution and returning provider text
+      ---
+      duration_ms: 0.80525
+      type: 'test'
+      ...
+    # Subtest: tool-attempt persistence failure prevents tool execution
+    ok 4 - tool-attempt persistence failure prevents tool execution
+      ---
+      duration_ms: 0.473417
+      type: 'test'
+      ...
+    # Subtest: tool-outcome persistence failure prevents the next model call
+    ok 5 - tool-outcome persistence failure prevents the next model call
+      ---
+      duration_ms: 31.706625
+      type: 'test'
+      ...
+    # Subtest: final trace/message persistence failure prevents returning the answer
+    ok 6 - final trace/message persistence failure prevents returning the answer
+      ---
+      duration_ms: 1.630042
+      type: 'test'
+      ...
+    # Subtest: an over-limit tool result fails the turn safely as payload_rejected
+    ok 7 - an over-limit tool result fails the turn safely as payload_rejected
+      ---
+      duration_ms: 2.409333
+      type: 'test'
+      ...
+    # Subtest: no model configured: the user message and a FAILED turn are recorded, with no provider or tool call
+    ok 8 - no model configured: the user message and a FAILED turn are recorded, with no provider or tool call
+      ---
+      duration_ms: 0.793541
+      type: 'test'
+      ...
+    # Subtest: no model configured on the deprecated route: a recorded FAILED turn in a new conversation
+    ok 9 - no model configured on the deprecated route: a recorded FAILED turn in a new conversation
+      ---
+      duration_ms: 0.436583
+      type: 'test'
+      ...
+    1..9
+ok 5 - fail-closed persistence
+  ---
+  duration_ms: 41.773083
+  type: 'suite'
+  ...
+# Subtest: bounded server history
+    # Subtest: sends the most recent complete turns within the bound and records that exact input
+    ok 1 - sends the most recent complete turns within the bound and records that exact input
+      ---
+      duration_ms: 5.710417
+      type: 'test'
+      ...
+    # Subtest: the character bound drops whole older turns; failed turns and the retried turn are excluded
+    ok 2 - the character bound drops whole older turns; failed turns and the retried turn are excluded
+      ---
+      duration_ms: 0.187334
+      type: 'test'
+      ...
+    1..2
+ok 6 - bounded server history
+  ---
+  duration_ms: 5.947167
+  type: 'suite'
+  ...
+# Subtest: idempotency and retry
+    # Subtest: the same key and command replays without a second model call; other content conflicts
+    ok 1 - the same key and command replays without a second model call; other content conflicts
+      ---
+      duration_ms: 0.594375
+      type: 'test'
+      ...
+    # Subtest: a replayed failed turn returns the same error; an in-progress turn returns 409
+    ok 2 - a replayed failed turn returns the same error; an in-progress turn returns 409
+      ---
+      duration_ms: 10.755334
+      type: 'test'
+      ...
+    # Subtest: a user-selected Retry with a new key creates a new trace linked to the retried one
+    ok 3 - a user-selected Retry with a new key creates a new trace linked to the retried one
+      ---
+      duration_ms: 0.827333
+      type: 'test'
+      ...
+    # Subtest: a failed turn in the detail carries the same code, message, and reason as the message endpoint
+    ok 4 - a failed turn in the detail carries the same code, message, and reason as the message endpoint
+      ---
+      duration_ms: 1.5355
+      type: 'test'
+      ...
+    1..4
+ok 7 - idempotency and retry
+  ---
+  duration_ms: 13.804833
+  type: 'suite'
+  ...
+# Subtest: saved answers and trace-time scope (Task 03a, Option C)
+    # Subtest: unchanged scope: the saved answer is returned unchanged
+    ok 1 - unchanged scope: the saved answer is returned unchanged
+      ---
+      duration_ms: 0.84825
+      type: 'test'
+      ...
+    # Subtest: broader scope: the saved answer is returned unchanged
+    ok 2 - broader scope: the saved answer is returned unchanged
+      ---
+      duration_ms: 0.758292
+      type: 'test'
+      ...
+    # Subtest: Scoped HR promoted to Admin: the saved answer is returned unchanged
+    ok 3 - Scoped HR promoted to Admin: the saved answer is returned unchanged
+      ---
+      duration_ms: 0.498667
+      type: 'test'
+      ...
+    # Subtest: narrower scope: the whole assistant answer is withheld; the user's message stays; storage is unchanged
+    ok 4 - narrower scope: the whole assistant answer is withheld; the user's message stays; storage is unchanged
+      ---
+      duration_ms: 1.253875
+      type: 'test'
+      ...
+    # Subtest: sideways scope: the whole assistant answer is withheld; the user's message stays; storage is unchanged
+    ok 5 - sideways scope: the whole assistant answer is withheld; the user's message stays; storage is unchanged
+      ---
+      duration_ms: 1.461
+      type: 'test'
+      ...
+    # Subtest: empty scope: the whole assistant answer is withheld; the user's message stays; storage is unchanged
+    ok 6 - empty scope: the whole assistant answer is withheld; the user's message stays; storage is unchanged
+      ---
+      duration_ms: 0.844334
+      type: 'test'
+      ...
+    # Subtest: Admin HR demoted to Scoped HR: answers recorded with Admin authority are withheld
+    ok 7 - Admin HR demoted to Scoped HR: answers recorded with Admin authority are withheld
+      ---
+      duration_ms: 0.864958
+      type: 'test'
+      ...
+    # Subtest: a legacy trace without a snapshot is withheld for Scoped HR and visible to Admin HR
+    ok 8 - a legacy trace without a snapshot is withheld for Scoped HR and visible to Admin HR
+      ---
+      duration_ms: 1.563458
+      type: 'test'
+      ...
+    # Subtest: the trace records the actor role and sorted scope sets, never the session
+    ok 9 - the trace records the actor role and sorted scope sets, never the session
+      ---
+      duration_ms: 1.787875
+      type: 'test'
+      ...
+    # Subtest: a withheld turn is excluded from the next turn's model history
+    ok 10 - a withheld turn is excluded from the next turn's model history
+      ---
+      duration_ms: 1.136792
+      type: 'test'
+      ...
+    # Subtest: a replay after the scope narrows returns the withheld state, with no new trace or model call
+    ok 11 - a replay after the scope narrows returns the withheld state, with no new trace or model call
+      ---
+      duration_ms: 0.489709
+      type: 'test'
+      ...
+    1..11
+ok 8 - saved answers and trace-time scope (Task 03a, Option C)
+  ---
+  duration_ms: 11.734875
+  type: 'suite'
+  ...
+# Subtest: secrets and logs at the live persistence boundary
+    # Subtest: forbidden fields in prompts, rejected arguments, and results are redacted before storage
+    ok 1 - forbidden fields in prompts, rejected arguments, and results are redacted before storage
+      ---
+      duration_ms: 0.52175
+      type: 'test'
+      ...
+    # Subtest: malformed tool arguments are stored as a fixed marker; their text appears nowhere and the tool never runs
+    ok 2 - malformed tool arguments are stored as a fixed marker; their text appears nowhere and the tool never runs
+      ---
+      duration_ms: 0.483375
+      type: 'test'
+      ...
+    # Subtest: logs contain identifiers, stages, and categories only
+    ok 3 - logs contain identifiers, stages, and categories only
+      ---
+      duration_ms: 0.491958
+      type: 'test'
+      ...
+    # Subtest: the deprecated single-call path records a new conversation using only the final message
+    ok 4 - the deprecated single-call path records a new conversation using only the final message
+      ---
+      duration_ms: 0.294042
+      type: 'test'
+      ...
+    1..4
+ok 9 - secrets and logs at the live persistence boundary
+  ---
+  duration_ms: 1.837041
+  type: 'suite'
+  ...
+# Subtest: D1: scope limitation on aggregate results
+    # Subtest: Scoped HR rankings, summaries, and recent-change totals state the current scope, in fixed text
+    ok 1 - Scoped HR rankings, summaries, and recent-change totals state the current scope, in fixed text
+      ---
+      duration_ms: 1.8235
+      type: 'test'
+      ...
+    # Subtest: the text follows the principal's current scope, sorted, with country names
+    ok 2 - the text follows the principal's current scope, sorted, with country names
+      ---
+      duration_ms: 0.082708
+      type: 'test'
+      ...
+    # Subtest: Admin HR results carry no scope limitation; single-employee lookups never do
+    ok 3 - Admin HR results carry no scope limitation; single-employee lookups never do
+      ---
+      duration_ms: 0.463916
+      type: 'test'
+      ...
+    1..3
+ok 10 - D1: scope limitation on aggregate results
+  ---
+  duration_ms: 2.750125
+  type: 'suite'
+  ...
+# Subtest: D2 and instructions v2
+    # Subtest: the prompt version is v2 and the hash differs by role
+    ok 1 - the prompt version is v2 and the hash differs by role
+      ---
+      duration_ms: 2.173042
+      type: 'test'
+      ...
+    # Subtest: both roles: refuse, never claim or attempt a change, and name where it is done; scope rule; exact money
+    ok 2 - both roles: refuse, never claim or attempt a change, and name where it is done; scope rule; exact money
+      ---
+      duration_ms: 0.216291
+      type: 'test'
+      ...
+    # Subtest: Admin HR is pointed to HR Access; Scoped HR never is
+    ok 3 - Admin HR is pointed to HR Access; Scoped HR never is
+      ---
+      duration_ms: 0.070292
+      type: 'test'
+      ...
+    1..3
+ok 11 - D2 and instructions v2
+  ---
+  duration_ms: 2.535375
+  type: 'suite'
+  ...
+# Subtest: assistant tool loop
+    # Subtest: runs a requested tool, returns its output to the model, and answers
+    ok 1 - runs a requested tool, returns its output to the model, and answers
+      ---
+      duration_ms: 18.045459
+      type: 'test'
+      ...
+    # Subtest: tools receive the authenticated principal and the as-of date, never model-chosen identity
+    ok 2 - tools receive the authenticated principal and the as-of date, never model-chosen identity
+      ---
+      duration_ms: 2.250833
+      type: 'test'
+      ...
+    # Subtest: the model receives the five tools with strict schemas and the safety instructions
+    ok 3 - the model receives the five tools with strict schemas and the safety instructions
+      ---
+      duration_ms: 2.852584
+      type: 'test'
+      ...
+    # Subtest: unknown tools, malformed JSON, and schema-invalid arguments are rejected safely
+    ok 4 - unknown tools, malformed JSON, and schema-invalid arguments are rejected safely
+      ---
+      duration_ms: 1.766708
+      type: 'test'
+      ...
+    # Subtest: the tool-round limit stops repeated calls; the final requested call is recorded as rejected
+    ok 5 - the tool-round limit stops repeated calls; the final requested call is recorded as rejected
+      ---
+      duration_ms: 1.2605
+      type: 'test'
+      ...
+    # Subtest: calls beyond the per-round limit are rejected, not executed
+    ok 6 - calls beyond the per-round limit are rejected, not executed
+      ---
+      duration_ms: 0.592667
+      type: 'test'
+      ...
+    # Subtest: a failed tool is reported to the model and in toolCalls without details
+    ok 7 - a failed tool is reported to the model and in toolCalls without details
+      ---
+      duration_ms: 0.402417
+      type: 'test'
+      ...
+    # Subtest: an over-long answer is cut to the output limit
+    ok 8 - an over-long answer is cut to the output limit
+      ---
+      duration_ms: 0.364083
+      type: 'test'
+      ...
+    1..8
+ok 12 - assistant tool loop
+  ---
+  duration_ms: 28.210458
+  type: 'suite'
+  ...
+# Subtest: assistant unavailability
+    # Subtest: a model timeout stops the turn at MODEL_CALL with category timeout
+    ok 1 - a model timeout stops the turn at MODEL_CALL with category timeout
+      ---
+      duration_ms: 66.281334
+      type: 'test'
+      ...
+    # Subtest: provider errors and unexpected errors stop the turn with a safe category
+    ok 2 - provider errors and unexpected errors stop the turn with a safe category
+      ---
+      duration_ms: 17.096625
+      type: 'test'
+      ...
+    # Subtest: without a model the service reports not_configured and runs no tool
+    ok 3 - without a model the service reports not_configured and runs no tool
+      ---
+      duration_ms: 0.988625
+      type: 'test'
+      ...
+    1..3
+ok 13 - assistant unavailability
+  ---
+  duration_ms: 86.503125
+  type: 'suite'
+  ...
+# Subtest: assistant logging
+    # Subtest: logs only request ID, tool name, status, and duration
+    ok 1 - logs only request ID, tool name, status, and duration
+      ---
+      duration_ms: 1.508
+      type: 'test'
+      ...
+    1..1
+ok 14 - assistant logging
+  ---
+  duration_ms: 1.5965
+  type: 'suite'
+  ...
+# Subtest: assistant tool input schemas
+    # Subtest: the registry has exactly the five read-only tools
+    ok 1 - the registry has exactly the five read-only tools
+      ---
+      duration_ms: 0.688625
+      type: 'test'
+      ...
+    # Subtest: rejects non-objects and unknown fields for every tool
+    ok 2 - rejects non-objects and unknown fields for every tool
+      ---
+      duration_ms: 1.773375
+      type: 'test'
+      ...
+    # Subtest: search_employees: query 1..100 characters, limit 1..10
+    ok 3 - search_employees: query 1..100 characters, limit 1..10
+      ---
+      duration_ms: 0.273042
+      type: 'test'
+      ...
+    # Subtest: get_employee_compensation: an employee code, case-insensitive
+    ok 4 - get_employee_compensation: an employee code, case-insensitive
+      ---
+      duration_ms: 0.174041
+      type: 'test'
+      ...
+    # Subtest: get_top_compensated_employees: metric, optional currency and comparison currency, limit 1..10
+    ok 5 - get_top_compensated_employees: metric, optional currency and comparison currency, limit 1..10
+      ---
+      duration_ms: 0.190333
+      type: 'test'
+      ...
+    # Subtest: get_recent_compensation_changes: days 1..365, limit 1..20, includeInitialImport only false
+    ok 6 - get_recent_compensation_changes: days 1..365, limit 1..20, includeInitialImport only false
+      ---
+      duration_ms: 0.206791
+      type: 'test'
+      ...
+    # Subtest: get_compensation_summary: groupBy and metric
+    ok 7 - get_compensation_summary: groupBy and metric
+      ---
+      duration_ms: 0.053666
+      type: 'test'
+      ...
+    1..7
+ok 15 - assistant tool input schemas
+  ---
+  duration_ms: 3.7605
+  type: 'suite'
+  ...
+# Subtest: OpenAI strict function parameters
+    # Subtest: every property is required, optional ones accept null, and objects are closed
+    ok 1 - every property is required, optional ones accept null, and objects are closed
+      ---
+      duration_ms: 2.010917
+      type: 'test'
+      ...
+    1..1
+ok 16 - OpenAI strict function parameters
+  ---
+  duration_ms: 2.169209
+  type: 'suite'
+  ...
+# Subtest: tool registry scope check in application code
+    # Subtest: an out-of-scope row from an operation fails the tool closed
+    ok 1 - an out-of-scope row from an operation fails the tool closed
+      ---
+      duration_ms: 4.075208
+      type: 'test'
+      ...
+    # Subtest: the recent-changes tool says recent means recently recorded
+    ok 2 - the recent-changes tool says recent means recently recorded
+      ---
+      duration_ms: 0.222
+      type: 'test'
+      ...
+    # Subtest: invalid arguments and unknown tools are rejected before any operation runs
+    ok 3 - invalid arguments and unknown tools are rejected before any operation runs
+      ---
+      duration_ms: 0.248125
+      type: 'test'
+      ...
+    1..3
+ok 17 - tool registry scope check in application code
+  ---
+  duration_ms: 23.871833
+  type: 'suite'
+  ...
+# Subtest: calculateAdjustment
+    # Subtest: rounds a percentage increase half-up to the nearest minor unit
+    ok 1 - rounds a percentage increase half-up to the nearest minor unit
+      ---
+      duration_ms: 1.313625
+      type: 'test'
+      ...
+    # Subtest: rounds an exact half cent up where floating point rounds down
+    ok 2 - rounds an exact half cent up where floating point rounds down
+      ---
+      duration_ms: 0.107208
+      type: 'test'
+      ...
+    # Subtest: returns two-decimal money strings
+    ok 3 - returns two-decimal money strings
+      ---
+      duration_ms: 0.052208
+      type: 'test'
+      ...
+    # Subtest: stays exact for the largest DECIMAL(15,2) amounts
+    ok 4 - stays exact for the largest DECIMAL(15,2) amounts
+      ---
+      duration_ms: 0.108042
+      type: 'test'
+      ...
+    # Subtest: a percentage decrease rounds the new amount half-up
+    ok 5 - a percentage decrease rounds the new amount half-up
+      ---
+      duration_ms: 0.053917
+      type: 'test'
+      ...
+    # Subtest: fixed increase and decrease keep exact two-decimal money
+    ok 6 - fixed increase and decrease keep exact two-decimal money
+      ---
+      duration_ms: 0.180875
+      type: 'test'
+      ...
+    # Subtest: replacement sets the amount and reports the direction
+    ok 7 - replacement sets the amount and reports the direction
+      ---
+      duration_ms: 0.045583
+      type: 'test'
+      ...
+    # Subtest: accepts the percentage boundaries 1..200 for increases and 1..50 for decreases
+    ok 8 - accepts the percentage boundaries 1..200 for increases and 1..50 for decreases
+      ---
+      duration_ms: 0.440667
+      type: 'test'
+      ...
+    # Subtest: rejects percentages outside the limits or with decimals
+    ok 9 - rejects percentages outside the limits or with decimals
+      ---
+      duration_ms: 0.978166
+      type: 'test'
+      ...
+    # Subtest: rejects amounts with more than two decimals, signs, or exponents
+    ok 10 - rejects amounts with more than two decimals, signs, or exponents
+      ---
+      duration_ms: 0.714
+      type: 'test'
+      ...
+    # Subtest: a fixed decrease cannot produce a negative amount
+    ok 11 - a fixed decrease cannot produce a negative amount
+      ---
+      duration_ms: 0.063375
+      type: 'test'
+      ...
+    # Subtest: rejects a result equal to the current amount
+    ok 12 - rejects a result equal to the current amount
+      ---
+      duration_ms: 0.3005
+      type: 'test'
+      ...
+    1..12
+ok 18 - calculateAdjustment
+  ---
+  duration_ms: 5.565875
+  type: 'suite'
+  ...
+# Subtest: direct command fingerprint
+    # Subtest: is a 64-character SHA-256 hex string and deterministic
+    ok 1 - is a 64-character SHA-256 hex string and deterministic
+      ---
+      duration_ms: 0.865541
+      type: 'test'
+      ...
+    # Subtest: changes when any bound field changes, including methods with the same rounded outcome
+    ok 2 - changes when any bound field changes, including methods with the same rounded outcome
+      ---
+      duration_ms: 1.254
+      type: 'test'
+      ...
+    # Subtest: field boundaries cannot be shifted between fields
+    ok 3 - field boundaries cannot be shifted between fields
+      ---
+      duration_ms: 0.565
+      type: 'test'
+      ...
+    # Subtest: contains no plain-text command data
+    ok 4 - contains no plain-text command data
+      ---
+      duration_ms: 0.099
+      type: 'test'
+      ...
+    # Subtest: is domain-separated from the preview-token digest
+    ok 5 - is domain-separated from the preview-token digest
+      ---
+      duration_ms: 0.090542
+      type: 'test'
+      ...
+    1..5
+ok 19 - direct command fingerprint
+  ---
+  duration_ms: 3.784667
+  type: 'suite'
+  ...
+# Subtest: planAdjustment
+    # Subtest: a base-salary adjustment keeps the bonus unchanged and reports exact cash impact
+    ok 1 - a base-salary adjustment keeps the bonus unchanged and reports exact cash impact
+      ---
+      duration_ms: 0.85175
+      type: 'test'
+      ...
+    # Subtest: a bonus adjustment keeps base salary unchanged
+    ok 2 - a bonus adjustment keeps base salary unchanged
+      ---
+      duration_ms: 0.336333
+      type: 'test'
+      ...
+    # Subtest: zero bonus: fixed increase and replacement work, percentages are rejected
+    ok 3 - zero bonus: fixed increase and replacement work, percentages are rejected
+      ---
+      duration_ms: 0.393458
+      type: 'test'
+      ...
+    # Subtest: a bonus can be reduced to zero
+    ok 4 - a bonus can be reduced to zero
+      ---
+      duration_ms: 0.132917
+      type: 'test'
+      ...
+    # Subtest: base salary must stay above zero
+    ok 5 - base salary must stay above zero
+      ---
+      duration_ms: 0.081458
+      type: 'test'
+      ...
+    # Subtest: a replacement equal to the current value is rejected
+    ok 6 - a replacement equal to the current value is rejected
+      ---
+      duration_ms: 0.057833
+      type: 'test'
+      ...
+    # Subtest: rejects base salary outside the band and accepts both band edges
+    ok 7 - rejects base salary outside the band and accepts both band edges
+      ---
+      duration_ms: 0.199625
+      type: 'test'
+      ...
+    # Subtest: rejects a bonus above the band maximum
+    ok 8 - rejects a bonus above the band maximum
+      ---
+      duration_ms: 0.249709
+      type: 'test'
+      ...
+    # Subtest: a band can narrow the percentage limits
+    ok 9 - a band can narrow the percentage limits
+      ---
+      duration_ms: 0.208208
+      type: 'test'
+      ...
+    # Subtest: a band in another currency is rejected
+    ok 10 - a band in another currency is rejected
+      ---
+      duration_ms: 0.27325
+      type: 'test'
+      ...
+    1..10
+ok 20 - planAdjustment
+  ---
+  duration_ms: 3.716333
+  type: 'suite'
+  ...
+# Subtest: targetDatabase
+    # Subtest: splits the database name from the server URL and keeps query options
+    ok 1 - splits the database name from the server URL and keeps query options
+      ---
+      duration_ms: 0.37175
+      type: 'test'
+      ...
+    # Subtest: refuses database path in "mysql://u:p@h:3306/acme`; DROP DATABASE x; --"
+    ok 2 - refuses database path in "mysql://u:p@h:3306/acme`; DROP DATABASE x; --"
+      ---
+      duration_ms: 0.187791
+      type: 'test'
+      ...
+    # Subtest: refuses database path in "mysql://u:p@h:3306/Acme_Demo"
+    ok 3 - refuses database path in "mysql://u:p@h:3306/Acme_Demo"
+      ---
+      duration_ms: 0.041541
+      type: 'test'
+      ...
+    # Subtest: refuses database path in "mysql://u:p@h:3306/"
+    ok 4 - refuses database path in "mysql://u:p@h:3306/"
+      ---
+      duration_ms: 0.0395
+      type: 'test'
+      ...
+    # Subtest: refuses database path in "mysql://u:p@h:3306/a/b"
+    ok 5 - refuses database path in "mysql://u:p@h:3306/a/b"
+      ---
+      duration_ms: 0.03725
+      type: 'test'
+      ...
+    # Subtest: refuses database path in "mysql://u:p@h:3306/acme%60demo"
+    ok 6 - refuses database path in "mysql://u:p@h:3306/acme%60demo"
+      ---
+      duration_ms: 0.033166
+      type: 'test'
+      ...
+    # Subtest: refuses a non-mysql URL and a missing URL
+    ok 7 - refuses a non-mysql URL and a missing URL
+      ---
+      duration_ms: 0.080083
+      type: 'test'
+      ...
+    1..7
+ok 21 - targetDatabase
+  ---
+  duration_ms: 1.306458
+  type: 'suite'
+  ...
+# Subtest: create-database command
+    # Subtest: fails without printing the URL or password
+    ok 1 - fails without printing the URL or password
+      ---
+      duration_ms: 207.046625
+      type: 'test'
+      ...
+    # Subtest: refuses an unsafe database name before connecting
+    ok 2 - refuses an unsafe database name before connecting
+      ---
+      duration_ms: 267.552125
+      type: 'test'
+      ...
+    1..2
+ok 22 - create-database command
+  ---
+  duration_ms: 474.950459
+  type: 'suite'
+  ...
+# Subtest: directory query validation
+    # Subtest: applies page 1, page size 25, and name ascending by default
+    ok 1 - applies page 1, page size 25, and name ascending by default
+      ---
+      duration_ms: 1.764083
+      type: 'test'
+      ...
+    # Subtest: parses numeric strings and every filter
+    ok 2 - parses numeric strings and every filter
+      ---
+      duration_ms: 0.358042
+      type: 'test'
+      ...
+    # Subtest: rejects page 0, negative, decimal, exponent, and non-numeric pages
+    ok 3 - rejects page 0, negative, decimal, exponent, and non-numeric pages
+      ---
+      duration_ms: 0.49525
+      type: 'test'
+      ...
+    # Subtest: accepts page size 100 and rejects 101 and 0
+    ok 4 - accepts page size 100 and rejects 101 and 0
+      ---
+      duration_ms: 0.141583
+      type: 'test'
+      ...
+    # Subtest: rejects unknown parameters and unsupported values
+    ok 5 - rejects unknown parameters and unsupported values
+      ---
+      duration_ms: 0.194916
+      type: 'test'
+      ...
+    # Subtest: rejects a sort-field injection value before SQL
+    ok 6 - rejects a sort-field injection value before SQL
+      ---
+      duration_ms: 0.062583
+      type: 'test'
+      ...
+    # Subtest: rejects repeated single-value parameters
+    ok 7 - rejects repeated single-value parameters
+      ---
+      duration_ms: 0.070708
+      type: 'test'
+      ...
+    # Subtest: salary sorting requires comparisonCurrency=USD
+    ok 8 - salary sorting requires comparisonCurrency=USD
+      ---
+      duration_ms: 0.150708
+      type: 'test'
+      ...
+    # Subtest: non-salary sorts accept no comparison currency
+    ok 9 - non-salary sorts accept no comparison currency
+      ---
+      duration_ms: 0.175417
+      type: 'test'
+      ...
+    # Subtest: keeps SQL control and wildcard characters as search text
+    ok 10 - keeps SQL control and wildcard characters as search text
+      ---
+      duration_ms: 0.285292
+      type: 'test'
+      ...
+    # Subtest: trims search text, treats blank search as absent, and limits its length
+    ok 11 - trims search text, treats blank search as absent, and limits its length
+      ---
+      duration_ms: 0.105584
+      type: 'test'
+      ...
+    1..11
+ok 23 - directory query validation
+  ---
+  duration_ms: 4.334625
+  type: 'suite'
+  ...
+# Subtest: LIKE escaping
+    # Subtest: escapes the escape character first, then both wildcards
+    ok 1 - escapes the escape character first, then both wildcards
+      ---
+      duration_ms: 55.533042
+      type: 'test'
+      ...
+    1..1
+ok 24 - LIKE escaping
+  ---
+  duration_ms: 55.58925
+  type: 'suite'
+  ...
+# Subtest: validateEmployeeDataset
+    # Subtest: accepts the generated data set
+    ok 1 - accepts the generated data set
+      ---
+      duration_ms: 88.174541
+      type: 'test'
+      ...
+    # Subtest: reports a wrong row count
+    ok 2 - reports a wrong row count
+      ---
+      duration_ms: 156.230041
+      type: 'test'
+      ...
+    # Subtest: reports a duplicate employee ID
+    ok 3 - reports a duplicate employee ID
+      ---
+      duration_ms: 152.618917
+      type: 'test'
+      ...
+    # Subtest: reports an ID outside the approved sequence
+    ok 4 - reports an ID outside the approved sequence
+      ---
+      duration_ms: 68.449125
+      type: 'test'
+      ...
+    # Subtest: reports a duplicate email address
+    ok 5 - reports a duplicate email address
+      ---
+      duration_ms: 121.787
+      type: 'test'
+      ...
+    # Subtest: reports a department total that differs from the approved distribution
+    ok 6 - reports a department total that differs from the approved distribution
+      ---
+      duration_ms: 214.441167
+      type: 'test'
+      ...
+    # Subtest: reports a zero-bonus count other than 2,000
+    ok 7 - reports a zero-bonus count other than 2,000
+      ---
+      duration_ms: 79.941625
+      type: 'test'
+      ...
+    # Subtest: reports a department without employees from both countries
+    ok 8 - reports a department without employees from both countries
+      ---
+      duration_ms: 140.567833
+      type: 'test'
+      ...
+    # Subtest: reports an invalid employee by ID and field without the value
+    ok 9 - reports an invalid employee by ID and field without the value
+      ---
+      duration_ms: 102.197459
+      type: 'test'
+      ...
+    # Subtest: bounds the number of reported row errors
+    ok 10 - bounds the number of reported row errors
+      ---
+      duration_ms: 61.108125
+      type: 'test'
+      ...
+    1..10
+ok 25 - validateEmployeeDataset
+  ---
+  duration_ms: 1337.024333
+  type: 'suite'
+  ...
+# Subtest: generateEmployees: complete data set
+    # Subtest: generates exactly 10,000 employees
+    ok 1 - generates exactly 10,000 employees
+      ---
+      duration_ms: 0.440375
+      type: 'test'
+      ...
+    # Subtest: generates IDs ACME00001 through ACME10000 in order
+    ok 2 - generates IDs ACME00001 through ACME10000 in order
+      ---
+      duration_ms: 3.233042
+      type: 'test'
+      ...
+    # Subtest: generates 10,000 unique employee IDs
+    ok 3 - generates 10,000 unique employee IDs
+      ---
+      duration_ms: 0.799875
+      type: 'test'
+      ...
+    # Subtest: generates 10,000 unique email addresses
+    ok 4 - generates 10,000 unique email addresses
+      ---
+      duration_ms: 1.348083
+      type: 'test'
+      ...
+    # Subtest: generates exactly 7,000 India and 3,000 United States employees
+    ok 5 - generates exactly 7,000 India and 3,000 United States employees
+      ---
+      duration_ms: 0.924708
+      type: 'test'
+      ...
+    # Subtest: generates the approved exact status totals
+    ok 6 - generates the approved exact status totals
+      ---
+      duration_ms: 0.552333
+      type: 'test'
+      ...
+    # Subtest: generates the approved exact department totals
+    ok 7 - generates the approved exact department totals
+      ---
+      duration_ms: 0.705042
+      type: 'test'
+      ...
+    # Subtest: generates the approved exact level totals
+    ok 8 - generates the approved exact level totals
+      ---
+      duration_ms: 0.659958
+      type: 'test'
+      ...
+    # Subtest: gives exactly 2,000 employees (20%) a zero annual bonus
+    ok 9 - gives exactly 2,000 employees (20%) a zero annual bonus
+      ---
+      duration_ms: 0.484458
+      type: 'test'
+      ...
+    # Subtest: every department contains India and United States employees
+    ok 10 - every department contains India and United States employees
+      ---
+      duration_ms: 1.039625
+      type: 'test'
+      ...
+    # Subtest: keeps every salary inside the approved literal range for its country and level
+    ok 11 - keeps every salary inside the approved literal range for its country and level
+      ---
+      duration_ms: 12.091833
+      type: 'test'
+      ...
+    # Subtest: keeps every bonus within the approved literal cap and percentage ceiling
+    ok 12 - keeps every bonus within the approved literal cap and percentage ceiling
+      ---
+      duration_ms: 22.340792
+      type: 'test'
+      ...
+    # Subtest: uses INR and MONTHLY for India, USD and ANNUAL for the United States
+    ok 13 - uses INR and MONTHLY for India, USD and ANNUAL for the United States
+      ---
+      duration_ms: 1.170917
+      type: 'test'
+      ...
+    # Subtest: every generated employee passes the employee validator
+    ok 14 - every generated employee passes the employee validator
+      ---
+      duration_ms: 111.436541
+      type: 'test'
+      ...
+    # Subtest: every employee has exactly the approved fields
+    ok 15 - every employee has exactly the approved fields
+      ---
+      duration_ms: 10.711833
+      type: 'test'
+      ...
+    # Subtest: generates varied titles, salaries, and dates
+    ok 16 - generates varied titles, salaries, and dates
+      ---
+      duration_ms: 5.408375
+      type: 'test'
+      ...
+    1..16
+ok 26 - generateEmployees: complete data set
+  ---
+  duration_ms: 304.11425
+  type: 'suite'
+  ...
+# Subtest: generateEmployees: repeatability
+    # Subtest: produces the same logical data for the same seed and generation date
+    ok 1 - produces the same logical data for the same seed and generation date
+      ---
+      duration_ms: 185.620541
+      type: 'test'
+      ...
+    # Subtest: produces different logical data for a different seed
+    ok 2 - produces different logical data for a different seed
+      ---
+      duration_ms: 73.573875
+      type: 'test'
+      ...
+    # Subtest: rejects an invalid seed or generation date
+    ok 3 - rejects an invalid seed or generation date
+      ---
+      duration_ms: 3.661167
+      type: 'test'
+      ...
+    1..3
+ok 27 - generateEmployees: repeatability
+  ---
+  duration_ms: 262.95775
+  type: 'suite'
+  ...
+# Subtest: buildEmail
+    # Subtest: normalizes name characters and appends the lowercase employee ID
+    ok 1 - normalizes name characters and appends the lowercase employee ID
+      ---
+      duration_ms: 0.379417
+      type: 'test'
+      ...
+    # Subtest: throws when a name has no supported characters
+    ok 2 - throws when a name has no supported characters
+      ---
+      duration_ms: 0.0805
+      type: 'test'
+      ...
+    1..2
+ok 28 - buildEmail
+  ---
+  duration_ms: 0.545625
+  type: 'suite'
+  ...
+# Subtest: validateEmployee: baseline
+    # Subtest: accepts a valid employee
+    ok 1 - accepts a valid employee
+      ---
+      duration_ms: 0.712791
+      type: 'test'
+      ...
+    1..1
+ok 29 - validateEmployee: baseline
+  ---
+  duration_ms: 1.026458
+  type: 'suite'
+  ...
+# Subtest: validateEmployee: required values
+    # Subtest: rejects a missing required value
+    ok 1 - rejects a missing required value
+      ---
+      duration_ms: 0.195209
+      type: 'test'
+      ...
+    # Subtest: rejects a null required value
+    ok 2 - rejects a null required value
+      ---
+      duration_ms: 0.094958
+      type: 'test'
+      ...
+    # Subtest: rejects an empty or whitespace-only required text value
+    ok 3 - rejects an empty or whitespace-only required text value
+      ---
+      duration_ms: 0.139375
+      type: 'test'
+      ...
+    1..3
+ok 30 - validateEmployee: required values
+  ---
+  duration_ms: 0.500417
+  type: 'suite'
+  ...
+# Subtest: validateEmployee: identity format
+    # Subtest: rejects employee ID "ACME1"
+    ok 1 - rejects employee ID "ACME1"
+      ---
+      duration_ms: 0.094584
+      type: 'test'
+      ...
+    # Subtest: rejects employee ID "ACME000001"
+    ok 2 - rejects employee ID "ACME000001"
+      ---
+      duration_ms: 0.123875
+      type: 'test'
+      ...
+    # Subtest: rejects employee ID "acme00001"
+    ok 3 - rejects employee ID "acme00001"
+      ---
+      duration_ms: 0.181917
+      type: 'test'
+      ...
+    # Subtest: rejects employee ID "EMP00001"
+    ok 4 - rejects employee ID "EMP00001"
+      ---
+      duration_ms: 0.161375
+      type: 'test'
+      ...
+    # Subtest: rejects employee ID "ACME0000A"
+    ok 5 - rejects employee ID "ACME0000A"
+      ---
+      duration_ms: 0.112833
+      type: 'test'
+      ...
+    # Subtest: rejects employee ID " ACME00001"
+    ok 6 - rejects employee ID " ACME00001"
+      ---
+      duration_ms: 0.16425
+      type: 'test'
+      ...
+    # Subtest: rejects email "aditi.sharma.acme00001@gmail.com"
+    ok 7 - rejects email "aditi.sharma.acme00001@gmail.com"
+      ---
+      duration_ms: 0.051125
+      type: 'test'
+      ...
+    # Subtest: rejects email "Aditi.Sharma.ACME00001@acme.com"
+    ok 8 - rejects email "Aditi.Sharma.ACME00001@acme.com"
+      ---
+      duration_ms: 0.029875
+      type: 'test'
+      ...
+    # Subtest: rejects email "aditi.sharma.acme00002@acme.com"
+    ok 9 - rejects email "aditi.sharma.acme00002@acme.com"
+      ---
+      duration_ms: 0.02725
+      type: 'test'
+      ...
+    # Subtest: rejects email "aditi sharma.acme00001@acme.com"
+    ok 10 - rejects email "aditi sharma.acme00001@acme.com"
+      ---
+      duration_ms: 0.024583
+      type: 'test'
+      ...
+    1..10
+ok 31 - validateEmployee: identity format
+  ---
+  duration_ms: 1.159375
+  type: 'suite'
+  ...
+# Subtest: validateEmployee: allowed values
+    # Subtest: rejects department "Engineering"
+    ok 1 - rejects department "Engineering"
+      ---
+      duration_ms: 0.068708
+      type: 'test'
+      ...
+    # Subtest: rejects department "tech"
+    ok 2 - rejects department "tech"
+      ---
+      duration_ms: 0.025541
+      type: 'test'
+      ...
+    # Subtest: rejects level "L3"
+    ok 3 - rejects level "L3"
+      ---
+      duration_ms: 0.02575
+      type: 'test'
+      ...
+    # Subtest: rejects level "SENIOR_MANAGEMENT"
+    ok 4 - rejects level "SENIOR_MANAGEMENT"
+      ---
+      duration_ms: 0.029416
+      type: 'test'
+      ...
+    # Subtest: rejects employment_status "active"
+    ok 5 - rejects employment_status "active"
+      ---
+      duration_ms: 0.026166
+      type: 'test'
+      ...
+    # Subtest: rejects country_code "India"
+    ok 6 - rejects country_code "India"
+      ---
+      duration_ms: 0.075167
+      type: 'test'
+      ...
+    # Subtest: rejects country_code "GB"
+    ok 7 - rejects country_code "GB"
+      ---
+      duration_ms: 0.038667
+      type: 'test'
+      ...
+    # Subtest: rejects currency "IND"
+    ok 8 - rejects currency "IND"
+      ---
+      duration_ms: 0.036125
+      type: 'test'
+      ...
+    # Subtest: rejects currency "GBP"
+    ok 9 - rejects currency "GBP"
+      ---
+      duration_ms: 0.027833
+      type: 'test'
+      ...
+    # Subtest: rejects pay_frequency "Annually"
+    ok 10 - rejects pay_frequency "Annually"
+      ---
+      duration_ms: 0.02575
+      type: 'test'
+      ...
+    # Subtest: rejects pay_frequency "ONE_TIME"
+    ok 11 - rejects pay_frequency "ONE_TIME"
+      ---
+      duration_ms: 0.022875
+      type: 'test'
+      ...
+    1..11
+ok 32 - validateEmployee: allowed values
+  ---
+  duration_ms: 1.202
+  type: 'suite'
+  ...
+# Subtest: validateEmployee: country rules
+    # Subtest: rejects a country and currency mismatch
+    ok 1 - rejects a country and currency mismatch
+      ---
+      duration_ms: 0.050709
+      type: 'test'
+      ...
+    # Subtest: rejects a country and pay frequency mismatch
+    ok 2 - rejects a country and pay frequency mismatch
+      ---
+      duration_ms: 0.031583
+      type: 'test'
+      ...
+    1..2
+ok 33 - validateEmployee: country rules
+  ---
+  duration_ms: 0.167291
+  type: 'suite'
+  ...
+# Subtest: validateEmployee: job titles
+    # Subtest: rejects a title from another department
+    ok 1 - rejects a title from another department
+      ---
+      duration_ms: 0.043833
+      type: 'test'
+      ...
+    # Subtest: rejects a title from another level
+    ok 2 - rejects a title from another level
+      ---
+      duration_ms: 0.025333
+      type: 'test'
+      ...
+    # Subtest: rejects a MANAGER with a non-management title
+    ok 3 - rejects a MANAGER with a non-management title
+      ---
+      duration_ms: 0.028916
+      type: 'test'
+      ...
+    # Subtest: rejects a non-manager with a management title
+    ok 4 - rejects a non-manager with a management title
+      ---
+      duration_ms: 0.024834
+      type: 'test'
+      ...
+    # Subtest: rejects a title that is not in the approved list
+    ok 5 - rejects a title that is not in the approved list
+      ---
+      duration_ms: 0.025041
+      type: 'test'
+      ...
+    1..5
+ok 34 - validateEmployee: job titles
+  ---
+  duration_ms: 0.186666
+  type: 'suite'
+  ...
+# Subtest: validateEmployee: annual base salary
+    # Subtest: accepts salaries exactly at the approved range boundaries
+    ok 1 - accepts salaries exactly at the approved range boundaries
+      ---
+      duration_ms: 0.058542
+      type: 'test'
+      ...
+    # Subtest: rejects an annual base salary outside the India SENIOR range
+    ok 2 - rejects an annual base salary outside the India SENIOR range
+      ---
+      duration_ms: 0.039208
+      type: 'test'
+      ...
+    # Subtest: rejects a US salary that is only valid as an INR amount
+    ok 3 - rejects a US salary that is only valid as an INR amount
+      ---
+      duration_ms: 0.043625
+      type: 'test'
+      ...
+    # Subtest: rejects a JUNIOR salary that is only valid for SENIOR
+    ok 4 - rejects a JUNIOR salary that is only valid for SENIOR
+      ---
+      duration_ms: 0.044917
+      type: 'test'
+      ...
+    # Subtest: rejects an annual base salary with more than two decimal places
+    ok 5 - rejects an annual base salary with more than two decimal places
+      ---
+      duration_ms: 0.028083
+      type: 'test'
+      ...
+    # Subtest: rejects a non-numeric annual base salary
+    ok 6 - rejects a non-numeric annual base salary
+      ---
+      duration_ms: 0.0555
+      type: 'test'
+      ...
+    # Subtest: rejects a zero or negative annual base salary
+    ok 7 - rejects a zero or negative annual base salary
+      ---
+      duration_ms: 0.032708
+      type: 'test'
+      ...
+    1..7
+ok 35 - validateEmployee: annual base salary
+  ---
+  duration_ms: 0.354375
+  type: 'suite'
+  ...
+# Subtest: validateEmployee: annual bonus
+    # Subtest: accepts a zero annual bonus
+    ok 1 - accepts a zero annual bonus
+      ---
+      duration_ms: 0.0525
+      type: 'test'
+      ...
+    # Subtest: rejects a negative annual bonus
+    ok 2 - rejects a negative annual bonus
+      ---
+      duration_ms: 0.0265
+      type: 'test'
+      ...
+    # Subtest: rejects an annual bonus with more than two decimal places
+    ok 3 - rejects an annual bonus with more than two decimal places
+      ---
+      duration_ms: 0.031042
+      type: 'test'
+      ...
+    # Subtest: rejects a JUNIOR bonus above the currency cap
+    ok 4 - rejects a JUNIOR bonus above the currency cap
+      ---
+      duration_ms: 0.0535
+      type: 'test'
+      ...
+    # Subtest: rejects a non-JUNIOR bonus above the currency cap
+    ok 5 - rejects a non-JUNIOR bonus above the currency cap
+      ---
+      duration_ms: 0.036167
+      type: 'test'
+      ...
+    # Subtest: rejects a non-zero bonus above the level percentage
+    ok 6 - rejects a non-zero bonus above the level percentage
+      ---
+      duration_ms: 0.084167
+      type: 'test'
+      ...
+    # Subtest: rejects a non-zero bonus below the level percentage floor
+    ok 7 - rejects a non-zero bonus below the level percentage floor
+      ---
+      duration_ms: 0.079875
+      type: 'test'
+      ...
+    # Subtest: accepts a capped bonus that falls below the percentage floor
+    ok 8 - accepts a capped bonus that falls below the percentage floor
+      ---
+      duration_ms: 0.038292
+      type: 'test'
+      ...
+    1..8
+ok 36 - validateEmployee: annual bonus
+  ---
+  duration_ms: 0.457792
+  type: 'suite'
+  ...
+# Subtest: validateEmployee: date format
+    # Subtest: rejects hire_date "2022-8-14"
+    ok 1 - rejects hire_date "2022-8-14"
+      ---
+      duration_ms: 0.047916
+      type: 'test'
+      ...
+    # Subtest: rejects hire_date "14/08/2022"
+    ok 2 - rejects hire_date "14/08/2022"
+      ---
+      duration_ms: 0.02125
+      type: 'test'
+      ...
+    # Subtest: rejects hire_date "2022-02-30"
+    ok 3 - rejects hire_date "2022-02-30"
+      ---
+      duration_ms: 0.021875
+      type: 'test'
+      ...
+    # Subtest: rejects hire_date "2023-02-29"
+    ok 4 - rejects hire_date "2023-02-29"
+      ---
+      duration_ms: 0.022083
+      type: 'test'
+      ...
+    # Subtest: rejects hire_date "20220814"
+    ok 5 - rejects hire_date "20220814"
+      ---
+      duration_ms: 0.020666
+      type: 'test'
+      ...
+    # Subtest: rejects hire_date "1970-01-01T00:00:00.000Z"
+    ok 6 - rejects hire_date "1970-01-01T00:00:00.000Z"
+      ---
+      duration_ms: 0.024458
+      type: 'test'
+      ...
+    # Subtest: accepts a real leap day
+    ok 7 - accepts a real leap day
+      ---
+      duration_ms: 0.027542
+      type: 'test'
+      ...
+    1..7
+ok 37 - validateEmployee: date format
+  ---
+  duration_ms: 0.233959
+  type: 'suite'
+  ...
+# Subtest: validateEmployee: CURRENTLY_WORKING dates
+    # Subtest: rejects a salary effective date before the hire date
+    ok 1 - rejects a salary effective date before the hire date
+      ---
+      duration_ms: 0.045667
+      type: 'test'
+      ...
+    # Subtest: rejects a future hire date
+    ok 2 - rejects a future hire date
+      ---
+      duration_ms: 0.256583
+      type: 'test'
+      ...
+    # Subtest: accepts a hire date equal to the generation date
+    ok 3 - accepts a hire date equal to the generation date
+      ---
+      duration_ms: 0.05375
+      type: 'test'
+      ...
+    # Subtest: rejects an end date
+    ok 4 - rejects an end date
+      ---
+      duration_ms: 0.036458
+      type: 'test'
+      ...
+    # Subtest: rejects a salary effective date after the generation date
+    ok 5 - rejects a salary effective date after the generation date
+      ---
+      duration_ms: 0.030958
+      type: 'test'
+      ...
+    1..5
+ok 38 - validateEmployee: CURRENTLY_WORKING dates
+  ---
+  duration_ms: 0.485833
+  type: 'suite'
+  ...
+# Subtest: validateEmployee: SOON_TO_JOIN dates
+    # Subtest: accepts a valid SOON_TO_JOIN employee
+    ok 1 - accepts a valid SOON_TO_JOIN employee
+      ---
+      duration_ms: 0.042584
+      type: 'test'
+      ...
+    # Subtest: rejects a past or current hire date
+    ok 2 - rejects a past or current hire date
+      ---
+      duration_ms: 0.028
+      type: 'test'
+      ...
+    # Subtest: rejects an end date
+    ok 3 - rejects an end date
+      ---
+      duration_ms: 0.028708
+      type: 'test'
+      ...
+    # Subtest: rejects a salary effective date different from the hire date
+    ok 4 - rejects a salary effective date different from the hire date
+      ---
+      duration_ms: 0.028833
+      type: 'test'
+      ...
+    1..4
+ok 39 - validateEmployee: SOON_TO_JOIN dates
+  ---
+  duration_ms: 0.16375
+  type: 'suite'
+  ...
+# Subtest: validateEmployee: LEFT dates
+    # Subtest: accepts a valid LEFT employee
+    ok 1 - accepts a valid LEFT employee
+      ---
+      duration_ms: 0.058583
+      type: 'test'
+      ...
+    # Subtest: rejects a missing end date
+    ok 2 - rejects a missing end date
+      ---
+      duration_ms: 0.035833
+      type: 'test'
+      ...
+    # Subtest: rejects an end date that is not after the hire date
+    ok 3 - rejects an end date that is not after the hire date
+      ---
+      duration_ms: 0.0425
+      type: 'test'
+      ...
+    # Subtest: rejects an end date after the generation date
+    ok 4 - rejects an end date after the generation date
+      ---
+      duration_ms: 0.026083
+      type: 'test'
+      ...
+    # Subtest: rejects a salary effective date after the end date
+    ok 5 - rejects a salary effective date after the end date
+      ---
+      duration_ms: 0.025
+      type: 'test'
+      ...
+    1..5
+ok 40 - validateEmployee: LEFT dates
+  ---
+  duration_ms: 0.231375
+  type: 'suite'
+  ...
+# Subtest: validateEmployee: options
+    # Subtest: throws when the generation date is missing or invalid
+    ok 1 - throws when the generation date is missing or invalid
+      ---
+      duration_ms: 0.186084
+      type: 'test'
+      ...
+    1..1
+ok 41 - validateEmployee: options
+  ---
+  duration_ms: 0.203625
+  type: 'suite'
+  ...
+# Subtest: parseCliArgs
+    # Subtest: uses the approved defaults
+    ok 1 - uses the approved defaults
+      ---
+      duration_ms: 0.697792
+      type: 'test'
+      ...
+    # Subtest: accepts explicit output, seed, generation date, and overwrite
+    ok 2 - accepts explicit output, seed, generation date, and overwrite
+      ---
+      duration_ms: 0.320208
+      type: 'test'
+      ...
+    # Subtest: rejects invalid input
+    ok 3 - rejects invalid input
+      ---
+      duration_ms: 0.470542
+      type: 'test'
+      ...
+    1..3
+ok 42 - parseCliArgs
+  ---
+  duration_ms: 1.932333
+  type: 'suite'
+  ...
+# Subtest: generate-workbook command
+    # Subtest: exits non-zero with a short message for invalid input
+    ok 1 - exits non-zero with a short message for invalid input
+      ---
+      duration_ms: 859.350625
+      type: 'test'
+      ...
+    # Subtest: exits non-zero and keeps an existing file without --overwrite
+    ok 2 - exits non-zero and keeps an existing file without --overwrite
+      ---
+      duration_ms: 489.298
+      type: 'test'
+      ...
+    # Subtest: writes the workbook and prints only a short summary
+    ok 3 - writes the workbook and prints only a short summary
+      ---
+      duration_ms: 1254.241583
+      type: 'test'
+      ...
+    1..3
+ok 43 - generate-workbook command
+  ---
+  duration_ms: 2613.589167
+  type: 'suite'
+  ...
+# Subtest: admin observability access
+    # Subtest: every operation: 401 without a session, 403 for Scoped HR (even with bad input), before storage is touched
+    ok 1 - every operation: 401 without a session, 403 for Scoped HR (even with bad input), before storage is touched
+      ---
+      duration_ms: 208.367334
+      type: 'test'
+      ...
+    # Subtest: Admin with storage down: 503 SERVICE_UNAVAILABLE, a safe log, and non-AI routes still work
+    ok 2 - Admin with storage down: 503 SERVICE_UNAVAILABLE, a safe log, and non-AI routes still work
+      ---
+      duration_ms: 61.480333
+      type: 'test'
+      ...
+    1..2
+ok 44 - admin observability access
+  ---
+  duration_ms: 270.294834
+  type: 'suite'
+  ...
+# Subtest: admin observability input validation
+    # Subtest: invalid list filters, views, review bodies, and delete confirmations are 400; malformed IDs are 404
+    ok 1 - invalid list filters, views, review bodies, and delete confirmations are 400; malformed IDs are 404
+      ---
+      duration_ms: 66.153667
+      type: 'test'
+      ...
+    1..1
+ok 45 - admin observability input validation
+  ---
+  duration_ms: 66.257
+  type: 'suite'
+  ...
+# Subtest: admin observability view helpers
+    # Subtest: the published failure stages match the assistant's
+    ok 1 - the published failure stages match the assistant's
+      ---
+      duration_ms: 0.090875
+      type: 'test'
+      ...
+    # Subtest: identityRedactor gives each person one stable placeholder everywhere and keeps money
+    ok 2 - identityRedactor gives each person one stable placeholder everywhere and keeps money
+      ---
+      duration_ms: 0.589875
+      type: 'test'
+      ...
+    # Subtest: summaryWindow: hourly buckets for 24h, daily for 7d and 30d, UTC-aligned and covering both ends
+    ok 3 - summaryWindow: hourly buckets for 24h, daily for 7d and 30d, UTC-aligned and covering both ends
+      ---
+      duration_ms: 0.637208
+      type: 'test'
+      ...
+    1..3
+ok 46 - admin observability view helpers
+  ---
+  duration_ms: 1.822708
+  type: 'suite'
+  ...
+# Subtest: application construction
+    # Subtest: creating the app does not start a network listener
+    ok 1 - creating the app does not start a network listener
+      ---
+      duration_ms: 37.800125
+      type: 'test'
+      ...
+    # Subtest: does not send X-Powered-By
+    ok 2 - does not send X-Powered-By
+      ---
+      duration_ms: 86.772875
+      type: 'test'
+      ...
+    # Subtest: unknown routes return the standard JSON NOT_FOUND error
+    ok 3 - unknown routes return the standard JSON NOT_FOUND error
+      ---
+      duration_ms: 52.063584
+      type: 'test'
+      ...
+    # Subtest: rejects a JSON body above the limit with VALIDATION_ERROR
+    ok 4 - rejects a JSON body above the limit with VALIDATION_ERROR
+      ---
+      duration_ms: 23.004042
+      type: 'test'
+      ...
+    # Subtest: sends no CORS headers, even for a preflight request
+    ok 5 - sends no CORS headers, even for a preflight request
+      ---
+      duration_ms: 19.272375
+      type: 'test'
+      ...
+    1..5
+ok 47 - application construction
+  ---
+  duration_ms: 220.668959
+  type: 'suite'
+  ...
+# Subtest: GET /health
+    # Subtest: returns exactly { status: "ok" }
+    ok 1 - returns exactly { status: "ok" }
+      ---
+      duration_ms: 19.55025
+      type: 'test'
+      ...
+    1..1
+ok 48 - GET /health
+  ---
+  duration_ms: 19.673792
+  type: 'suite'
+  ...
+# Subtest: POST /api/v1/auth/login validation
+    # Subtest: accepts a valid email and password object
+    ok 1 - accepts a valid email and password object
+      ---
+      duration_ms: 26.219125
+      type: 'test'
+      ...
+    # Subtest: rejects missing email with VALIDATION_ERROR
+    ok 2 - rejects missing email with VALIDATION_ERROR
+      ---
+      duration_ms: 15.849708
+      type: 'test'
+      ...
+    # Subtest: rejects missing password with VALIDATION_ERROR
+    ok 3 - rejects missing password with VALIDATION_ERROR
+      ---
+      duration_ms: 20.977209
+      type: 'test'
+      ...
+    # Subtest: rejects non-string email with VALIDATION_ERROR
+    ok 4 - rejects non-string email with VALIDATION_ERROR
+      ---
+      duration_ms: 23.29475
+      type: 'test'
+      ...
+    # Subtest: rejects non-string password with VALIDATION_ERROR
+    ok 5 - rejects non-string password with VALIDATION_ERROR
+      ---
+      duration_ms: 19.922833
+      type: 'test'
+      ...
+    # Subtest: rejects invalid email format with VALIDATION_ERROR
+    ok 6 - rejects invalid email format with VALIDATION_ERROR
+      ---
+      duration_ms: 10.873
+      type: 'test'
+      ...
+    # Subtest: rejects empty password with VALIDATION_ERROR
+    ok 7 - rejects empty password with VALIDATION_ERROR
+      ---
+      duration_ms: 5.107625
+      type: 'test'
+      ...
+    # Subtest: rejects unknown field with VALIDATION_ERROR
+    ok 8 - rejects unknown field with VALIDATION_ERROR
+      ---
+      duration_ms: 42.685208
+      type: 'test'
+      ...
+    # Subtest: rejects array body with VALIDATION_ERROR
+    ok 9 - rejects array body with VALIDATION_ERROR
+      ---
+      duration_ms: 28.908875
+      type: 'test'
+      ...
+    # Subtest: rejects malformed JSON with VALIDATION_ERROR
+    ok 10 - rejects malformed JSON with VALIDATION_ERROR
+      ---
+      duration_ms: 16.0525
+      type: 'test'
+      ...
+    # Subtest: rejects a non-JSON body with VALIDATION_ERROR
+    ok 11 - rejects a non-JSON body with VALIDATION_ERROR
+      ---
+      duration_ms: 17.601084
+      type: 'test'
+      ...
+    # Subtest: does not echo submitted values in the error response
+    ok 12 - does not echo submitted values in the error response
+      ---
+      duration_ms: 23.513166
+      type: 'test'
+      ...
+    1..12
+ok 49 - POST /api/v1/auth/login validation
+  ---
+  duration_ms: 251.854833
+  type: 'suite'
+  ...
+# Subtest: POST /api/v1/auth/login behaviour at the HTTP boundary
+    # Subtest: returns the token, ISO expiry, and user summary
+    ok 1 - returns the token, ISO expiry, and user summary
+      ---
+      duration_ms: 21.763541
+      type: 'test'
+      ...
+    # Subtest: wrong credentials return the generic INVALID_CREDENTIALS error
+    ok 2 - wrong credentials return the generic INVALID_CREDENTIALS error
+      ---
+      duration_ms: 23.285917
+      type: 'test'
+      ...
+    # Subtest: does not set a cookie
+    ok 3 - does not set a cookie
+      ---
+      duration_ms: 19.326959
+      type: 'test'
+      ...
+    1..3
+ok 50 - POST /api/v1/auth/login behaviour at the HTTP boundary
+  ---
+  duration_ms: 64.489166
+  type: 'suite'
+  ...
+# Subtest: authentication middleware (GET /api/v1/auth/me)
+    # Subtest: rejects a missing Authorization header
+    ok 1 - rejects a missing Authorization header
+      ---
+      duration_ms: 43.694167
+      type: 'test'
+      ...
+    # Subtest: rejects a wrong authorization scheme
+    ok 2 - rejects a wrong authorization scheme
+      ---
+      duration_ms: 14.599917
+      type: 'test'
+      ...
+    # Subtest: rejects an empty Bearer token
+    ok 3 - rejects an empty Bearer token
+      ---
+      duration_ms: 14.869875
+      type: 'test'
+      ...
+    # Subtest: rejects a Bearer token with extra parts
+    ok 4 - rejects a Bearer token with extra parts
+      ---
+      duration_ms: 8.177834
+      type: 'test'
+      ...
+    # Subtest: every internal authentication failure returns the identical public body
+    ok 5 - every internal authentication failure returns the identical public body
+      ---
+      duration_ms: 45.812042
+      type: 'test'
+      ...
+    # Subtest: returns the current user, scopes, and session expiry
+    ok 6 - returns the current user, scopes, and session expiry
+      ---
+      duration_ms: 7.042417
+      type: 'test'
+      ...
+    1..6
+ok 51 - authentication middleware (GET /api/v1/auth/me)
+  ---
+  duration_ms: 134.51325
+  type: 'suite'
+  ...
+# Subtest: POST /api/v1/auth/logout at the HTTP boundary
+    # Subtest: returns 204 with no body for a valid token
+    ok 1 - returns 204 with no body for a valid token
+      ---
+      duration_ms: 14.064166
+      type: 'test'
+      ...
+    # Subtest: returns 204 for an already revoked session
+    ok 2 - returns 204 for an already revoked session
+      ---
+      duration_ms: 5.122334
+      type: 'test'
+      ...
+    # Subtest: returns UNAUTHENTICATED for a missing or invalid token
+    ok 3 - returns UNAUTHENTICATED for a missing or invalid token
+      ---
+      duration_ms: 23.328958
+      type: 'test'
+      ...
+    1..3
+ok 52 - POST /api/v1/auth/logout at the HTTP boundary
+  ---
+  duration_ms: 42.655875
+  type: 'suite'
+  ...
+# Subtest: request logging
+    # Subtest: logs method, safe path, status, and duration, and never secrets or bodies
+    ok 1 - logs method, safe path, status, and duration, and never secrets or bodies
+      ---
+      duration_ms: 9.404375
+      type: 'test'
+      ...
+    # Subtest: maps an unexpected error to INTERNAL_ERROR and logs only its name and code
+    ok 2 - maps an unexpected error to INTERNAL_ERROR and logs only its name and code
+      ---
+      duration_ms: 8.301292
+      type: 'test'
+      ...
+    1..2
+ok 53 - request logging
+  ---
+  duration_ms: 17.871084
+  type: 'suite'
+  ...
+# Subtest: assistant conversation routes
+    # Subtest: every operation requires a valid Bearer token
+    ok 1 - every operation requires a valid Bearer token
+      ---
+      duration_ms: 113.659458
+      type: 'test'
+      ...
+    # Subtest: create, send, list, and read; another user gets the same 404 as an unknown ID
+    ok 2 - create, send, list, and read; another user gets the same 404 as an unknown ID
+      ---
+      duration_ms: 75.639667
+      type: 'test'
+      ...
+    # Subtest: message submission accepts exactly one user message and an Idempotency-Key
+    ok 3 - message submission accepts exactly one user message and an Idempotency-Key
+      ---
+      duration_ms: 63.396666
+      type: 'test'
+      ...
+    # Subtest: the same key replays with Idempotency-Replayed; other content with the key is 409
+    ok 4 - the same key replays with Idempotency-Replayed; other content with the key is 409
+      ---
+      duration_ms: 15.479917
+      type: 'test'
+      ...
+    # Subtest: provider failure is 502 and recording failure is 503; neither returns an answer
+    ok 5 - provider failure is 502 and recording failure is 503; neither returns an answer
+      ---
+      duration_ms: 83.346
+      type: 'test'
+      ...
+    # Subtest: when AI storage is unavailable, conversation routes are 503 and other routes still work
+    ok 6 - when AI storage is unavailable, conversation routes are 503 and other routes still work
+      ---
+      duration_ms: 47.238792
+      type: 'test'
+      ...
+    # Subtest: the 20-per-15-minutes limit is shared by both message routes and ignores reads
+    ok 7 - the 20-per-15-minutes limit is shared by both message routes and ignores reads
+      ---
+      duration_ms: 218.945625
+      type: 'test'
+      ...
+    # Subtest: the deprecated route is marked and sends only the final user message to the model
+    ok 8 - the deprecated route is marked and sends only the final user message to the model
+      ---
+      duration_ms: 8.872083
+      type: 'test'
+      ...
+    # Subtest: logs contain no message text, answer, tool arguments, key, or token
+    ok 9 - logs contain no message text, answer, tool arguments, key, or token
+      ---
+      duration_ms: 18.18825
+      type: 'test'
+      ...
+    1..9
+ok 54 - assistant conversation routes
+  ---
+  duration_ms: 649.896375
+  type: 'suite'
+  ...
+# Subtest: assistant request limit
+    # Subtest: allows 20 requests per HR user per window, then returns the standard 429
+    ok 1 - allows 20 requests per HR user per window, then returns the standard 429
+      ---
+      duration_ms: 147.040542
+      type: 'test'
+      ...
+    # Subtest: each HR user has a separate allowance
+    ok 2 - each HR user has a separate allowance
+      ---
+      duration_ms: 102.149625
+      type: 'test'
+      ...
+    # Subtest: the allowance returns after the 15-minute window
+    ok 3 - the allowance returns after the 15-minute window
+      ---
+      duration_ms: 52.219667
+      type: 'test'
+      ...
+    # Subtest: authenticates before limiting and keys only by the verified HR user ID
+    ok 4 - authenticates before limiting and keys only by the verified HR user ID
+      ---
+      duration_ms: 101.57375
+      type: 'test'
+      ...
+    # Subtest: directory, auth, and MCP routes stay available when the assistant limit is reached
+    ok 5 - directory, auth, and MCP routes stay available when the assistant limit is reached
+      ---
+      duration_ms: 118.471125
+      type: 'test'
+      ...
+    # Subtest: neither logs nor limiter keys contain chat, email, or token
+    ok 6 - neither logs nor limiter keys contain chat, email, or token
+      ---
+      duration_ms: 40.360958
+      type: 'test'
+      ...
+    1..6
+ok 55 - assistant request limit
+  ---
+  duration_ms: 562.606084
+  type: 'suite'
+  ...
+# Subtest: POST /api/v1/assistant/messages
+    # Subtest: requires a valid Bearer token before reading the body
+    ok 1 - requires a valid Bearer token before reading the body
+      ---
+      duration_ms: 114.958333
+      type: 'test'
+      ...
+    # Subtest: rejects invalid conversations with VALIDATION_ERROR
+    ok 2 - rejects invalid conversations with VALIDATION_ERROR
+      ---
+      duration_ms: 56.412917
+      type: 'test'
+      ...
+    # Subtest: accepts the maximum conversation: 10 messages of 2,000 characters
+    ok 3 - accepts the maximum conversation: 10 messages of 2,000 characters
+      ---
+      duration_ms: 17.198708
+      type: 'test'
+      ...
+    # Subtest: returns the answer, tool calls, cards, limitations, and generation time
+    ok 4 - returns the answer, tool calls, cards, limitations, and generation time
+      ---
+      duration_ms: 36.915292
+      type: 'test'
+      ...
+    # Subtest: without a model: 503 ASSISTANT_UNAVAILABLE, and auth, directory, and health still work
+    ok 5 - without a model: 503 ASSISTANT_UNAVAILABLE, and auth, directory, and health still work
+      ---
+      duration_ms: 66.375166
+      type: 'test'
+      ...
+    # Subtest: model timeout and provider error return 503 and other routes keep working
+    ok 6 - model timeout and provider error return 503 and other routes keep working
+      ---
+      duration_ms: 91.546666
+      type: 'test'
+      ...
+    # Subtest: logs contain no chat text, tool arguments, or token
+    ok 7 - logs contain no chat text, tool arguments, or token
+      ---
+      duration_ms: 14.372958
+      type: 'test'
+      ...
+    1..7
+ok 56 - POST /api/v1/assistant/messages
+  ---
+  duration_ms: 399.186292
+  type: 'suite'
+  ...
+# Subtest: MCP endpoint authentication
+    # Subtest: rejects missing and invalid tokens with 401 before the MCP handler
+    ok 1 - rejects missing and invalid tokens with 401 before the MCP handler
+      ---
+      duration_ms: 14.570875
+      type: 'test'
+      ...
+    # Subtest: rejects any request carrying a browser Origin header
+    ok 2 - rejects any request carrying a browser Origin header
+      ---
+      duration_ms: 6.678875
+      type: 'test'
+      ...
+    # Subtest: an authenticated MCP client lists exactly the five read-only tools
+    ok 3 - an authenticated MCP client lists exactly the five read-only tools
+      ---
+      duration_ms: 78.36675
+      type: 'test'
+      ...
+    1..3
+ok 57 - MCP endpoint authentication
+  ---
+  duration_ms: 100.304
+  type: 'suite'
+  ...
+# Subtest: dashboard database failures
+    # Subtest: ECONNREFUSED becomes 503 SERVICE_UNAVAILABLE on every dashboard route
+    ok 1 - ECONNREFUSED becomes 503 SERVICE_UNAVAILABLE on every dashboard route
+      ---
+      duration_ms: 84.111959
+      type: 'test'
+      ...
+    # Subtest: ECONNRESET becomes 503 SERVICE_UNAVAILABLE on every dashboard route
+    ok 2 - ECONNRESET becomes 503 SERVICE_UNAVAILABLE on every dashboard route
+      ---
+      duration_ms: 14.884667
+      type: 'test'
+      ...
+    # Subtest: ETIMEDOUT becomes 503 SERVICE_UNAVAILABLE on every dashboard route
+    ok 3 - ETIMEDOUT becomes 503 SERVICE_UNAVAILABLE on every dashboard route
+      ---
+      duration_ms: 61.876125
+      type: 'test'
+      ...
+    # Subtest: PROTOCOL_CONNECTION_LOST becomes 503 SERVICE_UNAVAILABLE on every dashboard route
+    ok 4 - PROTOCOL_CONNECTION_LOST becomes 503 SERVICE_UNAVAILABLE on every dashboard route
+      ---
+      duration_ms: 59.725
+      type: 'test'
+      ...
+    # Subtest: ER_CON_COUNT_ERROR becomes 503 SERVICE_UNAVAILABLE on every dashboard route
+    ok 5 - ER_CON_COUNT_ERROR becomes 503 SERVICE_UNAVAILABLE on every dashboard route
+      ---
+      duration_ms: 15.845417
+      type: 'test'
+      ...
+    # Subtest: ER_LOCK_WAIT_TIMEOUT becomes 503 SERVICE_UNAVAILABLE on every dashboard route
+    ok 6 - ER_LOCK_WAIT_TIMEOUT becomes 503 SERVICE_UNAVAILABLE on every dashboard route
+      ---
+      duration_ms: 40.227209
+      type: 'test'
+      ...
+    # Subtest: an unrecognized error stays 500 INTERNAL_ERROR, logging only its class and code
+    ok 7 - an unrecognized error stays 500 INTERNAL_ERROR, logging only its class and code
+      ---
+      duration_ms: 84.355709
+      type: 'test'
+      ...
+    1..7
+ok 58 - dashboard database failures
+  ---
+  duration_ms: 361.908458
+  type: 'suite'
+  ...
+# Subtest: MCP call recording
+    # Subtest: a valid call records the attempt before execution and SUCCEEDED with the complete result before returning
+    ok 1 - a valid call records the attempt before execution and SUCCEEDED with the complete result before returning
+      ---
+      duration_ms: 153.73475
+      type: 'test'
+      ...
+    # Subtest: invalid input is recorded REJECTED with its arguments and no result, and never executes
+    ok 2 - invalid input is recorded REJECTED with its arguments and no result, and never executes
+      ---
+      duration_ms: 53.6945
+      type: 'test'
+      ...
+    # Subtest: a call to an unknown tool is recorded REJECTED UNKNOWN_TOOL and never executes
+    ok 3 - a call to an unknown tool is recorded REJECTED UNKNOWN_TOOL and never executes
+      ---
+      duration_ms: 53.584333
+      type: 'test'
+      ...
+    # Subtest: attempt-write failure: the tool never runs; outcome-write failure: no result is returned
+    ok 4 - attempt-write failure: the tool never runs; outcome-write failure: no result is returned
+      ---
+      duration_ms: 86.98625
+      type: 'test'
+      ...
+    # Subtest: listing still publishes each tool's exact JSON Schema (validation is deferred, not removed)
+    ok 5 - listing still publishes each tool's exact JSON Schema (validation is deferred, not removed)
+      ---
+      duration_ms: 22.668333
+      type: 'test'
+      ...
+    1..5
+ok 59 - MCP call recording
+  ---
+  duration_ms: 371.5795
+  type: 'suite'
+  ...
+# Subtest: OpenAPI contract
+    # Subtest: documents exactly the fifty endpoints
+    ok 1 - documents exactly the fifty endpoints
+      ---
+      duration_ms: 0.721208
+      type: 'test'
+      ...
+    # Subtest: directory query parameters match the runtime schema
+    ok 2 - directory query parameters match the runtime schema
+      ---
+      duration_ms: 0.152292
+      type: 'test'
+      ...
+    # Subtest: directory, detail, and options responses are documented
+    ok 3 - directory, detail, and options responses are documented
+      ---
+      duration_ms: 0.107125
+      type: 'test'
+      ...
+    # Subtest: login request requires email and password and allows no other fields
+    ok 4 - login request requires email and password and allows no other fields
+      ---
+      duration_ms: 0.090833
+      type: 'test'
+      ...
+    # Subtest: login response includes token, expiry, and user summary
+    ok 5 - login response includes token, expiry, and user summary
+      ---
+      duration_ms: 0.046708
+      type: 'test'
+      ...
+    # Subtest: current-user response includes current scopes and session expiry
+    ok 6 - current-user response includes current scopes and session expiry
+      ---
+      duration_ms: 0.039
+      type: 'test'
+      ...
+    # Subtest: uses an HTTP Bearer JWT security scheme on every protected endpoint
+    ok 7 - uses an HTTP Bearer JWT security scheme on every protected endpoint
+      ---
+      duration_ms: 0.232708
+      type: 'test'
+      ...
+    # Subtest: salary-adjustment operations document schemas, Idempotency-Key, and the approved errors
+    ok 8 - salary-adjustment operations document schemas, Idempotency-Key, and the approved errors
+      ---
+      duration_ms: 0.225042
+      type: 'test'
+      ...
+    # Subtest: dashboard operations document Bearer auth, their exact parameters, and response schemas
+    ok 9 - dashboard operations document Bearer auth, their exact parameters, and response schemas
+      ---
+      duration_ms: 0.209166
+      type: 'test'
+      ...
+    # Subtest: HR access-management operations document auth, idempotency, bodies, and errors
+    ok 10 - HR access-management operations document auth, idempotency, bodies, and errors
+      ---
+      duration_ms: 0.988333
+      type: 'test'
+      ...
+    # Subtest: assistant conversation operations document auth, idempotency, strict bodies, and errors
+    ok 11 - assistant conversation operations document auth, idempotency, strict bodies, and errors
+      ---
+      duration_ms: 0.129458
+      type: 'test'
+      ...
+    # Subtest: assistant request and response schemas follow the shared contract
+    ok 12 - assistant request and response schemas follow the shared contract
+      ---
+      duration_ms: 0.07
+      type: 'test'
+      ...
+    # Subtest: error schema lists exactly the approved public codes
+    ok 13 - error schema lists exactly the approved public codes
+      ---
+      duration_ms: 0.02875
+      type: 'test'
+      ...
+    # Subtest: the committed openapi/openapi.json matches the generated contract
+    ok 14 - the committed openapi/openapi.json matches the generated contract
+      ---
+      duration_ms: 8.996
+      type: 'test'
+      ...
+    # Subtest: GET /api/v1/openapi.json serves the generated contract
+    ok 15 - GET /api/v1/openapi.json serves the generated contract
+      ---
+      duration_ms: 37.044375
+      type: 'test'
+      ...
+    # Subtest: every documented operation is routed
+    ok 16 - every documented operation is routed
+      ---
+      duration_ms: 340.74625
+      type: 'test'
+      ...
+    1..16
+ok 60 - OpenAPI contract
+  ---
+  duration_ms: 390.588167
+  type: 'suite'
+  ...
+# Subtest: failed-login rate limit
+    # Subtest: allows five failed attempts, then returns 429 RATE_LIMITED
+    ok 1 - allows five failed attempts, then returns 429 RATE_LIMITED
+      ---
+      duration_ms: 161.397792
+      type: 'test'
+      ...
+    # Subtest: blocks even correct credentials once the limit is reached
+    ok 2 - blocks even correct credentials once the limit is reached
+      ---
+      duration_ms: 37.615125
+      type: 'test'
+      ...
+    # Subtest: another IP has a separate limit
+    ok 3 - another IP has a separate limit
+      ---
+      duration_ms: 74.912209
+      type: 'test'
+      ...
+    # Subtest: a successful login does not consume the failed-attempt allowance
+    ok 4 - a successful login does not consume the failed-attempt allowance
+      ---
+      duration_ms: 32.790416
+      type: 'test'
+      ...
+    # Subtest: the window resets after 15 minutes, not before
+    ok 5 - the window resets after 15 minutes, not before
+      ---
+      duration_ms: 21.268125
+      type: 'test'
+      ...
+    # Subtest: does not limit /health or /me
+    ok 6 - does not limit /health or /me
+      ---
+      duration_ms: 19.01325
+      type: 'test'
+      ...
+    1..6
+ok 61 - failed-login rate limit
+  ---
+  duration_ms: 348.17225
+  type: 'suite'
+  ...
+# Subtest: client IP source
+    # Subtest: in 'socket' mode, spoofed X-Real-IP and X-Forwarded-For values share one limit
+    ok 1 - in 'socket' mode, spoofed X-Real-IP and X-Forwarded-For values share one limit
+      ---
+      duration_ms: 18.199375
+      type: 'test'
+      ...
+    # Subtest: in 'railway-x-real-ip' mode, X-Forwarded-For is ignored
+    ok 2 - in 'railway-x-real-ip' mode, X-Forwarded-For is ignored
+      ---
+      duration_ms: 27.186791
+      type: 'test'
+      ...
+    # Subtest: in 'railway-x-real-ip' mode, missing or invalid X-Real-IP values share one limit
+    ok 3 - in 'railway-x-real-ip' mode, missing or invalid X-Real-IP values share one limit
+      ---
+      duration_ms: 14.452666
+      type: 'test'
+      ...
+    1..3
+ok 62 - client IP source
+  ---
+  duration_ms: 60.194542
+  type: 'suite'
+  ...
+# Subtest: failed-login rate limit key: caller and email
+    # Subtest: a different email from the same caller has a separate allowance
+    ok 1 - a different email from the same caller has a separate allowance
+      ---
+      duration_ms: 15.806875
+      type: 'test'
+      ...
+    # Subtest: email case and surrounding spaces share one allowance
+    ok 2 - email case and surrounding spaces share one allowance
+      ---
+      duration_ms: 11.504333
+      type: 'test'
+      ...
+    # Subtest: the same email from a different caller IP has a separate allowance
+    ok 3 - the same email from a different caller IP has a separate allowance
+      ---
+      duration_ms: 19.708375
+      type: 'test'
+      ...
+    # Subtest: missing and non-string emails share one bounded sentinel bucket per caller
+    ok 4 - missing and non-string emails share one bounded sentinel bucket per caller
+      ---
+      duration_ms: 10.116708
+      type: 'test'
+      ...
+    # Subtest: spoofed forwarding headers still have no effect in socket mode
+    ok 5 - spoofed forwarding headers still have no effect in socket mode
+      ---
+      duration_ms: 9.871083
+      type: 'test'
+      ...
+    # Subtest: limiter state and logs never contain the plain email
+    ok 6 - limiter state and logs never contain the plain email
+      ---
+      duration_ms: 6.931875
+      type: 'test'
+      ...
+    # Subtest: a successful login does not consume that email’s allowance
+    ok 7 - a successful login does not consume that email’s allowance
+      ---
+      duration_ms: 9.998542
+      type: 'test'
+      ...
+    1..7
+ok 63 - failed-login rate limit key: caller and email
+  ---
+  duration_ms: 84.183583
+  type: 'suite'
+  ...
+# Subtest: readServerConfig
+    # Subtest: requires DATABASE_URL and JWT_SIGNING_KEY and validates the rest
+    ok 1 - requires DATABASE_URL and JWT_SIGNING_KEY and validates the rest
+      ---
+      duration_ms: 2.495708
+      type: 'test'
+      ...
+    # Subtest: OPENAI_API_KEY is optional; an empty value means no key
+    ok 2 - OPENAI_API_KEY is optional; an empty value means no key
+      ---
+      duration_ms: 0.152292
+      type: 'test'
+      ...
+    # Subtest: names the invalid variables without printing their values
+    ok 3 - names the invalid variables without printing their values
+      ---
+      duration_ms: 0.136583
+      type: 'test'
+      ...
+    1..3
+ok 64 - readServerConfig
+  ---
+  duration_ms: 3.195333
+  type: 'suite'
+  ...
+# Subtest: server process
+    # Subtest: missing configuration stops startup with a short error and exit code 1
+    ok 1 - missing configuration stops startup with a short error and exit code 1
+      ---
+      duration_ms: 839.090166
+      type: 'test'
+      ...
+    # Subtest: starts, answers /health, and shuts down cleanly on SIGTERM
+    ok 2 - starts, answers /health, and shuts down cleanly on SIGTERM
+      ---
+      duration_ms: 593.745917
+      type: 'test'
+      ...
+    1..2
+ok 65 - server process
+  ---
+  duration_ms: 1433.059667
+  type: 'suite'
+  ...
+# Subtest: lint policy for TypeScript source
+    # Subtest: rejects explicit any
+    ok 1 - rejects explicit any
+      ---
+      duration_ms: 1534.253709
+      type: 'test'
+      ...
+    # Subtest: rejects @ts-ignore
+    ok 2 - rejects @ts-ignore
+      ---
+      duration_ms: 2.745041
+      type: 'test'
+      ...
+    # Subtest: rejects @ts-nocheck
+    ok 3 - rejects @ts-nocheck
+      ---
+      duration_ms: 1.44375
+      type: 'test'
+      ...
+    # Subtest: rejects @ts-expect-error without a reason
+    ok 4 - rejects @ts-expect-error without a reason
+      ---
+      duration_ms: 0.987208
+      type: 'test'
+      ...
+    # Subtest: rejects unused values
+    ok 5 - rejects unused values
+      ---
+      duration_ms: 2.554458
+      type: 'test'
+      ...
+    # Subtest: accepts clean code
+    ok 6 - accepts clean code
+      ---
+      duration_ms: 2.632125
+      type: 'test'
+      ...
+    1..6
+ok 66 - lint policy for TypeScript source
+  ---
+  duration_ms: 1545.068167
+  type: 'suite'
+  ...
+# Subtest: local database isolation
+    # Subtest: the Docker init script creates acme_dev and grants the local user access
+    ok 1 - the Docker init script creates acme_dev and grants the local user access
+      ---
+      duration_ms: 3.928458
+      type: 'test'
+      ...
+    # Subtest: compose mounts the init script read-only and still creates acme_test
+    ok 2 - compose mounts the init script read-only and still creates acme_test
+      ---
+      duration_ms: 4.078208
+      type: 'test'
+      ...
+    # Subtest: project Compose commands still disable .env loading
+    ok 3 - project Compose commands still disable .env loading
+      ---
+      duration_ms: 3.421666
+      type: 'test'
+      ...
+    # Subtest: the destructive-test guard rejects acme_dev and accepts acme_test
+    ok 4 - the destructive-test guard rejects acme_dev and accepts acme_test
+      ---
+      duration_ms: 1.021792
+      type: 'test'
+      ...
+    1..4
+ok 67 - local database isolation
+  ---
+  duration_ms: 13.136125
+  type: 'suite'
+  ...
+# Subtest: exact money arithmetic
+    # Subtest: adds two-decimal strings exactly
+    ok 1 - adds two-decimal strings exactly
+      ---
+      duration_ms: 0.532875
+      type: 'test'
+      ...
+    # Subtest: accepts only exact two-decimal strings
+    ok 2 - accepts only exact two-decimal strings
+      ---
+      duration_ms: 0.20925
+      type: 'test'
+      ...
+    # Subtest: converts INR to USD by dividing by the INR-per-USD rate, half-up to cents
+    ok 3 - converts INR to USD by dividing by the INR-per-USD rate, half-up to cents
+      ---
+      duration_ms: 0.132792
+      type: 'test'
+      ...
+    # Subtest: USD values use rate 1 and stay unchanged
+    ok 4 - USD values use rate 1 and stay unchanged
+      ---
+      duration_ms: 0.098875
+      type: 'test'
+      ...
+    # Subtest: INR without a rate has no USD equivalent
+    ok 5 - INR without a rate has no USD equivalent
+      ---
+      duration_ms: 0.043125
+      type: 'test'
+      ...
+    # Subtest: subtracts exactly and keeps the sign
+    ok 6 - subtracts exactly and keeps the sign
+      ---
+      duration_ms: 0.052292
+      type: 'test'
+      ...
+    # Subtest: adds signed two-decimal strings exactly
+    ok 7 - adds signed two-decimal strings exactly
+      ---
+      duration_ms: 0.104125
+      type: 'test'
+      ...
+    # Subtest: averages exactly, half-up to cents
+    ok 8 - averages exactly, half-up to cents
+      ---
+      duration_ms: 0.158333
+      type: 'test'
+      ...
+    1..8
+ok 68 - exact money arithmetic
+  ---
+  duration_ms: 1.859292
+  type: 'suite'
+  ...
+# Subtest: exchange-rate snapshot
+    # Subtest: the saved fixture holds the recorded Federal Reserve H.10 values
+    ok 1 - the saved fixture holds the recorded Federal Reserve H.10 values
+      ---
+      duration_ms: 14.895792
+      type: 'test'
+      ...
+    # Subtest: rejects a snapshot whose direction is not USD base and INR quote
+    ok 2 - rejects a snapshot whose direction is not USD base and INR quote
+      ---
+      duration_ms: 0.684708
+      type: 'test'
+      ...
+    1..2
+ok 69 - exchange-rate snapshot
+  ---
+  duration_ms: 15.69375
+  type: 'suite'
+  ...
+# Subtest: scrubs forbidden keys recursively without changing input or salary evidence
+ok 70 - scrubs forbidden keys recursively without changing input or salary evidence
+  ---
+  duration_ms: 0.799334
+  type: 'test'
+  ...
+# Subtest: bounded JSON rejects oversize and unsupported objects without truncation
+ok 71 - bounded JSON rejects oversize and unsupported objects without truncation
+  ---
+  duration_ms: 0.19975
+  type: 'test'
+  ...
+# Subtest: trace transition permits one terminal change only
+ok 72 - trace transition permits one terminal change only
+  ---
+  duration_ms: 0.059167
+  type: 'test'
+  ...
+# Subtest: review accepts only approved verdict and bounded note
+ok 73 - review accepts only approved verdict and bounded note
+  ---
+  duration_ms: 0.055791
+  type: 'test'
+  ...
+# Subtest: retention arguments default dry-run and guard destructive execution
+ok 74 - retention arguments default dry-run and guard destructive execution
+  ---
+  duration_ms: 0.317417
+  type: 'test'
+  ...
+# Subtest: retention cutoff uses an injected clock and whole days
+ok 75 - retention cutoff uses an injected clock and whole days
+  ---
+  duration_ms: 7.133
+  type: 'test'
+  ...
+# Subtest: OpenAI Responses adapter
+    # Subtest: sends a stateless Responses request with strict function tools only
+    ok 1 - sends a stateless Responses request with strict function tools only
+      ---
+      duration_ms: 0.89225
+      type: 'test'
+      ...
+    # Subtest: maps function calls, then replays output items and sends tool outputs by call ID
+    ok 2 - maps function calls, then replays output items and sends tool outputs by call ID
+      ---
+      duration_ms: 0.4045
+      type: 'test'
+      ...
+    # Subtest: an empty reply is an invalid_response failure
+    ok 3 - an empty reply is an invalid_response failure
+      ---
+      duration_ms: 0.243792
+      type: 'test'
+      ...
+    # Subtest: SDK errors map to failure categories without provider text
+    ok 4 - SDK errors map to failure categories without provider text
+      ---
+      duration_ms: 0.422083
+      type: 'test'
+      ...
+    # Subtest: reports the request ID, provider, model, and token counts only
+    ok 5 - reports the request ID, provider, model, and token counts only
+      ---
+      duration_ms: 0.378291
+      type: 'test'
+      ...
+    # Subtest: creating the real-SDK adapter and opening a session makes no request
+    ok 6 - creating the real-SDK adapter and opening a session makes no request
+      ---
+      duration_ms: 1.093
+      type: 'test'
+      ...
+    1..6
+ok 76 - OpenAI Responses adapter
+  ---
+  duration_ms: 3.954125
+  type: 'suite'
+  ...
+# Subtest: hashPassword
+    # Subtest: returns an Argon2id hash, not the submitted password
+    ok 1 - returns an Argon2id hash, not the submitted password
+      ---
+      duration_ms: 30.703667
+      type: 'test'
+      ...
+    # Subtest: uses the documented Argon2id parameters
+    ok 2 - uses the documented Argon2id parameters
+      ---
+      duration_ms: 14.508375
+      type: 'test'
+      ...
+    # Subtest: two hashes of the same password use different salts
+    ok 3 - two hashes of the same password use different salts
+      ---
+      duration_ms: 43.364125
+      type: 'test'
+      ...
+    # Subtest: rejects an empty, non-string, or over-long password without echoing it
+    ok 4 - rejects an empty, non-string, or over-long password without echoing it
+      ---
+      duration_ms: 0.361334
+      type: 'test'
+      ...
+    1..4
+ok 77 - hashPassword
+  ---
+  duration_ms: 89.532334
+  type: 'suite'
+  ...
+# Subtest: verifyPassword
+    # Subtest: the correct password verifies
+    ok 1 - the correct password verifies
+      ---
+      duration_ms: 34.3825
+      type: 'test'
+      ...
+    # Subtest: an incorrect password fails
+    ok 2 - an incorrect password fails
+      ---
+      duration_ms: 112.971375
+      type: 'test'
+      ...
+    # Subtest: a malformed stored hash fails without exposing the password
+    ok 3 - a malformed stored hash fails without exposing the password
+      ---
+      duration_ms: 0.561291
+      type: 'test'
+      ...
+    1..3
+ok 78 - verifyPassword
+  ---
+  duration_ms: 148.514875
+  type: 'suite'
+  ...
+# Subtest: generateTemporaryPassword
+    # Subtest: is at least 12 characters from the approved alphabet, and never repeats
+    ok 1 - is at least 12 characters from the approved alphabet, and never repeats
+      ---
+      duration_ms: 24.870584
+      type: 'test'
+      ...
+    1..1
+ok 79 - generateTemporaryPassword
+  ---
+  duration_ms: 25.238459
+  type: 'suite'
+  ...
+# Subtest: preview token
+    # Subtest: round-trips a binding and expires five minutes after signing
+    ok 1 - round-trips a binding and expires five minutes after signing
+      ---
+      duration_ms: 10.981416
+      type: 'test'
+      ...
+    # Subtest: carries only identifiers, versions, mode, and a digest
+    ok 2 - carries only identifiers, versions, mode, and a digest
+      ---
+      duration_ms: 1.473666
+      type: 'test'
+      ...
+    # Subtest: rejects a token at and after expiry
+    ok 3 - rejects a token at and after expiry
+      ---
+      duration_ms: 2.490041
+      type: 'test'
+      ...
+    # Subtest: belongs to one actor, session, employee, and confirmation mode
+    ok 4 - belongs to one actor, session, employee, and confirmation mode
+      ---
+      duration_ms: 2.851583
+      type: 'test'
+      ...
+    # Subtest: rejects tampered tokens, other keys, and session JWTs
+    ok 5 - rejects tampered tokens, other keys, and session JWTs
+      ---
+      duration_ms: 4.767459
+      type: 'test'
+      ...
+    # Subtest: verifyIgnoringExpiry accepts only an authentic, bound token whose time has passed
+    ok 6 - verifyIgnoringExpiry accepts only an authentic, bound token whose time has passed
+      ---
+      duration_ms: 4.644375
+      type: 'test'
+      ...
+    # Subtest: the digest changes when any bound field changes
+    ok 7 - the digest changes when any bound field changes
+      ---
+      duration_ms: 0.472584
+      type: 'test'
+      ...
+    1..7
+ok 80 - preview token
+  ---
+  duration_ms: 28.412541
+  type: 'suite'
+  ...
+# Subtest: seed-demo-users command
+    # Subtest: refuses APP_ENV=production before connecting
+    ok 1 - refuses APP_ENV=production before connecting
+      ---
+      duration_ms: 310.587125
+      type: 'test'
+      ...
+    # Subtest: refuses a missing demo password
+    ok 2 - refuses a missing demo password
+      ---
+      duration_ms: 123.97325
+      type: 'test'
+      ...
+    # Subtest: refuses a missing DATABASE_URL
+    ok 3 - refuses a missing DATABASE_URL
+      ---
+      duration_ms: 145.252125
+      type: 'test'
+      ...
+    # Subtest: never prints passwords or the database URL
+    ok 4 - never prints passwords or the database URL
+      ---
+      duration_ms: 167.799542
+      type: 'test'
+      ...
+    1..4
+ok 81 - seed-demo-users command
+  ---
+  duration_ms: 748.266875
+  type: 'suite'
+  ...
+# Subtest: assertSeedAllowed
+    # Subtest: refuses to run without --replace
+    ok 1 - refuses to run without --replace
+      ---
+      duration_ms: 1.164875
+      type: 'test'
+      ...
+    # Subtest: refuses APP_ENV=production
+    ok 2 - refuses APP_ENV=production
+      ---
+      duration_ms: 0.080709
+      type: 'test'
+      ...
+    # Subtest: refuses a missing or unknown APP_ENV
+    ok 3 - refuses a missing or unknown APP_ENV
+      ---
+      duration_ms: 0.083125
+      type: 'test'
+      ...
+    # Subtest: accepts development, test, and demo
+    ok 4 - accepts development, test, and demo
+      ---
+      duration_ms: 0.127041
+      type: 'test'
+      ...
+    1..4
+ok 82 - assertSeedAllowed
+  ---
+  duration_ms: 1.851875
+  type: 'suite'
+  ...
+# Subtest: seed-database command: refusals before any database work
+    # Subtest: exits non-zero without --replace
+    ok 1 - exits non-zero without --replace
+      ---
+      duration_ms: 380.39925
+      type: 'test'
+      ...
+    # Subtest: exits non-zero for APP_ENV=production
+    ok 2 - exits non-zero for APP_ENV=production
+      ---
+      duration_ms: 377.172209
+      type: 'test'
+      ...
+    # Subtest: exits non-zero for a missing APP_ENV
+    ok 3 - exits non-zero for a missing APP_ENV
+      ---
+      duration_ms: 245.876625
+      type: 'test'
+      ...
+    # Subtest: exits non-zero for a missing DATABASE_URL
+    ok 4 - exits non-zero for a missing DATABASE_URL
+      ---
+      duration_ms: 229.114
+      type: 'test'
+      ...
+    # Subtest: exits non-zero for an unknown option
+    ok 5 - exits non-zero for an unknown option
+      ---
+      duration_ms: 241.398084
+      type: 'test'
+      ...
+    1..5
+ok 83 - seed-database command: refusals before any database work
+  ---
+  duration_ms: 1474.515417
+  type: 'suite'
+  ...
+# Subtest: seed-database command: output
+    # Subtest: does not print the database URL or password when the connection fails
+    ok 1 - does not print the database URL or password when the connection fails
+      ---
+      duration_ms: 656.565458
+      type: 'test'
+      ...
+    # Subtest: exits non-zero with a short message for a missing workbook
+    ok 2 - exits non-zero with a short message for a missing workbook
+      ---
+      duration_ms: 232.982875
+      type: 'test'
+      ...
+    1..2
+ok 84 - seed-database command: output
+  ---
+  duration_ms: 1540.41975
+  type: 'suite'
+  ...
+# Subtest: session tokens
+    # Subtest: sessions last two hours
+    ok 1 - sessions last two hours
+      ---
+      duration_ms: 5.839
+      type: 'test'
+      ...
+    # Subtest: the JWT contains only sub, sid, iat, and exp
+    ok 2 - the JWT contains only sub, sid, iat, and exp
+      ---
+      duration_ms: 7.196542
+      type: 'test'
+      ...
+    # Subtest: a valid token verifies to the HR user and session IDs
+    ok 3 - a valid token verifies to the HR user and session IDs
+      ---
+      duration_ms: 21.151041
+      type: 'test'
+      ...
+    # Subtest: an invalid signature fails
+    ok 4 - an invalid signature fails
+      ---
+      duration_ms: 2.78825
+      type: 'test'
+      ...
+    # Subtest: an expired token fails at and after exactly two hours
+    ok 5 - an expired token fails at and after exactly two hours
+      ---
+      duration_ms: 1.852291
+      type: 'test'
+      ...
+    # Subtest: an unsigned or differently signed token fails
+    ok 6 - an unsigned or differently signed token fails
+      ---
+      duration_ms: 2.54225
+      type: 'test'
+      ...
+    # Subtest: a token with an extra or missing claim fails
+    ok 7 - a token with an extra or missing claim fails
+      ---
+      duration_ms: 2.53125
+      type: 'test'
+      ...
+    # Subtest: a malformed token fails
+    ok 8 - a malformed token fails
+      ---
+      duration_ms: 0.499958
+      type: 'test'
+      ...
+    1..8
+ok 85 - session tokens
+  ---
+  duration_ms: 46.174667
+  type: 'suite'
+  ...
+# Subtest: readSigningKey
+    # Subtest: reads JWT_SIGNING_KEY from the injected environment
+    ok 1 - reads JWT_SIGNING_KEY from the injected environment
+      ---
+      duration_ms: 0.482542
+      type: 'test'
+      ...
+    # Subtest: rejects a key shorter than 32 bytes without printing it
+    ok 2 - rejects a key shorter than 32 bytes without printing it
+      ---
+      duration_ms: 0.324
+      type: 'test'
+      ...
+    1..2
+ok 86 - readSigningKey
+  ---
+  duration_ms: 0.958958
+  type: 'suite'
+  ...
+# Subtest: createSourceWorkbook: written workbook read back with ExcelJS
+    # Subtest: is a valid .xlsx workbook
+    ok 1 - is a valid .xlsx workbook
+      ---
+      duration_ms: 2.670917
+      type: 'test'
+      ...
+    # Subtest: contains one worksheet named Employees
+    ok 2 - contains one worksheet named Employees
+      ---
+      duration_ms: 0.46
+      type: 'test'
+      ...
+    # Subtest: contains one header row and 10,000 employee rows
+    ok 3 - contains one header row and 10,000 employee rows
+      ---
+      duration_ms: 4.632208
+      type: 'test'
+      ...
+    # Subtest: has the approved headers in the approved order
+    ok 4 - has the approved headers in the approved order
+      ---
+      duration_ms: 0.197166
+      type: 'test'
+      ...
+    # Subtest: freezes the first row
+    ok 5 - freezes the first row
+      ---
+      duration_ms: 0.127625
+      type: 'test'
+      ...
+    # Subtest: enables filters over the complete data range
+    ok 6 - enables filters over the complete data range
+      ---
+      duration_ms: 0.09175
+      type: 'test'
+      ...
+    # Subtest: writes salary and bonus as numeric cells with a two-decimal format
+    ok 7 - writes salary and bonus as numeric cells with a two-decimal format
+      ---
+      duration_ms: 7.115083
+      type: 'test'
+      ...
+    # Subtest: writes dates as YYYY-MM-DD text
+    ok 8 - writes dates as YYYY-MM-DD text
+      ---
+      duration_ms: 18.2015
+      type: 'test'
+      ...
+    # Subtest: contains no formula cells
+    ok 9 - contains no formula cells
+      ---
+      duration_ms: 5.097458
+      type: 'test'
+      ...
+    # Subtest: adds Excel validation lists to controlled columns
+    ok 10 - adds Excel validation lists to controlled columns
+      ---
+      duration_ms: 0.471583
+      type: 'test'
+      ...
+    # Subtest: stores each validation list as one non-overlapping column range
+    ok 11 - stores each validation list as one non-overlapping column range
+      ---
+      duration_ms: 34.4245
+      type: 'test'
+      ...
+    # Subtest: round-trips the same logical data that the generator produced
+    ok 12 - round-trips the same logical data that the generator produced
+      ---
+      duration_ms: 31.498666
+      type: 'test'
+      ...
+    1..12
+ok 87 - createSourceWorkbook: written workbook read back with ExcelJS
+  ---
+  duration_ms: 1161.501458
+  type: 'suite'
+  ...
+# Subtest: writeValidatedWorkbook: safe output behaviour
+    # Subtest: does not create the workbook when data validation fails
+    ok 1 - does not create the workbook when data validation fails
+      ---
+      duration_ms: 42.436625
+      type: 'test'
+      ...
+    # Subtest: does not overwrite an existing file without the overwrite option
+    ok 2 - does not overwrite an existing file without the overwrite option
+      ---
+      duration_ms: 0.687167
+      type: 'test'
+      ...
+    # Subtest: replaces an existing file when overwrite is true
+    ok 3 - replaces an existing file when overwrite is true
+      ---
+      duration_ms: 841.877292
+      type: 'test'
+      ...
+    1..3
+ok 88 - writeValidatedWorkbook: safe output behaviour
+  ---
+  duration_ms: 905.204959
+  type: 'suite'
+  ...
+# Subtest: requireTestDatabaseUrl
+    # Subtest: accepts a mysql URL whose database name ends with _test
+    ok 1 - accepts a mysql URL whose database name ends with _test
+      ---
+      duration_ms: 3.960916
+      type: 'test'
+      ...
+    # Subtest: rejects mysql://u:p@127.0.0.1:3317/acme
+    ok 2 - rejects mysql://u:p@127.0.0.1:3317/acme
+      ---
+      duration_ms: 0.472666
+      type: 'test'
+      ...
+    # Subtest: rejects mysql://u:p@127.0.0.1:3317/acme_test_copy
+    ok 3 - rejects mysql://u:p@127.0.0.1:3317/acme_test_copy
+      ---
+      duration_ms: 0.10625
+      type: 'test'
+      ...
+    # Subtest: rejects mysql://u:p@127.0.0.1:3317/test
+    ok 4 - rejects mysql://u:p@127.0.0.1:3317/test
+      ---
+      duration_ms: 0.083875
+      type: 'test'
+      ...
+    # Subtest: rejects mysql://u:p@127.0.0.1:3317/acme_TEST
+    ok 5 - rejects mysql://u:p@127.0.0.1:3317/acme_TEST
+      ---
+      duration_ms: 0.091333
+      type: 'test'
+      ...
+    # Subtest: rejects mysql://acme_test:p@127.0.0.1:3317/acme
+    ok 6 - rejects mysql://acme_test:p@127.0.0.1:3317/acme
+      ---
+      duration_ms: 0.096084
+      type: 'test'
+      ...
+    # Subtest: rejects mysql://u:p@127.0.0.1:3317/
+    ok 7 - rejects mysql://u:p@127.0.0.1:3317/
+      ---
+      duration_ms: 0.050417
+      type: 'test'
+      ...
+    # Subtest: rejects a missing or non-mysql URL
+    ok 8 - rejects a missing or non-mysql URL
+      ---
+      duration_ms: 0.189584
+      type: 'test'
+      ...
+    # Subtest: does not include the password in error messages
+    ok 9 - does not include the password in error messages
+      ---
+      duration_ms: 0.246292
+      type: 'test'
+      ...
+    1..9
+ok 89 - requireTestDatabaseUrl
+  ---
+  duration_ms: 6.8235
+  type: 'suite'
+  ...
+# Subtest: readEmployeeWorkbook: approved generated workbook
+    # Subtest: reads all 10,000 employee rows
+    ok 1 - reads all 10,000 employee rows
+      ---
+      duration_ms: 0.337125
+      type: 'test'
+      ...
+    # Subtest: maps selected rows exactly, with money as exact decimal strings
+    ok 2 - maps selected rows exactly, with money as exact decimal strings
+      ---
+      duration_ms: 1.65275
+      type: 'test'
+      ...
+    1..2
+ok 90 - readEmployeeWorkbook: approved generated workbook
+  ---
+  duration_ms: 1173.91225
+  type: 'suite'
+  ...
+# Subtest: readEmployeeWorkbook: structure
+    # Subtest: accepts a small valid workbook
+    ok 1 - accepts a small valid workbook
+      ---
+      duration_ms: 10.446666
+      type: 'test'
+      ...
+    # Subtest: rejects a workbook without an Employees worksheet
+    ok 2 - rejects a workbook without an Employees worksheet
+      ---
+      duration_ms: 6.787042
+      type: 'test'
+      ...
+    # Subtest: rejects a workbook with an extra worksheet
+    ok 3 - rejects a workbook with an extra worksheet
+      ---
+      duration_ms: 5.958959
+      type: 'test'
+      ...
+    # Subtest: rejects a missing header
+    ok 4 - rejects a missing header
+      ---
+      duration_ms: 5.976417
+      type: 'test'
+      ...
+    # Subtest: rejects an unexpected header
+    ok 5 - rejects an unexpected header
+      ---
+      duration_ms: 5.532792
+      type: 'test'
+      ...
+    # Subtest: rejects a repeated header
+    ok 6 - rejects a repeated header
+      ---
+      duration_ms: 5.986042
+      type: 'test'
+      ...
+    # Subtest: rejects headers in the wrong order
+    ok 7 - rejects headers in the wrong order
+      ---
+      duration_ms: 7.327917
+      type: 'test'
+      ...
+    # Subtest: rejects an empty workbook
+    ok 8 - rejects an empty workbook
+      ---
+      duration_ms: 7.173958
+      type: 'test'
+      ...
+    # Subtest: rejects a workbook with headers but no employee rows
+    ok 9 - rejects a workbook with headers but no employee rows
+      ---
+      duration_ms: 4.513708
+      type: 'test'
+      ...
+    # Subtest: rejects a formula cell
+    ok 10 - rejects a formula cell
+      ---
+      duration_ms: 5.174084
+      type: 'test'
+      ...
+    1..10
+ok 91 - readEmployeeWorkbook: structure
+  ---
+  duration_ms: 65.390333
+  type: 'suite'
+  ...
+# Subtest: readEmployeeWorkbook: cell values
+    # Subtest: rejects an invalid employee row by using the existing validator
+    ok 1 - rejects an invalid employee row by using the existing validator
+      ---
+      duration_ms: 5.227459
+      type: 'test'
+      ...
+    # Subtest: rejects salary stored as text
+    ok 2 - rejects salary stored as text
+      ---
+      duration_ms: 5.243875
+      type: 'test'
+      ...
+    # Subtest: rejects a date stored as an Excel date cell
+    ok 3 - rejects a date stored as an Excel date cell
+      ---
+      duration_ms: 5.518584
+      type: 'test'
+      ...
+    # Subtest: does not include cell values in error messages
+    ok 4 - does not include cell values in error messages
+      ---
+      duration_ms: 7.776541
+      type: 'test'
+      ...
+    1..4
+ok 92 - readEmployeeWorkbook: cell values
+  ---
+  duration_ms: 24.065083
+  type: 'suite'
+  ...
+# Subtest: toDecimalString
+    # Subtest: formats numbers as exact two-decimal strings
+    ok 1 - formats numbers as exact two-decimal strings
+      ---
+      duration_ms: 0.118792
+      type: 'test'
+      ...
+    # Subtest: rejects more than two decimal places instead of rounding
+    ok 2 - rejects more than two decimal places instead of rounding
+      ---
+      duration_ms: 0.097958
+      type: 'test'
+      ...
+    1..2
+ok 93 - toDecimalString
+  ---
+  duration_ms: 0.2895
+  type: 'suite'
+  ...
+1..93
+# tests 464
+# suites 87
+# pass 464
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5909.097875
+real 6.07
+user 29.99
+sys 4.90
