@@ -174,3 +174,38 @@ Prakhar reported from a screenshot that, on the desktop HR Access list, the drop
 - No Git commands were run and nothing was committed.
 - No `.env` file was read or written.
 - No backend files or `docs_human` files were changed. The backend was only built and run inside the lane.
+
+## Follow-up: flaky test
+
+Source: `/Users/admin/Desktop/Projects/incubyte_take_home_deploy/builder_docs/parent_instructions/issues/12-frontend-hr-access-test-flaky.md`. The test was `tests/component/hr-access-workspace.test.tsx` › "offers password regeneration after a create replay without rendering a missing password". It failed with `Unable to find role="button" and name "Create HR user"`.
+
+**Cause: shared state between tests.** A focus move scheduled by the previous test fired inside this one. The cause was not slow timing, and it was not the Activity reset.
+
+- After a preview, the workspace calls `requestAnimationFrame(() => document.getElementById('preview-heading')?.focus())`. Confirm does the same for `credential-heading`, `saved-heading` and `action-alert`. Nothing cancelled these frames when the component unmounted.
+- The test before the flaky one ("keeps the unsaved draft after a stale confirmation") ends right after its second preview, with frames still pending. `cleanup()` unmounted it, and the next test rendered a new workspace whose preview heading has the same `id`.
+- Under load the old frame fired late, while the flaky test was typing its display name. It moved focus to the new `#preview-heading`, so the keystrokes went to the heading.
+
+**Evidence.**
+- The DOM at failure showed Display name `value=""`, Email filled, India and Tech checked, and the form disabled with "A new Scoped HR user needs at least one country and one department". With no display name, the preview never ran, so the Create HR user button never appeared.
+- An experiment delayed each frame by 40 ms and logged focus changes. It reproduced the failure on every run of the file alone, and the log showed `create-display-name -> preview-heading` inside the flaky test.
+- The deploy worktree has no Task 06 code (283 tests) and flakes too. That fits, because the unguarded frames date from Task 05.
+- Raising the `findByRole` timeout would not have helped, because the button was never going to appear.
+
+**Fix (code), in `src/app/hr-access/hr-access-workspace.tsx`:**
+- The four focus moves now go through `focusSoon(id)`, which keeps the pending frame id in a ref and cancels any earlier frame.
+- The existing hide/unmount `useLayoutEffect` cleanup now also cancels the pending frame.
+- This is a real product fix as well. A frame still pending when Activity hid the route could have moved focus into another page's element with the same id.
+
+**Fix (tests), in `tests/component/hr-access-workspace.test.tsx`:**
+- The first test types again after its own preview. It now waits for `Preview: nothing has changed yet` to have focus before typing, so it no longer races its own frame.
+- New regression test: "cancels a pending focus move when the workspace unmounts". It captures the scheduled frame, unmounts, and expects `cancelAnimationFrame` to be called with that frame's id.
+- With the cancel line removed, this new test and the original flaky test both fail. With the cancel line in place, all 7 tests in the file pass.
+
+**Verification:**
+- `eslint` on both files and `tsc --noEmit` pass.
+- 10 consecutive full `npx vitest run`, each exit 0 with 299 passed (299). Before the fix I reproduced the failure on run 8 of 8.
+- No retries were added and no timeouts were raised.
+
+**For the deploy worktree:** that worktree still has the unguarded frames, so this fix needs to reach it before its `npm run check` is fully stable. I did not touch it.
+
+No Git commands were run, no `.env` file was read, and no backend files were changed.
