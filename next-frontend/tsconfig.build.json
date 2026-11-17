@@ -1,0 +1,9 @@
+{
+  // Used only by `next build` (next.config.ts → typescript.tsconfigPath).
+  // The production build type-checks app code only. Tests are checked by
+  // `npm run typecheck` with tsconfig.json. Some e2e support files import
+  // ../express-backend, which does not exist when this service is built alone
+  // (Railway root directory = next-frontend).
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "tests", "playwright.config.ts", "vitest.config.ts", "vitest.config.mts"]
+}
