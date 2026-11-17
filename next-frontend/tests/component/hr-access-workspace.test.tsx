@@ -28,6 +28,8 @@ it('marks an exact preview out of date after any form edit and requires another 
   expect((await screen.findAllByText('India + Tech')).length).toBeGreaterThan(0);
   expect(screen.getByText((_, element) => element?.tagName === 'P' && element.textContent?.includes('Estimated employees in access: 12') === true)).toBeVisible();
   expect(screen.getByRole('button',{name:'Create HR user'})).toBeEnabled();
+  // The preview moves focus to its heading on the next frame; wait for it before typing again.
+  await waitFor(()=>expect(screen.getByRole('heading',{name:'Preview: nothing has changed yet'})).toHaveFocus());
   await user.type(screen.getByLabelText('Display name'),' updated');
   expect(screen.getByText('Out of date: your inputs or the current record changed. Preview again.')).toBeVisible();
   expect(screen.queryByRole('button',{name:'Create HR user'})).not.toBeInTheDocument();
@@ -124,6 +126,21 @@ it('starts blank after the route is hidden and shown again, and drops a late res
   await waitFor(()=>expect(screen.getByLabelText('Display name')).toHaveValue(''));
   expect(screen.getByText('Create a preview to see the exact result. Previewing writes nothing.')).toBeVisible();
   expect(screen.getByRole('button',{name:'Preview change'})).toBeInTheDocument();
+});
+
+// The flaky "create replay" test: a focus frame scheduled by one test fired inside the next one and
+// took focus while it typed. Unmounting must cancel it.
+it('cancels a pending focus move when the workspace unmounts', async () => {
+  mocked.preview.mockResolvedValue({ ok:true, preview });
+  const frames: FrameRequestCallback[] = [];
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => frames.push(cb));
+  const cancel = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+  const user=userEvent.setup();
+  const view = render(<HrAccessWorkspace operation="SCOPES" user={hrUser as never} />);
+  await user.click(screen.getByRole('button',{name:'Preview change'}));
+  await waitFor(()=>expect(frames.length).toBe(1));
+  view.unmount();
+  expect(cancel).toHaveBeenCalledWith(1);
 });
 
 it('resets a regenerate form to a blank reason on the next visit', async () => {

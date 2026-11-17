@@ -47,10 +47,18 @@ export function HrAccessWorkspace({ operation, user, self = false }: Props) {
   // blank, the one-time password is gone, and a result for an older generation is dropped.
   const generation = useRef(0);
   const latestUser = useRef(user);
+  // Focus moves after the next frame. A frame still pending when the route is hidden or unmounted
+  // is cancelled, so it cannot move focus into another page's element with the same id.
+  const focusFrame = useRef<number | null>(null);
+  function focusSoon(id: string) {
+    if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
+    focusFrame.current = requestAnimationFrame(() => { focusFrame.current = null; document.getElementById(id)?.focus(); });
+  }
   useLayoutEffect(() => { latestUser.current = user; }, [user]);
   useLayoutEffect(() => {
     return () => {
       generation.current += 1;
+      if (focusFrame.current !== null) { cancelAnimationFrame(focusFrame.current); focusFrame.current = null; }
       setDraft(initialDraft(latestUser.current));
       setPreview(null); setPreviewState(null); setKey(''); setBusy(false); setError(null);
       setCurrent(null); setSaved(null); setCredential(null); setCopied(''); setRevealPassword(false);
@@ -101,7 +109,7 @@ export function HrAccessWorkspace({ operation, user, self = false }: Props) {
     setBusy(false);
     if (!outcome.ok) { setPreview(null); setPreviewState(null); setError(reasons[outcome.kind] ?? 'The preview could not be created.'); return; }
     setPreview(outcome.preview); setPreviewState('ready'); setKey(crypto.randomUUID()); setCurrent(null);
-    requestAnimationFrame(() => document.getElementById('preview-heading')?.focus());
+    focusSoon('preview-heading');
   }
   async function confirm() {
     if (!preview || previewState !== 'ready' || !key) return;
@@ -111,7 +119,7 @@ export function HrAccessWorkspace({ operation, user, self = false }: Props) {
     if (started !== generation.current) return;
     setBusy(false);
     if (!outcome.ok) {
-      if (outcome.kind === 'STALE_VERSION') { setCurrent(outcome.current ?? null); setPreviewState('stale'); setError(reasons.STALE_VERSION); requestAnimationFrame(() => document.getElementById('action-alert')?.focus()); return; }
+      if (outcome.kind === 'STALE_VERSION') { setCurrent(outcome.current ?? null); setPreviewState('stale'); setError(reasons.STALE_VERSION); focusSoon('action-alert'); return; }
       if (['UNAVAILABLE','TIMEOUT','SERVICE_UNAVAILABLE'].includes(outcome.kind)) { setError('We could not confirm whether this was saved. Nothing is shown as changed. Check again reusing this key, or view the current record.'); return; }
       setPreviewState(['PREVIEW_EXPIRED','PREVIEW_INVALID','PREVIEW_MISMATCH'].includes(outcome.kind) ? 'expired' : null);
       setError(reasons[outcome.kind] ?? 'The change could not be confirmed.'); return;
@@ -120,11 +128,11 @@ export function HrAccessWorkspace({ operation, user, self = false }: Props) {
     if ('credentialRecoveryRequired' in result) {
       setCredential({ value: result.temporaryPassword ?? '', notice: result.temporaryPasswordNotice, recovery: result.credentialRecoveryRequired, hrUser: result.hrUser });
       setSaved(result.hrUser); setPreview(null); setPreviewState(null);
-      requestAnimationFrame(() => document.getElementById('credential-heading')?.focus());
+      focusSoon('credential-heading');
     } else {
       setPreview(null); setPreviewState(null);
       if (result.changed) router.replace(`/hr-access/${result.hrUser.hrUserId}`);
-      else { setSaved(result.hrUser); requestAnimationFrame(() => document.getElementById('saved-heading')?.focus()); }
+      else { setSaved(result.hrUser); focusSoon('saved-heading'); }
     }
   }
   async function copyPassword() {
