@@ -60,3 +60,34 @@ export async function resetTestDatabase(databaseUrl: unknown): Promise<void> {
     await connection.end();
   }
 }
+
+/**
+ * The demo-import tests need a target whose name ends in _demo. They use the
+ * sibling of the guarded test database on the same server: `<name>_test`
+ * becomes `<name>_demo` (for example acme_ai_backend_demo). It must already
+ * exist and be writable by the same user.
+ */
+export function siblingDemoDatabaseUrl(): string {
+  const testUrl = testDatabaseUrl();
+  const name = requireTestDatabaseUrl(testUrl);
+  const url = new URL(testUrl);
+  url.pathname = `/${name.replace(/_test$/, '_demo')}`;
+  return url.toString();
+}
+
+/** Drops every table in the sibling _demo database; refuses any other database. */
+export async function resetSiblingDemoDatabase(): Promise<void> {
+  const expected = requireTestDatabaseUrl(testDatabaseUrl()).replace(/_test$/, '_demo');
+  const databaseUrl = siblingDemoDatabaseUrl();
+  const connection = await mysql.createConnection({ uri: databaseUrl });
+  try {
+    const [current] = await selectRows(connection, 'SELECT DATABASE() AS current');
+    if (current?.current !== expected) throw new Error('connected database is not the sibling demo database');
+    const tables = await selectRows(connection, 'SELECT table_name AS name FROM information_schema.tables WHERE table_schema = ?', [expected]);
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    for (const { name: table } of tables) await connection.query('DROP TABLE ??', [table]);
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+  } finally {
+    await connection.end();
+  }
+}
