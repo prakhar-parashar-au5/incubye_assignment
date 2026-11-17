@@ -19,4 +19,12 @@ The Admin half of Task 02, plus a monitoring dashboard:
 - Handle 403, 404 (unknown or deleted), stale review, partial failure, unavailable backend, session expiry, and large JSON.
 - Desktop, mobile, keyboard, focus, zoom, and accessibility per the accepted shape.
 
-Use the same lane (3326 / 4226) as Task 02a. All other rules, tests, and the response format follow Task 02. Write `responses/02b-admin-traces-and-monitoring-ui.md`.
+Use the same lane (3326 / 4226) as Task 02a.
+
+## Test data (Q-E1 / Q-E2 answered)
+
+The planner chose Option B: the backend is adding a guarded command, `npm run eval:trace-fixtures -- --database acme_ai_traces_e2e_test --apply`, that writes every trace shape you asked for (completed no-tool/one-tool/multi-tool, rejected with redacted password, tool failed, provider timeout, `OUTCOME_NOT_RECORDED`, `STARTED`, reviewed, two-turn conversation, MCP SUCCEEDED/REJECTED/FAILED) spread over 30 days. No scripted model adapter will exist (Q-E1 is no).
+
+- Build the Overview and the pages against the frozen contract and your component tests now.
+- The planner will merge the fixture command into this worktree when it is accepted. Then run `db:migrate` (007 and 008 must apply), the fixture command with `APP_ENV=test`, rebuild and restart the 4226 backend, and run the real-backend journeys.
+- Until then, do not hand-insert rows or write your own seed script. All other rules, tests, and the response format follow Task 02. Write `responses/02b-admin-traces-and-monitoring-ui.md`.

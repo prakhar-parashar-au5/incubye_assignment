@@ -1,4 +1,4 @@
-import { CircleAlert } from "lucide-react";
+import { CircleAlert, ShieldAlert } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -48,6 +48,19 @@ export function NoticeAlert({ title, children }: { title: string; children: Reac
       <CircleAlert aria-hidden="true" />
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription className="text-foreground">{children}</AlertDescription>
+    </Alert>
+  );
+}
+
+/** The backend answered 403: the signed-in HR user is not current Admin HR. Nothing else is shown. */
+export function ForbiddenState({ area }: { area: string }) {
+  return (
+    <Alert variant="destructive" className="mt-8 max-w-2xl">
+      <ShieldAlert aria-hidden="true" />
+      <AlertTitle className="text-[#7d1a14]">Admin HR only</AlertTitle>
+      <AlertDescription className="text-[#7d1a14]">
+        <p>Your HR role cannot view {area}.</p>
+      </AlertDescription>
     </Alert>
   );
 }

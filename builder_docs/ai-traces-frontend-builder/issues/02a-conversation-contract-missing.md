@@ -1,6 +1,10 @@
 # Blocker: conversation contract missing from this worktree
 
-Status: BLOCKED
+Status: RESOLVED
+
+Resolution: the AI backend contract was merged into this worktree. Re-check found the four conversation operations (`listAssistantConversations`, `createAssistantConversation`, `getAssistantConversation`, `sendAssistantConversationMessage`), `withheld` (4 occurrences), `sendAssistantMessages` marked deprecated, and `03a-persistent-assistant-review-fixes.md` present. Contract SHA-256 at re-check: `fe42c8c5210adf8a6a4b593e9ed42d28d75b52c9c716314e0edb95c48b838374`.
+
+Original status: BLOCKED
 Task: AI traces frontend Task 02a (saved conversations UI)
 Agent lane: AI traces frontend builder
 Worktree: /Users/admin/Desktop/Projects/incubyte_take_home_ai_traces_ui (branch `feature/ai-traces-frontend` per the handoff)

@@ -11,14 +11,14 @@ import { ADMIN_QUEUE_HREF } from "@/lib/salary";
 import { signOut } from "@/server/actions/auth";
 
 // Application shell: a navy rail on desktop, a compact navy header on mobile. Dashboard,
-// Employees, Salary requests, and Assistant are built; the other sections are listed as plain
+// Employees, Salary requests, Assistant, and (Admin HR only) AI monitoring are built; the other sections are listed as plain
 // text marked "Coming later", never as controls.
 
 export type ShellIdentity = { name: string; role: string; scope: string; isAdmin: boolean };
 
 const LATER_SECTIONS = ["HR Access"] as const;
 
-export type ShellSection = "dashboard" | "employees" | "requests" | "assistant";
+export type ShellSection = "dashboard" | "employees" | "requests" | "assistant" | "monitoring";
 
 // Admin HR opens the approval queue (pending, oldest first); Scoped HR opens their request list.
 const sections = (isAdmin: boolean): { id: ShellSection; label: string; href: string }[] => [
@@ -26,6 +26,8 @@ const sections = (isAdmin: boolean): { id: ShellSection; label: string; href: st
   { id: "employees", label: "Employees", href: "/employees" },
   { id: "requests", label: "Salary requests", href: isAdmin ? ADMIN_QUEUE_HREF : "/salary-requests" },
   { id: "assistant", label: "Assistant", href: "/assistant" },
+  // Presentation only: the backend answers 403 to anyone who is not current Admin HR.
+  ...(isAdmin ? [{ id: "monitoring" as const, label: "AI monitoring", href: "/admin/ai-monitoring" }] : []),
 ];
 
 function Navigation({ className, current, isAdmin }: { className?: string; current: ShellSection; isAdmin: boolean }) {

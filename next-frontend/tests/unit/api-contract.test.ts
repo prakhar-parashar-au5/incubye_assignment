@@ -17,7 +17,7 @@ describe("generated frontend contract", () => {
     expect(stdout).toContain("Generated API contract is current.");
   });
 
-  it("contains exactly the allowlisted authentication and directory operations", () => {
+  it("contains exactly the allowlisted operations, and not the deprecated browser-history assistant endpoint", () => {
     const operationIds = Object.values(contract.paths).flatMap((item) =>
       Object.values(item).map((operation) => (operation as { operationId: string }).operationId),
     );
@@ -28,7 +28,18 @@ describe("generated frontend contract", () => {
       "listEmployees",
       "login",
       "logout",
-      "sendAssistantMessages",
+      "listAssistantConversations",
+      "createAssistantConversation",
+      "getAssistantConversation",
+      "sendAssistantConversationMessage",
+      "getAdminAiTraceSummary",
+      "getAdminAiTraceOptions",
+      "listAdminAiTraces",
+      "getAdminAiTrace",
+      "reviewAdminAiTrace",
+      "deleteAdminAiTrace",
+      "listAdminMcpToolCalls",
+      "getAdminMcpToolCall",
       "previewSalaryAdjustment",
       "applySalaryAdjustment",
       "submitSalaryAdjustmentRequest",
@@ -43,8 +54,30 @@ describe("generated frontend contract", () => {
     ].sort());
     expect(Object.keys(contract.components.schemas).sort()).toEqual([
       "AssistantCard",
-      "AssistantMessagesRequest",
-      "AssistantMessagesResponse",
+      "AdminMcpDetailResponse",
+      "AdminMcpListItem",
+      "AdminMcpListResponse",
+      "AdminModelCall",
+      "AdminToolCall",
+      "AdminTraceDeleteResponse",
+      "AdminTraceDetailResponse",
+      "AdminTraceListItem",
+      "AdminTraceListResponse",
+      "AdminTraceOptionsResponse",
+      "AdminTraceReview",
+      "AdminTraceReviewRequest",
+      "AdminTraceReviewResponse",
+      "AdminTraceSummaryResponse",
+      "AiHrUser",
+      "AssistantConversationCreateRequest",
+      "AssistantConversationDetailResponse",
+      "AssistantConversationListResponse",
+      "AssistantConversationMessage",
+      "AssistantConversationResponse",
+      "AssistantConversationSummary",
+      "AssistantConversationTurn",
+      "AssistantMessageRequest",
+      "AssistantTurnResponse",
       "AssistantMoney",
       "CompensationHistoryEntry",
       "CompensationSummaryCard",
@@ -111,6 +144,8 @@ describe("generated frontend contract", () => {
       | "INVALID_SCOPE"
       | "SELF_PASSWORD_REGENERATION_FORBIDDEN"
       | "SERVICE_UNAVAILABLE"
+      | "MODEL_PROVIDER_FAILED"
+      | "ASSISTANT_TURN_IN_PROGRESS"
     >();
     expectTypeOf<paths["/api/v1/auth/login"]["post"]>().toEqualTypeOf<operations["login"]>();
     expectTypeOf<keyof paths>().toEqualTypeOf<
@@ -120,7 +155,16 @@ describe("generated frontend contract", () => {
       | "/api/v1/employees"
       | "/api/v1/employees/{employeeCode}"
       | "/api/v1/employee-directory/options"
-      | "/api/v1/assistant/messages"
+      | "/api/v1/assistant/conversations"
+      | "/api/v1/assistant/conversations/{conversationId}"
+      | "/api/v1/assistant/conversations/{conversationId}/messages"
+      | "/api/v1/admin/ai-traces"
+      | "/api/v1/admin/ai-traces/options"
+      | "/api/v1/admin/ai-traces/summary"
+      | "/api/v1/admin/ai-traces/{traceId}"
+      | "/api/v1/admin/ai-traces/{traceId}/review"
+      | "/api/v1/admin/mcp-tool-calls"
+      | "/api/v1/admin/mcp-tool-calls/{mcpCallId}"
       | "/api/v1/employees/{employeeCode}/salary-adjustments/preview"
       | "/api/v1/employees/{employeeCode}/salary-adjustments"
       | "/api/v1/employees/{employeeCode}/salary-adjustment-requests"
