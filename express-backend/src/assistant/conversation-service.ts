@@ -333,7 +333,7 @@ export function createConversationService({ store, assistant, logger, clock = ()
     const model = assistant.model ?? UNCONFIGURED_MODEL;
 
     const now = clock();
-    const prompt = assistant.prompt(now.toISOString().slice(0, 10));
+    const prompt = assistant.prompt(now.toISOString().slice(0, 10), principal.role);
     const messages: ModelMessage[] = [...selectHistory(conversation, { excludeTraceId: retryOfTraceId, principal }), { role: 'user', content }];
     const previousTraceId = retryOfTraceId ?? conversation.turns.at(-1)?.id;
     const started = performance.now();

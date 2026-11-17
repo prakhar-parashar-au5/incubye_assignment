@@ -15,6 +15,7 @@ import type { DirectoryService } from '../directory/directory-repository.js';
 import type { ExchangeRateSnapshot } from '../directory/exchange-rate.js';
 import type { AssistantCard, DirectoryResponse, EmployeeDetailResponse } from '../http/contract.js';
 import { addMoney, averageMoney, convertToUsd, subtractMoney } from '../money/decimal.js';
+import { APPROVED_COUNTRIES } from '../seed/reference-data.js';
 import type { Currency } from '../source-workbook/constants.js';
 import type { ChangeRow, CompensationInsights, InsightEmployeeRow, SummaryRow } from './compensation-insights.js';
 import { DEFAULT_LIMITS, TOOL_INPUT_SCHEMAS, TOOL_NAMES } from './tool-schemas.js';
@@ -50,6 +51,26 @@ export interface ToolRegistry {
   definitions: readonly ToolDefinition[];
   run(name: string, args: unknown, context: ToolContext): Promise<ToolOutcome>;
 }
+
+const COUNTRY_NAMES: ReadonlyMap<string, string> = new Map(APPROVED_COUNTRIES.map((c) => [c.code, c.name]));
+
+/**
+ * Eval-01 D1: the fixed statement of a Scoped HR user's coverage, from the
+ * principal's current scope (never model wording). Added to every ranking,
+ * summary, and recent-change result so neither the answer nor the UI can
+ * present a scoped figure as company-wide. Admin HR: null.
+ */
+export function scopeLimitation(principal: Pick<Principal, 'role' | 'countries' | 'departments'>): string | null {
+  if (principal.role === 'ADMIN') return null;
+  const countries = [...principal.countries].sort().map((code) => COUNTRY_NAMES.get(code) ?? code);
+  const departments = [...principal.departments].sort();
+  if (countries.length === 0 || departments.length === 0) return 'Covers only employees in your access: none.';
+  return `Covers only employees in your access: ${countries.join(', ')}; ${departments.join(', ')}.`;
+}
+const withScope = (principal: Principal, limitations: string[]): string[] => {
+  const scope = scopeLimitation(principal);
+  return scope === null ? limitations : [scope, ...limitations];
+};
 
 /** A row reached a tool that the caller may not see. Never expected: SQL already filters. */
 export class ScopeViolationError extends Error {
@@ -211,7 +232,7 @@ export function createToolRegistry({ directory, insights, exchangeRate }: {
       assertPermitted(principal, employees);
       const metricLabel = metric === 'ANNUAL_BASE' ? 'annual base salary' : 'annual cash compensation';
       const basis = result.comparedInUsd ? `${metricLabel}, compared in USD` : `${metricLabel} in ${String(currency)}`;
-      const limitations = ['Ranks currently working employees only.'];
+      const limitations = withScope(principal, ['Ranks currently working employees only.']);
       if (result.comparedInUsd && exchangeRate !== null) limitations.push(`INR and USD were compared by USD equivalent. ${rateContext(exchangeRate)}`);
       return {
         data: {
@@ -254,7 +275,7 @@ export function createToolRegistry({ directory, insights, exchangeRate }: {
         };
       });
       assertPermitted(principal, changes);
-      const limitations = ['The initial import is not counted as a salary change.'];
+      const limitations = withScope(principal, ['The initial import is not counted as a salary change.']);
       if (totalMatching > changes.length) limitations.push(`Showing ${changes.length} of ${totalMatching} changes.`);
       if (changes.length === 0) {
         const message = `No compensation changes were recorded in the last ${dayLabel(days)} for employees you can access. The initial import is not counted as a change.`;
@@ -285,10 +306,10 @@ export function createToolRegistry({ directory, insights, exchangeRate }: {
           usdEquivalent: usdTotal === null || usdAverage === null ? null : { total: usdTotal, average: usdAverage },
         };
       });
-      const limitations = [
+      const limitations = withScope(principal, [
         'Covers currently working employees only.',
         'Each native currency is totalled separately; INR and USD are never added together.',
-      ];
+      ]);
       if (exchangeRate !== null) limitations.push(`USD equivalents are context, not authoritative totals. ${rateContext(exchangeRate)}`);
       if (groups.length === 0) {
         const message = 'No permitted currently working employees to summarise.';

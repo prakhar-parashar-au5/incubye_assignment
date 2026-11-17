@@ -100,7 +100,7 @@ describe('recorded turns', () => {
     assert.deepEqual(call?.start, {
       traceId: value.traceId, provider: 'fake', model: 'fake-model',
       input: { instructions: h.model?.requests[0]?.instructions, messages: [{ role: 'user', content: 'Hi' }], exchanges: [] },
-      tools: (call?.start as { tools: unknown }).tools, promptVersion: 'assistant-instructions-v1',
+      tools: (call?.start as { tools: unknown }).tools, promptVersion: 'assistant-instructions-v2',
       promptHash: h.fake.traces[0]?.promptHash, startedAt: '2026-11-15 09:30:00.000',
     });
     assert.deepEqual((call?.start as { tools: { name: string }[] }).tools.map((t) => t.name), [...TOOL_NAMES]);
