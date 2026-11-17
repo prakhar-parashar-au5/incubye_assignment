@@ -415,6 +415,35 @@ describe('HTTP assistant and MCP with real authentication', () => {
     }
   });
 
+  // Detects (Task 04): an unrecorded MCP call, an AI trace written for MCP, or a recorded result outside the caller's scope.
+  test('MCP calls are recorded in mcp_tool_calls only, with scrubbed arguments and in-scope results', async () => {
+    const count = async (table: string) => Number((await selectRows(pool, `SELECT COUNT(*) AS n FROM ${table}`))[0]?.n);
+    const before = { traces: await count('ai_traces'), models: await count('ai_model_calls'), tools: await count('ai_tool_calls') };
+    const [rohan] = await selectRows(pool, "SELECT id FROM hr_users WHERE email = 'rohan.mehta@acme.com'");
+    const known = new Set((await selectRows(pool, 'SELECT id FROM mcp_tool_calls')).map((r) => String(r.id)));
+    const client = await mcpClient(rohanToken);
+    try {
+      assert.equal((await client.callTool({ name: 'get_top_compensated_employees', arguments: { metric: 'ANNUAL_CASH', limit: 10 } })).isError ?? false, false);
+      assert.equal((await client.callTool({ name: 'search_employees', arguments: { query: 'x', password: 'hunter2-mcp' } })).isError, true);
+    } finally {
+      await client.close();
+    }
+    const rows = (await selectRows(pool, 'SELECT * FROM mcp_tool_calls WHERE hr_user_id = ? ORDER BY started_at, id', [rohan?.id])).filter((r) => !known.has(String(r.id)));
+    assert.deepEqual(rows.map((r) => [r.tool_name, r.validation_status, r.status, r.result === null]).sort(), [
+      ['get_top_compensated_employees', 'VALID', 'SUCCEEDED', false],
+      ['search_employees', 'REJECTED', 'REJECTED', true],
+    ]);
+    const rejected = rows.find((r) => r.status === 'REJECTED');
+    assert.deepEqual([rejected?.requested_arguments, rejected?.validation_errors], [{ query: 'x', password: '[REDACTED]' }, { reason: 'INVALID_ARGUMENTS' }]);
+    const succeeded = rows.find((r) => r.status === 'SUCCEEDED');
+    const codes = [...JSON.stringify(succeeded?.result).matchAll(/ACME\d{5}/g)].map((m) => m[0]);
+    assert.ok(codes.length > 0);
+    const placements = await selectRows(pool, `SELECT e.employee_code, e.country_code, d.name AS department FROM employees e
+      JOIN job_titles j ON j.id = e.job_title_id JOIN departments d ON d.id = j.department_id WHERE e.employee_code IN (${codes.map(() => '?').join(',')})`, codes);
+    assert.ok(placements.every((p) => p.country_code === 'IN' && ['Tech', 'Support'].includes(String(p.department))), 'every recorded employee is in Rohan\'s scope');
+    assert.deepEqual({ traces: await count('ai_traces'), models: await count('ai_model_calls'), tools: await count('ai_tool_calls') }, before, 'MCP writes no AI trace, model-call, or tool-call row');
+  });
+
   // Detects: a mutation or SQL tool reachable through MCP.
   test('MCP lists only the five read-only tools and rejects unknown tool names', async () => {
     const client = await mcpClient(rohanToken);

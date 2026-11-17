@@ -24,6 +24,7 @@
     "measure:directory": "tsx scripts/measure-directory.ts",
     "measure:dashboard": "tsx scripts/measure-dashboard.ts",
     "eval:assistant": "tsx scripts/eval-assistant.ts",
+    "eval:oracle-fixtures": "tsx scripts/eval-oracle-fixtures.ts",
     "start": "node dist/src/server.js"
   },
   "dependencies": {
