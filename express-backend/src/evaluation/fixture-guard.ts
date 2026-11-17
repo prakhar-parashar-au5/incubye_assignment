@@ -5,6 +5,7 @@ import type { Pool, RowDataPacket } from 'mysql2/promise';
 
 export const FIXTURE_APP_ENVS = Object.freeze(['development', 'test', 'demo'] as const);
 export const SAFE_DATABASE_NAME = /^[a-z0-9_]+_(test|demo)$/;
+export type DatabaseSuffix = 'test' | 'demo';
 
 export class FixtureRefusedError extends Error {
   constructor(message: string) {
@@ -13,17 +14,23 @@ export class FixtureRefusedError extends Error {
   }
 }
 
-/** Pure guard. Inputs are untrusted. */
-export function assertFixtureTargetAllowed({ appEnv, databaseName, confirmDatabase }: { appEnv: unknown; databaseName: unknown; confirmDatabase: unknown }): void {
+/**
+ * Pure guard. Inputs are untrusted. `suffixes` narrows the accepted name
+ * endings (default: _test or _demo); the demo import uses it to require a
+ * _test source and a _demo target. `flag` names the confirming CLI flag.
+ */
+export function assertFixtureTargetAllowed({ appEnv, databaseName, confirmDatabase, suffixes = ['test', 'demo'], flag = '--database' }: {
+  appEnv: unknown; databaseName: unknown; confirmDatabase: unknown; suffixes?: readonly DatabaseSuffix[]; flag?: string;
+}): void {
   if (appEnv === 'production') throw new FixtureRefusedError('refusing: APP_ENV=production. Fixtures are for an isolated test or demo database only');
   if (typeof appEnv !== 'string' || !(FIXTURE_APP_ENVS as readonly string[]).includes(appEnv)) {
     throw new FixtureRefusedError(`refusing: APP_ENV must be one of ${FIXTURE_APP_ENVS.join(', ')}`);
   }
-  if (typeof databaseName !== 'string' || !SAFE_DATABASE_NAME.test(databaseName)) {
-    throw new FixtureRefusedError('refusing: the database name must end with _test or _demo');
+  if (typeof databaseName !== 'string' || !SAFE_DATABASE_NAME.test(databaseName) || !suffixes.some((s) => databaseName.endsWith(`_${s}`))) {
+    throw new FixtureRefusedError(`refusing: the ${flag === '--database' ? '' : `${flag.replace(/^--|-database$/g, '')} `}database name must end with ${suffixes.map((s) => `_${s}`).join(' or ')}`);
   }
   if (confirmDatabase !== databaseName) {
-    throw new FixtureRefusedError('refusing: --database must repeat the target database name exactly');
+    throw new FixtureRefusedError(`refusing: ${flag} must repeat the ${flag === '--database' ? 'target' : flag.replace(/^--|-database$/g, '')} database name exactly`);
   }
 }
 
@@ -34,7 +41,7 @@ export async function assertConnectedDatabase(pool: Pool, databaseName: string):
 }
 
 /** Both guards, in order. */
-export async function assertFixtureTarget(pool: Pool, target: { appEnv: unknown; databaseName: string; confirmDatabase: unknown }): Promise<void> {
+export async function assertFixtureTarget(pool: Pool, target: { appEnv: unknown; databaseName: string; confirmDatabase: unknown; suffixes?: readonly DatabaseSuffix[]; flag?: string }): Promise<void> {
   assertFixtureTargetAllowed(target);
   await assertConnectedDatabase(pool, target.databaseName);
 }

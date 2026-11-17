@@ -27,14 +27,19 @@
     "eval:assistant": "tsx scripts/eval-assistant.ts",
     "eval:oracle-fixtures": "tsx scripts/eval-oracle-fixtures.ts",
     "eval:trace-fixtures": "tsx scripts/eval-trace-fixtures.ts",
+    "demo:import-ai-data": "tsx scripts/demo-import-ai-data.ts",
+    "demo:mcp-calls": "tsx scripts/demo-mcp-calls.ts",
+    "demo:scenario": "tsx scripts/demo-scenario.ts",
     "db:create:dist": "node dist/scripts/create-database.js",
     "db:migrate:dist": "node dist/scripts/migrate.js",
     "db:seed:dist": "node dist/scripts/seed-database.js",
     "db:seed-demo-users:dist": "node dist/scripts/seed-demo-users.js",
     "ai:retention:dist": "node dist/scripts/ai-retention.js",
+    "demo:mcp-calls:dist": "node dist/scripts/demo-mcp-calls.js",
     "start": "node dist/src/server.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
     "@modelcontextprotocol/node": "2.1.2",
     "@modelcontextprotocol/server": "2.4.0",
     "argon2": "0.45.2",
@@ -48,7 +53,6 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
-    "@modelcontextprotocol/client": "2.4.0",
     "@types/express": "5.0.6",
     "@types/node": "22.20.5",
     "@types/supertest": "7.2.1",
