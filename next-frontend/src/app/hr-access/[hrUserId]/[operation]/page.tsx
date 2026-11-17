@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { Suspense, type ReactNode } from 'react';
 
 import { AppShell, AppShellSkeleton } from '@/components/shell/app-shell';
+import { HR_ACCESS_SERVICE } from '@/lib/hr-access';
 import { ServiceUnavailable, UnexpectedResponse } from '@/components/shell/page-states';
 import { HrAccessWorkspace } from '@/app/hr-access/hr-access-workspace';
 import type { HrAccessOperation } from '@/server/actions/hr-access';
@@ -21,12 +22,12 @@ async function OperationPage({params}:Props){
   const result=token?await api().getHrUser(token,id):null;
   redirectIfUnauthenticated(result&&!result.ok?result.kind:undefined);
   const shell=(children:ReactNode)=><AppShell identity={user?identityOf(user):null} current="hr-access">{children}</AppShell>;
-  if(!user)return shell(<ServiceUnavailable retryHref={`/hr-access/${id}/${slug}`}/>);
+  if(!user)return shell(<ServiceUnavailable retryHref={`/hr-access/${id}/${slug}`} service={HR_ACCESS_SERVICE} />);
   if(!result||!result.ok){
     if(result?.kind==='FORBIDDEN')return shell(<Forbidden/>);
     if(result?.kind==='NOT_FOUND')notFound();
     if(result?.kind==='INVALID_RESPONSE')return shell(<UnexpectedResponse retryHref={`/hr-access/${id}/${slug}`}/>);
-    return shell(<ServiceUnavailable retryHref={`/hr-access/${id}/${slug}`}/>);
+    return shell(<ServiceUnavailable retryHref={`/hr-access/${id}/${slug}`} service={HR_ACCESS_SERVICE} />);
   }
   const hr=result.data.hrUser;
   if(slug==='regenerate-password'&&hr.hrUserId===user.id)return shell(<section className="max-w-2xl"><h1 className="text-[1.75rem] font-semibold">Regenerate temporary password</h1><p role="alert" className="mt-5 rounded-md border border-[#e5cf9f] bg-[#fbf4e4] p-4">Ask another active Admin HR user to regenerate your temporary password.</p><Link href={`/hr-access/${id}`} className="mt-4 inline-block text-sm text-primary underline">Return to HR user</Link></section>);

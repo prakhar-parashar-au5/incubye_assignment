@@ -5,7 +5,7 @@ import { Suspense } from 'react';
 
 import { AppShell, AppShellSkeleton } from '@/components/shell/app-shell';
 import { ServiceUnavailable, UnexpectedResponse } from '@/components/shell/page-states';
-import { accessText, auditActionLabel, countryName, roleLabel, statusLabel } from '@/lib/hr-access';
+import { accessText, auditActionLabel, countryName, roleLabel, statusLabel, HR_ACCESS_SERVICE } from '@/lib/hr-access';
 import { safeReturnPath } from '@/lib/directory-url';
 import { api } from '@/server/api/client';
 import { identityOf, loadSessionAndToken, redirectIfUnauthenticated, requireUser } from '@/server/protected';
@@ -24,17 +24,17 @@ async function Detail({ params, searchParams }: Props) {
   const audit = token && detail?.ok ? await api().listHrUserAccessAudit(token, id, { page, pageSize: 25 }) : null;
   redirectIfUnauthenticated(detail && !detail.ok ? detail.kind : undefined, audit && !audit.ok ? audit.kind : undefined);
   const shell = (content: React.ReactNode) => <AppShell identity={user ? identityOf(user) : null} current="hr-access">{content}</AppShell>;
-  if (!user) return shell(<ServiceUnavailable retryHref={`/hr-access/${id}`} />);
+  if (!user) return shell(<ServiceUnavailable retryHref={`/hr-access/${id}`} service={HR_ACCESS_SERVICE} />);
   if (!detail || !detail.ok) {
     if (detail?.kind === 'FORBIDDEN') return shell(<Forbidden />);
     if (detail?.kind === 'NOT_FOUND') notFound();
     if (detail?.kind === 'INVALID_RESPONSE') return shell(<UnexpectedResponse retryHref={`/hr-access/${id}`} />);
-    return shell(<ServiceUnavailable retryHref={`/hr-access/${id}`} />);
+    return shell(<ServiceUnavailable retryHref={`/hr-access/${id}`} service={HR_ACCESS_SERVICE} />);
   }
   if (!audit || !audit.ok) {
     if (audit?.kind === 'FORBIDDEN') return shell(<Forbidden />);
     if (audit?.kind === 'INVALID_RESPONSE') return shell(<UnexpectedResponse retryHref={`/hr-access/${id}`} />);
-    return shell(<ServiceUnavailable retryHref={`/hr-access/${id}`} />);
+    return shell(<ServiceUnavailable retryHref={`/hr-access/${id}`} service={HR_ACCESS_SERVICE} />);
   }
   const hr = detail.data.hrUser;
   const eventPage = audit.data.page;

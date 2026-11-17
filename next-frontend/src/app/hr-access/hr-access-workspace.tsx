@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Copy } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -24,9 +24,13 @@ const departmentOptions = ['Tech', 'HR', 'Finance', 'Operations', 'Support'];
 const labels: Record<HrAccessOperation,string> = { CREATE:'Create HR user', PROFILE:'Change display name', PROMOTE:'Promote to Admin HR', SCOPES:'Change scope', DEACTIVATE:'Deactivate access', REACTIVATE:'Reactivate access', REGENERATE_PASSWORD:'Regenerate temporary password' };
 const reasons: Record<string,string> = { STALE_VERSION:'This HR user changed while you were working. Review the current state, then preview again.', DUPLICATE_OPERATION:'This action was already submitted with different details. Reload to see the current state.', LAST_ACTIVE_ADMIN:'You cannot deactivate the last active Admin HR user. Activate or create another Admin first.', EMAIL_TAKEN:'An HR user with this email already exists.', INVALID_SCOPE:'Review the country and department scopes.', SELF_PASSWORD_REGENERATION_FORBIDDEN:'Ask another active Admin HR user to regenerate your temporary password.', PREVIEW_EXPIRED:'This preview has expired. Preview again.', PREVIEW_INVALID:'This preview is no longer valid. Preview again.', PREVIEW_MISMATCH:'The submitted details do not match this preview. Preview again.', SERVICE_UNAVAILABLE:'The service is temporarily unavailable. Try again.', UNAVAILABLE:'The service did not respond. Try again.', TIMEOUT:'The request took too long. Check again before starting another operation.', UNAUTHENTICATED:'Your session ended. Sign in again.', FORBIDDEN:'HR Access is available to Admin HR only.', INVALID_INPUT:'Review the required fields and try again.', VALIDATION_ERROR:'Review the required fields and try again.' };
 
+function initialDraft(user?: HrUserDetail): Draft {
+  return { displayName: user?.displayName ?? '', email: '', role: 'SCOPED', countries: [...(user?.countries ?? [])], departments: [...(user?.departments ?? [])], reason: '' };
+}
+
 export function HrAccessWorkspace({ operation, user, self = false }: Props) {
   const router = useRouter();
-  const [draft, setDraft] = useState<Draft>({ displayName: user?.displayName ?? '', email: '', role: 'SCOPED', countries: [...(user?.countries ?? [])], departments: [...(user?.departments ?? [])], reason: '' });
+  const [draft, setDraft] = useState<Draft>(() => initialDraft(user));
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewState, setPreviewState] = useState<'ready'|'stale'|'expired'|null>(null);
   const [key, setKey] = useState('');
@@ -38,6 +42,20 @@ export function HrAccessWorkspace({ operation, user, self = false }: Props) {
   const [copied, setCopied] = useState<string>('');
   const [revealPassword, setRevealPassword] = useState(false);
   const isCreate = operation === 'CREATE';
+  // With cacheComponents, React Activity keeps a visited route mounted but hidden, so state would
+  // survive navigation (QA run 03, D4). Hiding the route runs this cleanup: every visit starts
+  // blank, the one-time password is gone, and a result for an older generation is dropped.
+  const generation = useRef(0);
+  const latestUser = useRef(user);
+  useLayoutEffect(() => { latestUser.current = user; }, [user]);
+  useLayoutEffect(() => {
+    return () => {
+      generation.current += 1;
+      setDraft(initialDraft(latestUser.current));
+      setPreview(null); setPreviewState(null); setKey(''); setBusy(false); setError(null);
+      setCurrent(null); setSaved(null); setCredential(null); setCopied(''); setRevealPassword(false);
+    };
+  }, []);
 
   useEffect(() => {
     if (!preview || previewState !== 'ready') return;
@@ -77,7 +95,9 @@ export function HrAccessWorkspace({ operation, user, self = false }: Props) {
   }
   async function runPreview() {
     setBusy(true); setError(null); setSaved(null); setCredential(null);
+    const started = generation.current;
     const outcome: PreviewOutcome = await previewHrAccess(operation, user?.hrUserId ?? null, body());
+    if (started !== generation.current) return;
     setBusy(false);
     if (!outcome.ok) { setPreview(null); setPreviewState(null); setError(reasons[outcome.kind] ?? 'The preview could not be created.'); return; }
     setPreview(outcome.preview); setPreviewState('ready'); setKey(crypto.randomUUID()); setCurrent(null);
@@ -86,7 +106,9 @@ export function HrAccessWorkspace({ operation, user, self = false }: Props) {
   async function confirm() {
     if (!preview || previewState !== 'ready' || !key) return;
     setBusy(true); setError(null);
+    const started = generation.current;
     const outcome: ConfirmOutcome = await confirmHrAccess({ operation, targetId: user?.hrUserId ?? null, body: body(true), idempotencyKey: key });
+    if (started !== generation.current) return;
     setBusy(false);
     if (!outcome.ok) {
       if (outcome.kind === 'STALE_VERSION') { setCurrent(outcome.current ?? null); setPreviewState('stale'); setError(reasons.STALE_VERSION); requestAnimationFrame(() => document.getElementById('action-alert')?.focus()); return; }
@@ -113,7 +135,7 @@ export function HrAccessWorkspace({ operation, user, self = false }: Props) {
   function leaveCredential() {
     if (!credential) return;
     const id = credential.hrUser.hrUserId;
-    setCredential(null); setCopied(''); router.replace(`/hr-access/${id}`);
+    setCredential(null); setCopied(''); setRevealPassword(false); setSaved(null); router.replace(`/hr-access/${id}`);
   }
   const title = labels[operation];
 

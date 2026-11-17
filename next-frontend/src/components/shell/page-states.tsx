@@ -7,11 +7,20 @@ import { buttonVariants } from "@/components/ui/button";
 // Page-level failure states shared by protected pages. None shows backend messages, codes, or
 // stack traces.
 
-export function ServiceUnavailable({ retryHref, className }: { retryHref: string; className?: string }) {
+export function ServiceUnavailable({
+  retryHref,
+  className,
+  service = "The compensation service",
+}: {
+  retryHref: string;
+  className?: string;
+  /** Which service did not respond; HR Access pages pass their own name. */
+  service?: string;
+}) {
   return (
     <Alert variant="destructive" className={className ?? "mt-8 max-w-2xl"}>
       <CircleAlert aria-hidden="true" />
-      <AlertTitle className="text-[#7d1a14]">The compensation service is not responding</AlertTitle>
+      <AlertTitle className="text-[#7d1a14]">{service} is not responding</AlertTitle>
       <AlertDescription className="text-[#7d1a14]">
         <p>Your session has not been ended. Try again in a moment.</p>
         <p>

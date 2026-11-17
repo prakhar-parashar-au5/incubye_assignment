@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { hrAccessSearch, type HrAccessQuery } from '@/lib/hr-access';
+import { defaultHrDirection, hrAccessSearch, type HrAccessQuery } from '@/lib/hr-access';
 
 type Props = { query: HrAccessQuery };
 type Draft = Pick<HrAccessQuery,'role'|'status'|'country'|'department'|'sort'|'direction'>;
@@ -27,8 +27,8 @@ export function HrAccessMobileFilters({query}:Props){
         <Select id="hr-mobile-status" label="Status" value={draft.status??'ACTIVE'} onChange={(value)=>setDraft((old)=>({...old,status:value as Draft['status']}))}><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="ALL">Active and inactive</option></Select>
         <Select id="hr-mobile-country" label="Country scope" value={draft.country??''} onChange={(value)=>setDraft((old)=>({...old,country:(value||undefined) as Draft['country']}))}><option value="">All countries</option><option value="IN">India</option><option value="US">United States</option></Select>
         <Select id="hr-mobile-department" label="Department scope" value={draft.department??''} onChange={(value)=>setDraft((old)=>({...old,department:(value||undefined) as Draft['department']}))}><option value="">All departments</option>{['Tech','HR','Finance','Operations','Support'].map((name)=><option key={name}>{name}</option>)}</Select>
-        <Select id="hr-mobile-sort" label="Sort by" value={draft.sort??'updatedAt'} onChange={(value)=>setDraft((old)=>({...old,sort:value as Draft['sort'],direction:value==='updatedAt'?'desc':'asc'}))}><option value="updatedAt">Last updated</option><option value="name">Name</option><option value="email">Email</option></Select>
-        <Select id="hr-mobile-direction" label="Order" value={draft.direction??(draft.sort==='updatedAt'?'desc':'asc')} onChange={(value)=>setDraft((old)=>({...old,direction:value as Draft['direction']}))}><option value="asc">Ascending</option><option value="desc">Descending</option></Select>
+        <Select id="hr-mobile-sort" label="Sort by" value={draft.sort??'updatedAt'} onChange={(value)=>setDraft((old)=>({...old,sort:value as Draft['sort'],direction:defaultHrDirection(value as Draft['sort'])}))}><option value="updatedAt">Last updated</option><option value="name">Name</option><option value="email">Email</option></Select>
+        <Select id="hr-mobile-direction" label="Order" value={draft.direction??defaultHrDirection(draft.sort)} onChange={(value)=>setDraft((old)=>({...old,direction:value as Draft['direction']}))}><option value="asc">Ascending</option><option value="desc">Descending</option></Select>
       </div>
       <SheetFooter className="border-t border-line px-5 py-4"><Button type="button" onClick={apply}>Apply</Button><Button type="button" variant="outline" onClick={clear}>Clear filters</Button><SheetClose render={<Button type="button" variant="ghost"/>}>Cancel</SheetClose></SheetFooter>
     </SheetContent>
