@@ -20,6 +20,18 @@ npm run generate:workbook -- --help
 
 Defaults: seed `20261114`, generation date `2026-11-14`. The generator never uses the computer's date, the network, a database, or `.env` files. It refuses to replace an existing file unless `--overwrite` is given. Exit codes: `0` success, `1` existing output or invalid data, `2` invalid command input.
 
+Compiled commands for production images (no `tsx`; run after `npm run build`, work with production dependencies only):
+
+```sh
+npm run db:create:dist            # CREATE DATABASE IF NOT EXISTS for the database named in DATABASE_URL
+npm run db:migrate:dist
+npm run db:seed:dist -- --replace # APP_ENV=development|test|demo only
+npm run db:seed-demo-users:dist
+npm run ai:retention:dist -- --retention-days 30
+```
+
+`npm run db:create` is the `tsx` equivalent of the first. Deployment: [`../docs/deploy/railway-runbook.md`](../docs/deploy/railway-runbook.md).
+
 ## Layout
 
 | File | Concern |
