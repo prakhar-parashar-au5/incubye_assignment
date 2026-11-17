@@ -1,0 +1,135 @@
+{
+  "kind": "acme-ai-evaluation-oracle-manifest",
+  "manifestVersion": 1,
+  "mode": "APPLIED",
+  "evaluationClock": "2026-11-17T09:13:30.900Z",
+  "evaluationDate": "2026-11-17",
+  "recentWindowDays": 30,
+  "database": "acme_ai_eval_test",
+  "migrations": [
+    "001_initial_schema.sql",
+    "002_hr_access_control.sql",
+    "003_salary_adjustments.sql",
+    "004_hr_access_management.sql",
+    "005_ai_observability.sql",
+    "006_temporary_password_regeneration.sql",
+    "007_ai_trace_actor_scope.sql",
+    "008_ai_trace_summary_index.sql"
+  ],
+  "fixtures": [
+    {
+      "fixture": "MULTI_VERSION_CURRENT",
+      "cases": [
+        "E01",
+        "E08",
+        "E09",
+        "E18"
+      ],
+      "employeeCode": "ACME00002",
+      "employeeName": "Varun Saxena",
+      "country": "IN",
+      "department": "Tech",
+      "employmentStatus": "CURRENTLY_WORKING",
+      "visibleTo": [
+        {
+          "displayName": "Meera Iyer",
+          "role": "ADMIN"
+        },
+        {
+          "displayName": "Rohan Mehta",
+          "role": "SCOPED"
+        }
+      ],
+      "versions": [
+        {
+          "version": 1,
+          "reason": "INITIAL_IMPORT",
+          "effectiveFrom": "2026-06-25",
+          "recordedAt": "2026-11-17T09:13:21.883Z",
+          "state": "HISTORICAL",
+          "annualBaseSalary": "4143100.00",
+          "annualBonus": "885794.78",
+          "annualCashCompensation": "5028894.78",
+          "currency": "INR",
+          "planned": false
+        },
+        {
+          "version": 2,
+          "reason": "MARKET_ADJUSTMENT",
+          "effectiveFrom": "2026-11-17",
+          "recordedAt": "2026-11-17T09:13:30.920Z",
+          "state": "CURRENT",
+          "annualBaseSalary": "4350255.00",
+          "annualBonus": "885794.78",
+          "annualCashCompensation": "5236049.78",
+          "currency": "INR",
+          "planned": false
+        }
+      ],
+      "oracle": {
+        "selectedVersion": 2,
+        "recordedAt": "2026-11-17T09:13:30.920Z",
+        "effectiveFrom": "2026-11-17",
+        "recordedWithinRecentWindow": false
+      }
+    },
+    {
+      "fixture": "RECENT_FUTURE_EFFECTIVE",
+      "cases": [
+        "E09",
+        "E10"
+      ],
+      "employeeCode": "ACME00003",
+      "employeeName": "Sneha Rao",
+      "country": "IN",
+      "department": "Tech",
+      "employmentStatus": "CURRENTLY_WORKING",
+      "visibleTo": [
+        {
+          "displayName": "Meera Iyer",
+          "role": "ADMIN"
+        },
+        {
+          "displayName": "Rohan Mehta",
+          "role": "SCOPED"
+        }
+      ],
+      "versions": [
+        {
+          "version": 1,
+          "reason": "INITIAL_IMPORT",
+          "effectiveFrom": "2023-11-21",
+          "recordedAt": "2026-11-17T09:13:21.883Z",
+          "state": "CURRENT",
+          "annualBaseSalary": "1040500.00",
+          "annualBonus": "100616.35",
+          "annualCashCompensation": "1141116.35",
+          "currency": "INR",
+          "planned": false
+        },
+        {
+          "version": 2,
+          "reason": "PROMOTION",
+          "effectiveFrom": "2027-01-01",
+          "recordedAt": "2026-11-17T09:13:30.939Z",
+          "state": "UPCOMING",
+          "annualBaseSalary": "1123740.00",
+          "annualBonus": "100616.35",
+          "annualCashCompensation": "1224356.35",
+          "currency": "INR",
+          "planned": false
+        }
+      ],
+      "oracle": {
+        "selectedVersion": 1,
+        "recordedAt": "2026-11-17T09:13:30.939Z",
+        "effectiveFrom": "2027-01-01",
+        "recordedWithinRecentWindow": false
+      }
+    }
+  ],
+  "placeholders": {
+    "working_multi_version_code": "ACME00002",
+    "recent_future_effective_code": "ACME00003"
+  }
+}
