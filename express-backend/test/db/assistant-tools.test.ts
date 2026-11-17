@@ -21,6 +21,7 @@ import { createCompensationInsights } from '../../src/assistant/compensation-ins
 import { TOOL_INPUT_SCHEMAS, TOOL_NAMES } from '../../src/assistant/tool-schemas.js';
 import { createToolRegistry } from '../../src/assistant/tools.js';
 import type { ToolOutcome, ToolRegistry } from '../../src/assistant/tools.js';
+import { createObservabilityRepository } from '../../src/assistant/observability/repository.js';
 import { createPool } from '../../src/db/connection.js';
 import { runMigrations } from '../../src/db/migrate.js';
 import { createDirectoryService } from '../../src/directory/directory-repository.js';
@@ -34,7 +35,7 @@ import { selectRows } from '../support/db.js';
 import type { Row } from '../support/db.js';
 import { answer, scriptedModel } from '../support/fake-model.js';
 import type { FakeStep } from '../support/fake-model.js';
-import { fakeDashboard, fakeHrAccess, fakeSalaryAdjustments } from '../support/http.js';
+import { fakeDashboard, fakeHrAccess, fakeSalaryAdjustments, fakeAdminObservability } from '../support/http.js';
 import { must } from '../support/must.js';
 import { resetTestDatabase, testDatabaseUrl } from '../support/test-database.js';
 
@@ -350,6 +351,8 @@ describe('HTTP assistant and MCP with real authentication', () => {
     const tokens = createSessionTokens({ signingKey: SIGNING_KEY, clock });
     const directory = createDirectoryService({ pool, exchangeRate: RATE, clock });
     const model = {
+      provider: 'fake',
+      model: 'fake-model',
       open(request: Parameters<ReturnType<typeof scriptedModel>['open']>[0]) {
         return scriptedModel(fakeSteps).open(request);
       },
@@ -359,8 +362,11 @@ describe('HTTP assistant and MCP with real authentication', () => {
       directory,
       tools,
       assistant: createAssistantService({ model, tools, logger: (e) => httpLogs.push(e), clock }),
+      // The real MySQL trace store: every turn below is recorded.
+      assistantStore: createObservabilityRepository(pool),
+      assistantClock: clock,
       toolClock: clock,
-      salaryAdjustments: fakeSalaryAdjustments(), dashboard: fakeDashboard(), hrAccess: fakeHrAccess(),
+      salaryAdjustments: fakeSalaryAdjustments(), dashboard: fakeDashboard(), hrAccess: fakeHrAccess(), adminObservability: fakeAdminObservability(), mcpStore: createObservabilityRepository(pool),
       logger: (e) => httpLogs.push(e),
       clientIpSource: 'socket',
     });

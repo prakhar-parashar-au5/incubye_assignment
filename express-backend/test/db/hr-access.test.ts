@@ -32,7 +32,7 @@ import type { LogEntry } from '../../src/http/request-log.js';
 import { ensureReferenceData } from '../../src/seed/reference-data.js';
 import { execStatement, selectRows } from '../support/db.js';
 import type { Row } from '../support/db.js';
-import { fakeDashboard, fakeSalaryAdjustments, noModelAssistant } from '../support/http.js';
+import { fakeDashboard, fakeSalaryAdjustments, noModelAssistant, fakeAdminObservability, fakeMcpStore } from '../support/http.js';
 import { must } from '../support/must.js';
 import { thrown } from '../support/thrown.js';
 import { resetTestDatabase, testDatabaseUrl } from '../support/test-database.js';
@@ -70,7 +70,7 @@ function buildApp() {
     ...noModelAssistant(directory),
     salaryAdjustments: fakeSalaryAdjustments(),
     dashboard: fakeDashboard(),
-    hrAccess: service,
+    hrAccess: service, adminObservability: fakeAdminObservability(), mcpStore: fakeMcpStore().store,
     logger: (entry) => logs.push(entry),
     clientIpSource: 'socket',
   });

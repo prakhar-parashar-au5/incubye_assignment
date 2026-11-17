@@ -496,3 +496,27 @@ builder_docs/ai-builder/tasks/04-mcp-and-admin-observability-api.md
 ```
 
 Task 03 starts only after the planner creates Checkpoint A from the accepted dashboard baseline. Task 04 starts only after Task 03 is accepted. Until then, stop and do not change implementation.
+
+## Blocker reporting
+
+Read `docs/27-agent-blocker-reporting-protocol.md`.
+
+If Task 03 is blocked or exposes a cross-lane issue, write it under:
+
+```text
+builder_docs/ai-builder/issues/
+```
+
+Then mention the issue path in the task response. Do not silently work around a missing contract, cross into frontend ownership, or keep working on the blocked part.
+
+## Task 03 review result
+
+Task 03 returned but needs one focused correction pass before Task 04.
+
+Current task:
+
+```text
+builder_docs/ai-builder/tasks/03a-persistent-assistant-review-fixes.md
+```
+
+Do not start Task 04 until Task 03a is independently accepted.

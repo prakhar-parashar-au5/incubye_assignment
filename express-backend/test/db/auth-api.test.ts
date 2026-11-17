@@ -14,7 +14,7 @@ import { createApp } from '../../src/http/app.js';
 import type { LogEntry } from '../../src/http/request-log.js';
 import { ensureReferenceData } from '../../src/seed/reference-data.js';
 import { selectRows } from '../support/db.js';
-import { fakeDashboard, fakeHrAccess, fakeSalaryAdjustments, noModelAssistant } from '../support/http.js';
+import { fakeDashboard, fakeHrAccess, fakeSalaryAdjustments, noModelAssistant, fakeAdminObservability, fakeMcpStore } from '../support/http.js';
 import { must } from '../support/must.js';
 import { resetTestDatabase, testDatabaseUrl } from '../support/test-database.js';
 
@@ -81,7 +81,7 @@ beforeEach(() => {
   app = createApp({
     auth: createAuthService({ pool, tokens, clock }),
     directory,
-    ...noModelAssistant(directory), salaryAdjustments: fakeSalaryAdjustments(), dashboard: fakeDashboard(), hrAccess: fakeHrAccess(),
+    ...noModelAssistant(directory), salaryAdjustments: fakeSalaryAdjustments(), dashboard: fakeDashboard(), hrAccess: fakeHrAccess(), adminObservability: fakeAdminObservability(), mcpStore: fakeMcpStore().store,
     logger: (entry) => logs.push(entry),
     clientIpSource: 'socket',
   });

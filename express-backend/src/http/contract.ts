@@ -33,7 +33,17 @@ export const PATHS = Object.freeze({
   employee: `${API_PREFIX}/employees/:employeeCode`,
   directoryOptions: `${API_PREFIX}/employee-directory/options`,
   assistantMessages: `${API_PREFIX}/assistant/messages`,
+  assistantConversations: `${API_PREFIX}/assistant/conversations`,
+  assistantConversation: `${API_PREFIX}/assistant/conversations/:conversationId`,
+  assistantConversationMessages: `${API_PREFIX}/assistant/conversations/:conversationId/messages`,
   mcp: `${API_PREFIX}/mcp`,
+  adminAiTraces: `${API_PREFIX}/admin/ai-traces`,
+  adminAiTraceOptions: `${API_PREFIX}/admin/ai-traces/options`,
+  adminAiTraceSummary: `${API_PREFIX}/admin/ai-traces/summary`,
+  adminAiTrace: `${API_PREFIX}/admin/ai-traces/:traceId`,
+  adminAiTraceReview: `${API_PREFIX}/admin/ai-traces/:traceId/review`,
+  adminMcpCalls: `${API_PREFIX}/admin/mcp-tool-calls`,
+  adminMcpCall: `${API_PREFIX}/admin/mcp-tool-calls/:mcpCallId`,
   salaryAdjustmentPreview: `${API_PREFIX}/employees/:employeeCode/salary-adjustments/preview`,
   salaryAdjustments: `${API_PREFIX}/employees/:employeeCode/salary-adjustments`,
   employeeSalaryAdjustmentRequests: `${API_PREFIX}/employees/:employeeCode/salary-adjustment-requests`,
@@ -83,6 +93,8 @@ export const PUBLIC_ERROR_CODES = Object.freeze([
   'EMAIL_TAKEN',
   'INVALID_SCOPE',
   'SELF_PASSWORD_REGENERATION_FORBIDDEN',
+  'MODEL_PROVIDER_FAILED',
+  'ASSISTANT_TURN_IN_PROGRESS',
   'SERVICE_UNAVAILABLE',
   'INTERNAL_ERROR',
 ] as const);
@@ -105,6 +117,14 @@ export const ERROR_REASONS = Object.freeze([
   'FUTURE_CHANGE_EXISTS',
   'NOTE_REQUIRED',
   'IDEMPOTENCY_KEY_REQUIRED',
+  'MODEL_TIMEOUT',
+  'MODEL_RATE_LIMITED',
+  'MODEL_ERROR',
+  'MODEL_INVALID_RESPONSE',
+  'MODEL_NOT_CONFIGURED',
+  'TURN_TIMEOUT',
+  'TRACE_UNAVAILABLE',
+  'DELETE_CONFIRMATION_REQUIRED',
 ] as const);
 export type ErrorReason = (typeof ERROR_REASONS)[number];
 
@@ -175,6 +195,8 @@ export const PUBLIC_MESSAGES: Readonly<Record<PublicErrorCode, string>> = Object
   EMAIL_TAKEN: 'An HR user with this email already exists.',
   INVALID_SCOPE: 'The country or department scope is not valid for this HR user.',
   SELF_PASSWORD_REGENERATION_FORBIDDEN: 'Ask another active Admin HR user to regenerate your temporary password.',
+  MODEL_PROVIDER_FAILED: 'The assistant model did not answer. Try again.',
+  ASSISTANT_TURN_IN_PROGRESS: 'This message is still being answered. Try again shortly.',
   SERVICE_UNAVAILABLE: 'The service is temporarily unavailable. Try again.',
   INTERNAL_ERROR: 'An unexpected error occurred.',
 });
@@ -480,6 +502,114 @@ export const AssistantMessagesResponse = z
   })
   .register(contractRegistry, { id: 'AssistantMessagesResponse' });
 export type AssistantMessagesResponse = z.infer<typeof AssistantMessagesResponse>;
+
+// ---------------------------------------------------------------------------
+// Server-owned assistant conversations (AI Task 03). docs_human/13-ai-observability.md.
+
+/** Idempotency-Key for message submission: 16..100 URL-safe characters (the stored column is 100). */
+export const ASSISTANT_IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{16,100}$/;
+const ConversationId = z.uuid();
+
+export const AssistantConversationListQuery = z.strictObject({
+  page: positiveInt(1_000_000).default(1),
+  pageSize: positiveInt(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
+});
+export type AssistantConversationListQuery = z.output<typeof AssistantConversationListQuery>;
+
+/** Creating a conversation takes no input: the owner is the authenticated HR user. */
+export const AssistantConversationCreateRequest = z.strictObject({})
+  .register(contractRegistry, { id: 'AssistantConversationCreateRequest' });
+
+export const AssistantMessageRequest = z
+  .strictObject({
+    content: z.string().min(1).max(MAX_ASSISTANT_MESSAGE_LENGTH).refine((text) => text.trim() !== '', { message: 'content must not be blank' }),
+    retryOfTraceId: ConversationId.optional().describe('Set for a user-selected Retry (with a new Idempotency-Key): links the new turn to that earlier turn of this conversation.'),
+  })
+  .register(contractRegistry, {
+    id: 'AssistantMessageRequest',
+    description: 'Exactly one user message. Earlier messages come from the server; identity and scope come from the Bearer token.',
+  });
+export type AssistantMessageRequest = z.infer<typeof AssistantMessageRequest>;
+
+export const AssistantConversationSummary = z
+  .object({
+    conversationId: ConversationId,
+    createdAt: z.iso.datetime(),
+    lastMessageAt: z.iso.datetime().nullable(),
+    messageCount: z.number().int().nonnegative(),
+    title: z.string().nullable().describe('The first 80 characters of the first user message.'),
+  })
+  .register(contractRegistry, { id: 'AssistantConversationSummary' });
+
+export const AssistantConversationResponse = z.object({ conversation: AssistantConversationSummary })
+  .register(contractRegistry, { id: 'AssistantConversationResponse' });
+
+export const AssistantConversationListResponse = z
+  .object({
+    conversations: z.array(AssistantConversationSummary).describe('Most recently active first.'),
+    page: z.object({ number: z.number().int().positive(), size: z.number().int().positive(), totalRows: z.number().int().nonnegative(), totalPages: z.number().int().nonnegative() }),
+  })
+  .register(contractRegistry, { id: 'AssistantConversationListResponse' });
+
+const AssistantTurnDetails = AssistantMessagesResponse.omit({ answer: true });
+
+export const AssistantConversationMessage = z
+  .object({
+    sequence: z.number().int().positive().describe('Authoritative order within the conversation.'),
+    role: z.enum(['user', 'assistant']),
+    traceId: ConversationId.nullable(),
+    createdAt: z.iso.datetime(),
+    text: z.string().describe('User text, or the assistant answer (plain text). For a withheld answer, a fixed notice.'),
+    response: AssistantTurnDetails.nullable().describe('Assistant messages only: tool statuses, cards, limitations. Null when withheld.'),
+    withheld: z.boolean().describe('True when the saved answer is hidden because the caller\'s current employee scope no longer covers the '
+      + 'scope recorded with its turn. The user\'s own message is never withheld.'),
+  })
+  .register(contractRegistry, { id: 'AssistantConversationMessage' });
+
+export const AssistantConversationTurn = z
+  .object({
+    traceId: ConversationId,
+    sequence: z.number().int().positive(),
+    previousTraceId: ConversationId.nullable(),
+    retryOfTraceId: ConversationId.nullable(),
+    status: z.enum(['STARTED', 'COMPLETED', 'FAILED']),
+    userMessageSequence: z.number().int().positive().nullable(),
+    assistantMessageSequence: z.number().int().positive().nullable().describe('Null unless COMPLETED. A failed turn has no assistant message.'),
+    error: z.object({
+      code: z.enum(PUBLIC_ERROR_CODES),
+      message: z.string(),
+      reason: z.enum(ERROR_REASONS).nullable().describe('The same safe reason the message endpoint returned for this failure, when it had one.'),
+    }).nullable().describe('FAILED turns only: the same public error the message endpoint returned.'),
+  })
+  .register(contractRegistry, { id: 'AssistantConversationTurn' });
+
+export const AssistantConversationDetailResponse = z
+  .object({
+    conversation: AssistantConversationSummary,
+    messages: z.array(AssistantConversationMessage).describe('Every saved message, in sequence order (not paginated). Missing sequence numbers mean deleted or expired turns.'),
+    turns: z.array(AssistantConversationTurn).describe('Every saved turn, in sequence order. STARTED means the turn has not finished.'),
+  })
+  .register(contractRegistry, {
+    id: 'AssistantConversationDetailResponse',
+    description: 'Each turn records the actor\'s role, countries, and departments when it ran. A saved answer is returned unchanged while the '
+      + 'caller\'s current scope covers that record (Admin HR, or Scoped HR whose countries and departments are each a superset); otherwise '
+      + 'the whole answer (text, cards, limitations) is withheld and the turn is left out of model history. Turns recorded without a '
+      + 'scope record are withheld for Scoped HR.',
+  });
+
+export const AssistantTurnResponse = AssistantMessagesResponse.extend({
+  conversationId: ConversationId,
+  traceId: ConversationId,
+  previousTraceId: ConversationId.nullable(),
+  userMessageSequence: z.number().int().positive(),
+  assistantMessageSequence: z.number().int().positive(),
+  withheld: z.boolean().describe('Replays only can be true: the saved answer is withheld because the caller\'s current scope no longer '
+    + 'covers the scope recorded with the turn; answer is a fixed notice and toolCalls, cards, and limitations are empty.'),
+}).register(contractRegistry, {
+  id: 'AssistantTurnResponse',
+  description: 'Returned only after the assistant message and the completed trace are saved.',
+});
+export type AssistantTurnResponse = z.infer<typeof AssistantTurnResponse>;
 
 // ---------------------------------------------------------------------------
 // Salary adjustments (Task 09). See docs_human/11-salary-adjustments.md.
@@ -1177,3 +1307,266 @@ export const HrUserPasswordRegenerationResult = z
   })
   .register(contractRegistry, { id: 'HrUserPasswordRegenerationResult', description: 'No email is sent. The previous password and every active session stop working.' });
 export type HrUserPasswordRegenerationResult = z.infer<typeof HrUserPasswordRegenerationResult>;
+
+// ---------------------------------------------------------------------------
+// Admin AI observability (AI Task 04). docs_human/13-ai-observability.md.
+// Every operation requires an active Admin HR user (Scoped HR: 403 FORBIDDEN).
+
+export const AI_TRACE_STATUSES = Object.freeze(['STARTED', 'COMPLETED', 'FAILED'] as const);
+/** Where a failed turn stopped. Same list as FAILURE_STAGES in assistant-service.ts (tested). */
+export const AI_FAILURE_STAGES = Object.freeze([
+  'TRACE_CREATE', 'MODEL_CALL', 'MODEL_TRACE_WRITE', 'TOOL_VALIDATION', 'TOOL_EXECUTION', 'TOOL_TRACE_WRITE', 'FINAL_TRACE_WRITE',
+] as const);
+export const AI_MODEL_CALL_STATUSES = Object.freeze(['STARTED', 'SUCCEEDED', 'FAILED'] as const);
+export const AI_TOOL_VALIDATION_STATUSES = Object.freeze(['PENDING', 'VALID', 'REJECTED'] as const);
+export const AI_TOOL_CALL_STATUSES = Object.freeze(['STARTED', 'REJECTED', 'SUCCEEDED', 'FAILED'] as const);
+export const AI_REVIEW_VERDICTS = Object.freeze(['CORRECT', 'PARTIAL', 'INCORRECT'] as const);
+export const AI_REVIEW_NOTE_MAX = 2000;
+export const AI_SUMMARY_WINDOWS = Object.freeze(['24h', '7d', '30d'] as const);
+export type AiSummaryWindow = (typeof AI_SUMMARY_WINDOWS)[number];
+export const RAW_TRACE_WARNING = 'Raw trace data contains complete synthetic employee identities and compensation values.' as const;
+export const FORMATTED_REDACTION_NOTE = 'Employee names, codes, and emails are replaced with placeholders in this view. Salary values are shown.' as const;
+/** Known category values, published for display. Stored values are returned verbatim, so an unlisted value is still possible. */
+export const AI_KNOWN_CATEGORIES = Object.freeze({
+  traceError: ['not_configured', 'timeout', 'rate_limited', 'provider_error', 'invalid_response', 'turn_timeout', 'persistence_unavailable', 'payload_rejected', 'internal_error'],
+  modelCallFailure: ['not_configured', 'timeout', 'rate_limited', 'provider_error', 'invalid_response', 'OUTCOME_NOT_RECORDED'],
+  toolError: ['TOOL_FAILED', 'OUTPUT_TOO_LARGE', 'turn_timeout', 'OUTCOME_NOT_RECORDED'],
+  toolRejection: ['UNKNOWN_TOOL', 'INVALID_ARGUMENTS', 'TOO_MANY_CALLS', 'TOOL_ROUND_LIMIT'],
+  mcpError: ['TOOL_FAILED', 'OUTCOME_NOT_RECORDED'],
+} as const);
+
+const Instant = z.iso.datetime().describe('UTC instant.');
+const TraceId = z.uuid();
+const AiHrUser = z.object({ id: z.number().int().positive(), displayName: z.string() })
+  .register(contractRegistry, { id: 'AiHrUser', description: 'An HR user shown by display name. Admin-only routes.' });
+const ShortText = (max: number) => z.string().trim().min(1).max(max);
+const Json = z.unknown().describe('Stored JSON value.');
+const PageInfo = z.object({ number: z.number().int().positive(), size: z.number().int().positive(), totalRows: z.number().int().nonnegative(), totalPages: z.number().int().nonnegative() });
+const PAGE_QUERY = { page: positiveInt(1_000_000).default(1), pageSize: positiveInt(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE) };
+const dateRangeOk = (q: { from?: string | undefined; to?: string | undefined }) => q.from === undefined || q.to === undefined || q.from <= q.to;
+
+export const AdminTraceListQuery = z.strictObject({
+  from: IsoDate.optional().describe('UTC calendar date; traces started on or after 00:00 of this day.'),
+  to: IsoDate.optional().describe('UTC calendar date, inclusive; traces started before 00:00 of the next day.'),
+  hrUserId: positiveInt(2_147_483_647).optional(),
+  status: z.enum(AI_TRACE_STATUSES).optional().describe('STARTED means still in progress.'),
+  model: ShortText(120).optional().describe('Exact model name (see options).'),
+  tool: ShortText(120).optional().describe('Exact tool name: traces with at least one call to it.'),
+  errorCategory: ShortText(80).optional().describe('Exact trace error category (see options).'),
+  ...PAGE_QUERY,
+}).refine(dateRangeOk, { message: 'from must not be after to' });
+export type AdminTraceListQuery = z.output<typeof AdminTraceListQuery>;
+
+export const AdminTraceListItem = z.object({
+  traceId: TraceId,
+  conversationId: TraceId,
+  turnSequence: z.number().int().positive(),
+  hrUser: AiHrUser,
+  status: z.enum(AI_TRACE_STATUSES),
+  model: z.string(),
+  toolNames: z.array(z.string()).describe('Distinct tool names in first-use order.'),
+  startedAt: Instant,
+  completedAt: Instant.nullable(),
+  durationMs: z.number().int().nonnegative().nullable(),
+  inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  reasoningTokens: z.number().int().nonnegative().describe('Count only; reasoning content is never recorded.'),
+  modelCallCount: z.number().int().nonnegative(),
+  toolCallCount: z.number().int().nonnegative(),
+  failureStage: z.string().nullable(),
+  errorCategory: z.string().nullable(),
+}).register(contractRegistry, { id: 'AdminTraceListItem', description: 'Summary only: never prompts, responses, arguments, results, or safe-error JSON.' });
+
+export const AdminTraceListResponse = z.object({ traces: z.array(AdminTraceListItem).describe('Newest first.'), page: PageInfo })
+  .register(contractRegistry, { id: 'AdminTraceListResponse' });
+
+export const AdminTraceOptionsResponse = z.object({
+  hrUsers: z.array(AiHrUser).describe('HR users with at least one stored trace or MCP call.'),
+  models: z.array(z.string()),
+  toolNames: z.array(z.string()).describe('Tool names in stored assistant or MCP calls.'),
+  errorCategories: z.array(z.string()),
+  failureStages: z.array(z.string()),
+  statuses: z.array(z.enum(AI_TRACE_STATUSES)),
+  enums: z.object({
+    failureStages: z.array(z.enum(AI_FAILURE_STAGES)),
+    modelCallStatuses: z.array(z.enum(AI_MODEL_CALL_STATUSES)),
+    toolValidationStatuses: z.array(z.enum(AI_TOOL_VALIDATION_STATUSES)),
+    toolCallStatuses: z.array(z.enum(AI_TOOL_CALL_STATUSES)),
+    knownCategories: z.object({
+      traceError: z.array(z.string()), modelCallFailure: z.array(z.string()), toolError: z.array(z.string()), toolRejection: z.array(z.string()), mcpError: z.array(z.string()),
+    }),
+  }).describe('Closed status and stage lists, and the known category values.'),
+}).register(contractRegistry, { id: 'AdminTraceOptionsResponse' });
+
+export const AdminTraceView = z.enum(['formatted', 'raw']);
+export const AdminTraceDetailQuery = z.strictObject({
+  view: AdminTraceView.default('formatted').describe('formatted: employee identities replaced by placeholders. raw: exact stored JSON, after the synthetic-data warning.'),
+});
+
+const ViewMeta = {
+  view: AdminTraceView,
+  warning: z.literal(RAW_TRACE_WARNING).nullable().describe('Set on the raw view only.'),
+  redaction: z.object({ identities: z.enum(['PLACEHOLDERS', 'NONE']), note: z.string().nullable() }),
+};
+
+export const AdminTraceReview = z.object({
+  verdict: z.enum(AI_REVIEW_VERDICTS),
+  note: z.string(),
+  nominated: z.boolean(),
+  version: z.number().int().positive().describe('Send as expectedVersion to replace this review.'),
+  reviewer: AiHrUser,
+  createdAt: Instant,
+  updatedAt: Instant,
+}).register(contractRegistry, { id: 'AdminTraceReview' });
+
+export const AdminModelCall = z.object({
+  sequence: z.number().int().positive().describe('Trace-wide order of model calls.'),
+  status: z.enum(AI_MODEL_CALL_STATUSES),
+  provider: z.string(),
+  model: z.string(),
+  providerRequestId: z.string().nullable(),
+  promptVersion: z.string(),
+  promptHash: z.string(),
+  input: Json.describe('Exact provider-neutral input: instructions, bounded messages, and this turn\'s tool exchanges.'),
+  tools: Json.describe('Tool names and JSON schemas offered.'),
+  output: Json.nullable().describe('{ text } when the model answered.'),
+  toolDecisions: Json.nullable().describe('Requested calls: callId, name, parsed arguments (or { invalidJson: true }).'),
+  inputTokens: z.number().int().nonnegative().nullable(),
+  outputTokens: z.number().int().nonnegative().nullable(),
+  totalTokens: z.number().int().nonnegative().nullable(),
+  reasoningTokens: z.number().int().nonnegative().nullable().describe('Count only.'),
+  startedAt: Instant,
+  completedAt: Instant.nullable(),
+  latencyMs: z.number().int().nonnegative().nullable(),
+  failureCategory: z.string().nullable().describe('Model-call category, separate from the trace error category.'),
+  safeError: Json.nullable(),
+}).register(contractRegistry, { id: 'AdminModelCall' });
+
+export const AdminToolCall = z.object({
+  sequence: z.number().int().positive().describe('Trace-wide order of tool calls.'),
+  modelCallSequence: z.number().int().positive().describe('The model call that requested it.'),
+  providerToolCallId: z.string().nullable(),
+  toolName: z.string(),
+  requestedArguments: Json.describe('As requested (secret keys scrubbed; { invalidJson: true } for unparseable text). There is no separate validated value.'),
+  validationStatus: z.enum(AI_TOOL_VALIDATION_STATUSES),
+  validationErrors: Json.nullable(),
+  status: z.enum(AI_TOOL_CALL_STATUSES).describe('STARTED inside a STARTED trace: still running.'),
+  result: Json.nullable().describe('SUCCEEDED only: { data, cards, limitations }.'),
+  errorCategory: z.string().nullable(),
+  safeError: Json.nullable(),
+  startedAt: Instant,
+  completedAt: Instant.nullable(),
+  durationMs: z.number().int().nonnegative().nullable(),
+}).register(contractRegistry, { id: 'AdminToolCall' });
+
+export const AdminTraceDetailResponse = z.object({
+  ...ViewMeta,
+  trace: z.object({
+    traceId: TraceId,
+    conversationId: TraceId,
+    turnSequence: z.number().int().positive(),
+    previousTraceId: TraceId.nullable(),
+    nextTraceId: TraceId.nullable().describe('The earliest later trace that links to this one.'),
+    requestId: z.string(),
+    hrUser: AiHrUser,
+    status: z.enum(AI_TRACE_STATUSES),
+    failureStage: z.string().nullable(),
+    errorCategory: z.string().nullable(),
+    model: z.string(),
+    promptVersion: z.string(),
+    promptHash: z.string(),
+    startedAt: Instant,
+    completedAt: Instant.nullable(),
+    durationMs: z.number().int().nonnegative().nullable(),
+    inputTokens: z.number().int().nonnegative(),
+    outputTokens: z.number().int().nonnegative(),
+    reasoningTokens: z.number().int().nonnegative(),
+    modelCallCount: z.number().int().nonnegative(),
+    toolCallCount: z.number().int().nonnegative(),
+  }),
+  userContent: Json.describe('{ text, retryOfTraceId } as submitted.'),
+  modelMessages: Json.describe('The bounded conversation messages sent to the model.'),
+  modelCalls: z.array(AdminModelCall),
+  toolCalls: z.array(AdminToolCall),
+  finalResponse: Json.nullable().describe('COMPLETED only. A failed trace never has one.'),
+  messages: z.array(z.object({ sequence: z.number().int().positive(), role: z.enum(['USER', 'ASSISTANT']), createdAt: Instant })),
+  review: AdminTraceReview.nullable(),
+}).register(contractRegistry, { id: 'AdminTraceDetailResponse', description: 'One complete trace in server sequence order.' });
+
+export const AdminTraceReviewRequest = z.strictObject({
+  verdict: z.enum(AI_REVIEW_VERDICTS),
+  note: z.string().max(AI_REVIEW_NOTE_MAX).default(''),
+  nominated: z.boolean().default(false).describe('Nominated as an evaluation-fixture candidate. Nothing is copied automatically.'),
+  expectedVersion: z.number().int().min(0).describe('0 for the first review; otherwise the current review.version.'),
+}).register(contractRegistry, { id: 'AdminTraceReviewRequest' });
+export const AdminTraceReviewResponse = z.object({ review: AdminTraceReview }).register(contractRegistry, { id: 'AdminTraceReviewResponse' });
+
+export const AdminTraceDeleteQuery = z.strictObject({
+  confirm: z.uuid().describe('Must equal the trace ID in the path.'),
+});
+export const AdminTraceDeleteResponse = z.object({
+  deleted: z.object({
+    traceId: TraceId,
+    modelCalls: z.number().int().nonnegative(),
+    toolCalls: z.number().int().nonnegative(),
+    messages: z.number().int().nonnegative(),
+    review: z.boolean(),
+  }),
+}).register(contractRegistry, { id: 'AdminTraceDeleteResponse' });
+
+export const AdminMcpListQuery = z.strictObject({
+  from: IsoDate.optional(),
+  to: IsoDate.optional(),
+  hrUserId: positiveInt(2_147_483_647).optional(),
+  tool: ShortText(120).optional(),
+  status: z.enum(AI_TOOL_CALL_STATUSES).optional(),
+  ...PAGE_QUERY,
+}).refine(dateRangeOk, { message: 'from must not be after to' });
+export type AdminMcpListQuery = z.output<typeof AdminMcpListQuery>;
+
+export const AdminMcpListItem = z.object({
+  mcpCallId: TraceId,
+  requestId: z.string(),
+  hrUser: AiHrUser.describe('The authenticated HR user of the MCP client.'),
+  toolName: z.string(),
+  validationStatus: z.enum(AI_TOOL_VALIDATION_STATUSES),
+  status: z.enum(AI_TOOL_CALL_STATUSES),
+  startedAt: Instant,
+  completedAt: Instant.nullable(),
+  durationMs: z.number().int().nonnegative().nullable(),
+  errorCategory: z.string().nullable(),
+}).register(contractRegistry, { id: 'AdminMcpListItem', description: 'Summary only: no arguments or results.' });
+export const AdminMcpListResponse = z.object({ calls: z.array(AdminMcpListItem).describe('Newest first.'), page: PageInfo })
+  .register(contractRegistry, { id: 'AdminMcpListResponse' });
+export const AdminMcpDetailResponse = z.object({
+  ...ViewMeta,
+  call: AdminMcpListItem.extend({ requestedArguments: Json, validationErrors: Json.nullable(), result: Json.nullable(), safeError: Json.nullable() }),
+}).register(contractRegistry, { id: 'AdminMcpDetailResponse' });
+
+export const AdminTraceSummaryQuery = z.strictObject({ window: z.enum(AI_SUMMARY_WINDOWS).default('24h') });
+const Count = z.number().int().nonnegative();
+export const AdminTraceSummaryResponse = z.object({
+  window: z.enum(AI_SUMMARY_WINDOWS),
+  from: Instant.describe('Inclusive.'),
+  to: Instant.describe('Inclusive; equal to generatedAt.'),
+  generatedAt: Instant,
+  traces: z.object({ total: Count, completed: Count, failed: Count, started: Count.describe('Still open (STARTED).') }),
+  failures: z.array(z.object({ failureStage: z.string().nullable(), errorCategory: z.string().nullable(), count: Count })),
+  durationMs: z.object({
+    completedCount: Count,
+    p50: Count.nullable(), p95: Count.nullable(), max: Count.nullable(),
+  }).describe('COMPLETED traces only. Exact nearest-rank percentiles; null when there are none.'),
+  tokens: z.object({ input: Count, output: Count, reasoning: Count.describe('Part of output; count only.'), total: Count.describe('input + output.') }),
+  modelCalls: z.object({ total: Count, byModel: z.array(z.object({ model: z.string(), count: Count })) }),
+  toolCalls: z.array(z.object({ toolName: z.string(), status: z.enum(AI_TOOL_CALL_STATUSES), count: Count })),
+  mcpCalls: z.array(z.object({ toolName: z.string(), status: z.enum(AI_TOOL_CALL_STATUSES), count: Count })),
+  reviews: z.object({ byVerdict: z.array(z.object({ verdict: z.enum(AI_REVIEW_VERDICTS), count: Count })), unreviewed: Count.describe('Finished traces without a review.') }),
+  series: z.object({
+    bucket: z.enum(['HOUR', 'DAY']),
+    points: z.array(z.object({ start: Instant, traces: Count, failures: Count }))
+      .describe('UTC-aligned buckets from the one containing from to the one containing to, zero-filled. The first and last are partial.'),
+  }),
+}).register(contractRegistry, {
+  id: 'AdminTraceSummaryResponse',
+  description: 'Aggregates for traces (and MCP calls) started in the window. Counts and measurements only: no content or identities.',
+});

@@ -71,6 +71,7 @@ test('migration creates all seven tables with foreign keys, unique sequences and
     'ai_traces.idx_ai_traces_previous (previous_trace_id)',
     'ai_traces.idx_ai_traces_started (started_at,id)',
     'ai_traces.idx_ai_traces_status (status,started_at)',
+    'ai_traces.idx_ai_traces_summary (started_at,status,duration_ms,failure_stage,error_category,input_tokens,output_tokens,reasoning_tokens)',
     'ai_traces.PRIMARY UNIQUE (id)',
     'ai_traces.uk_ai_traces_conversation_sequence UNIQUE (conversation_id,sequence)',
     'ai_traces.uk_ai_traces_idempotency UNIQUE (conversation_id,idempotency_key)',
@@ -84,6 +85,7 @@ test('migration creates all seven tables with foreign keys, unique sequences and
     'ai_model_calls.chk_ai_model_calls_latency',
     'ai_tool_calls.chk_ai_tool_calls_duration',
     'ai_trace_reviews.chk_ai_reviews_version',
+    'ai_traces.chk_ai_traces_actor_scope',
     'ai_traces.chk_ai_traces_duration',
     'ai_traces.chk_ai_traces_status_time',
     'mcp_tool_calls.chk_mcp_tool_duration',
@@ -227,12 +229,31 @@ test('idempotency key and command hash must be a valid pair before trace creatio
   assert.equal(Number(records[0]?.n), 0);
 });
 
+// Detects (Task 03a): a malformed or Admin-with-rows scope snapshot, or a half-filled snapshot row.
+test('the trace-time actor scope is validated, stored sorted, and all-or-nothing', async () => {
+  const conversation = await repo.createConversation(actorId, NEW);
+  const base = { conversationId: conversation.id, actorId, requestId: 'scope', promptVersion: 'v1', promptHash: 'hash', model: 'fake', userContent: { text: 'hi' }, modelMessages: [], startedAt: NEW };
+  for (const actorScope of [
+    { role: 'OWNER', countries: [], departments: [] },
+    { role: 'SCOPED', countries: 'IN', departments: [] },
+    { role: 'ADMIN', countries: ['IN'], departments: [] },
+  ]) await assert.rejects(repo.createTrace({ ...base, actorScope: actorScope as never }), PersistenceValidationError);
+  const trace = await repo.createTrace({ ...base, actorScope: { role: 'SCOPED', countries: ['US', 'IN', 'IN'], departments: ['Tech', 'Support'] } });
+  const [row] = await selectRows(pool, 'SELECT actor_role, actor_countries, actor_departments FROM ai_traces WHERE id = ?', [trace.id]);
+  assert.deepEqual([row?.actor_role, row?.actor_countries, row?.actor_departments], ['SCOPED', ['IN', 'US'], ['Support', 'Tech']]);
+  const legacy = await repo.createTrace({ ...base, requestId: 'legacy' });
+  const [legacyRow] = await selectRows(pool, 'SELECT actor_role, actor_countries, actor_departments FROM ai_traces WHERE id = ?', [legacy.id]);
+  assert.deepEqual([legacyRow?.actor_role, legacyRow?.actor_countries, legacyRow?.actor_departments], [null, null, null]);
+  await assert.rejects(pool.query('UPDATE ai_traces SET actor_countries = NULL WHERE id = ?', [trace.id]), /chk_ai_traces_actor_scope/);
+});
+
 test('same-command idempotency replay returns original trace and sequence without new rows', async () => {
   const conversation = await repo.createConversation(actorId, NEW);
   const base = { conversationId: conversation.id, actorId, requestId: 'replay', idempotencyKey: 'replay-key', commandHash: 'b'.repeat(64), promptVersion: 'v1', promptHash: 'hash', model: 'fake', userContent: { text: 'same' }, modelMessages: [], startedAt: NEW };
   const first = await repo.createTrace(base);
   const replay = await repo.createTrace(base);
-  assert.deepEqual(replay, { id: first.id, sequence: first.sequence, reused: true });
+  // Task 03: createTrace also reports the user-message sequence of a new trace (null for a replay).
+  assert.deepEqual(replay, { id: first.id, sequence: first.sequence, reused: true, userMessageSequence: null });
   await assert.rejects(repo.createTrace({ ...base, commandHash: 'c'.repeat(64) }), ConflictError);
   const traces = await selectRows(pool, 'SELECT COUNT(*) AS n FROM ai_traces WHERE conversation_id = ?', [conversation.id]);
   const messages = await selectRows(pool, 'SELECT COUNT(*) AS n FROM ai_messages WHERE conversation_id = ?', [conversation.id]);
