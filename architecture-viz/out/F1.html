@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>F1: Admin clicks Employees in the side navigation</title>
+<style>
+  :root {
+    --ground: #f7f5f1; --ink: #18233a; --muted: #4a5467; --line: #dcd7cd; --surface: #ffffff;
+    --accent: #2a57c0; --db: #8a5a00; --db-wash: #fbf4e4; --ai: #6b4fa0; --ai-wash: #f1edf8;
+    --error: #b3261e; --ok: #1d6e46;
+    --t-browser: #efece6; --t-next-server: #e9eef8; --t-express: #edf5f0; --t-mysql: #faf4e6; --t-openai: #f3effa;
+    --sans: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.45; }
+  .page { max-width: 1440px; margin: 0 auto; padding: 32px 32px 40px; }
+  header h1 { font-size: 26px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 15px; max-width: 72ch; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 16px 0 20px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { display: inline-block; width: 22px; height: 0; border-top: 2px solid var(--ink); }
+  .sw.dashed { border-top-style: dashed; border-color: var(--accent); }
+  .grid { --gutter: 3rem; --edgecol: 19rem; position: relative; }
+  .heads, .row { display: grid; grid-template-columns: var(--gutter) var(--edgecol) 1fr; }
+  .heads .lanes { display: grid; grid-template-columns: repeat(5, 1fr); }
+  .lane-head { font-size: 12px; font-weight: 600; text-transform: none; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: center; }
+  .bands { position: absolute; top: 0; bottom: 0; left: calc(var(--gutter) + var(--edgecol)); right: 0; display: grid; grid-template-columns: repeat(5, 1fr); z-index: 0; }
+  .band { border-left: 1px solid var(--line); }
+  .band:last-child { border-right: 1px solid var(--line); }
+  .lane-browser { background: var(--t-browser); } .lane-next-server { background: var(--t-next-server); } .lane-express { background: var(--t-express); }
+  .lane-mysql { background: var(--t-mysql); } .lane-openai { background: var(--t-openai); }
+  .lane-head.lane-browser, .lane-head.lane-next-server, .lane-head.lane-express, .lane-head.lane-mysql, .lane-head.lane-openai { background: none; }
+  .row { position: relative; z-index: 1; break-inside: avoid; page-break-inside: avoid; }
+  .num { position: relative; }
+  .num::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 2px solid var(--line); }
+  .row.start .num::before { top: 50%; }
+  .dot { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin: 12px 0 0 calc(50% - 13px); border-radius: 50%; background: var(--ink); color: #fff; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .dot-back { background: var(--surface); color: var(--accent); border: 2px dashed var(--accent); }
+  .edge { padding: 12px 14px 12px 4px; border-bottom: 1px solid #ebe7df; min-width: 0; }
+  .trigger { font-weight: 600; padding-top: 14px; }
+  .from { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  .elabel { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+  .sync { font-size: 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-weight: 400; }
+  .payload { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
+  .note { font-size: 11.5px; margin-top: 6px; padding: 5px 8px; border-radius: 6px; }
+  .fail-note { background: #fcf1f0; color: #7d1a14; border: 1px solid #e3b3ae; }
+  .scope-note { background: #e6ecf8; color: var(--ink); border: 1px solid #c3d0ec; }
+  .alt { margin-top: 8px; padding: 6px 9px; font-size: 11.5px; border-left: 3px solid var(--muted); background: var(--surface); border-radius: 0 6px 6px 0; color: var(--ink); }
+  .alt-title { font-weight: 600; }
+  .alt-result { color: var(--muted); margin-top: 2px; }
+  .lanes { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; padding: 10px 0; min-height: 76px; }
+  .cell { position: relative; z-index: 2; padding: 0 8px; display: flex; justify-content: center; }
+  .h { position: absolute; top: 0; height: 0; border-top: 2px solid var(--ink); z-index: 1; }
+  .v { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--ink); z-index: 1; }
+  .dashed { border-color: var(--accent) !important; border-style: dashed !important; }
+  .row:last-child .v { bottom: 50%; }
+  .card, .pill { width: 100%; max-width: 230px; background: var(--surface); border: 1px solid #c9c3b7; border-radius: 10px; padding: 7px 10px; }
+  .pill { border-radius: 999px; text-align: center; border: 2px solid var(--ink); padding: 8px 16px; }
+  .pill .where { display: none; }
+  .label { font-size: 12.5px; font-weight: 600; line-height: 1.3; }
+  .mono { font-family: var(--mono); }
+  .sym { font-size: 11px; color: var(--accent); overflow-wrap: anywhere; margin-top: 2px; }
+  .where { font-size: 10px; color: var(--muted); overflow-wrap: anywhere; margin-top: 1px; }
+  .persona { display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em; border-radius: 4px; padding: 0 5px; margin-bottom: 3px; }
+  .who { display: inline-block; font-size: 10.5px; font-weight: 700; border-radius: 4px; padding: 1px 6px; margin: 2px 0 4px; }
+  .p-0 { background: #e6ecf8; color: #2249a3; border: 1px solid #c3d0ec; }
+  .p-1 { background: #eef7f1; color: #1d6e46; border: 1px solid #b9dcc8; }
+  .p-2 { background: #ece8e0; color: #4a5467; border: 1px solid #dcd7cd; }
+  .pill .persona { display: block; width: fit-content; margin: 0 auto 3px; }
+  .again { margin-left: 6px; font-size: 10px; font-weight: 500; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; justify-content: inherit; }
+  .badge { font-size: 9.5px; font-weight: 600; border-radius: 4px; padding: 1px 5px; }
+  .badge.obs { background: var(--db-wash); color: var(--db); border: 1px solid #e5cf9f; }
+  .badge.fail { background: #fcf1f0; color: var(--error); border: 1px solid #e3b3ae; }
+  .badge.scope { background: #e6ecf8; color: var(--accent); border: 1px solid #c3d0ec; }
+  /* Cylinder: a fixed-height elliptical cap over a body that grows with its text. */
+  .cyl { position: relative; width: 100%; max-width: 210px; margin-top: 10px; background: var(--surface); border: 2px solid var(--db); border-top: none; border-radius: 0 0 50% 50% / 0 0 12px 12px; padding: 0 0 8px; }
+  .cyl::before { content: ""; position: absolute; left: -2px; right: -2px; top: -10px; height: 20px; border: 2px solid var(--db); border-radius: 50%; background: var(--db-wash); }
+  .cyl-text { position: relative; padding: 16px 12px 4px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .cyl-text .mono { font-size: 11.5px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+  .op { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; color: var(--db); }
+  .cyl .badges { position: relative; justify-content: center; margin-top: 4px; }
+  .hex { position: relative; width: 100%; max-width: 210px; height: 80px; }
+  .hex svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .hex-shape { fill: var(--ai-wash); stroke: var(--ai); stroke-width: 2; vector-effect: non-scaling-stroke; }
+  .hex-text { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 26px; }
+  .hex-text strong { font-size: 12.5px; color: var(--ai); }
+  .hex-text .mono { font-size: 10.5px; color: var(--ink); }
+  footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+  footer ul { margin: 8px 0 0; padding-left: 18px; }
+  footer li { margin: 3px 0; }
+  footer p { margin: 4px 0; }
+  @media print {
+    html, body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { padding: 12px; max-width: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>F1: Admin clicks Employees in the side navigation</h1>
+    <p>Meera Iyer (Admin HR). 31 code steps across 4 layers, in 32 numbered calls from the click to the screen. In the HTML, hover a box to read what it does.</p>
+  </header>
+  <div class="legend">
+    <span><i class="sw"></i> request going deeper</span>
+    <span><i class="sw dashed"></i> response coming back</span>
+    <span><span class="badge obs">writes trace</span> AI observability write</span>
+    <span><span class="badge fail">fails closed</span> stops if this step fails</span>
+    <span><span class="badge scope">scope rule</span> access scope applied</span>
+    <span>Cylinder: MySQL table · Hexagon: OpenAI · <span class="sync">sync</span> no await</span>
+  </div>
+  <div class="grid">
+    <div class="bands" aria-hidden="true"><div class="band lane-browser"></div><div class="band lane-next-server"></div><div class="band lane-express"></div><div class="band lane-mysql"></div><div class="band lane-openai"></div></div>
+    <div class="heads"><div></div><div class="lane-head" style="text-align:left">Call and payload</div><div class="lanes" style="padding:0;min-height:0"><div class="lane-head lane-browser">Browser</div><div class="lane-head lane-next-server">Next server</div><div class="lane-head lane-express">Express</div><div class="lane-head lane-mysql">MySQL</div><div class="lane-head lane-openai">OpenAI</div></div></div>
+    <div class="row start">
+    <div class="num"></div>
+    <div class="edge"><div class="trigger">Click on the 'Employees' link in the rail (desktop) or Menu (mobile)</div></div>
+    <div class="lanes"><div class="cell" style="grid-column:1"><div class="pill kind-ui-event" title="Rail navigation renders one link per built section; the user clicks Employees (href /employees).">
+    <div class="label">Click 'Employees'</div>
+    <div class="mono sym">Navigation</div>
+    <div class="where">next-frontend/…/components/shell/app-shell.tsx:32</div>
+    
+  </div></div></div>
+  </div>
+<div class="row">
+      <div class="num"><span class="dot">1</span></div>
+      <div class="edge">
+        
+        <div class="elabel">click → &lt;Link href=&quot;/employees&quot;&gt; <span class="sync">sync</span></div>
+        <div class="payload">href /employees</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:10%"></div>
+        <div class="cell" style="grid-column:1"><div class="card kind-browser" title="next/link performs a client-side navigation and requests the RSC payload for /employees (the session cookie travels with it).">
+    <div class="label">Client navigation</div>
+    <div class="mono sym">Link</div>
+    <div class="where">next-frontend/…/components/shell/app-shell.tsx:38</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">2</span></div>
+      <div class="edge">
+        
+        <div class="elabel">GET /employees (RSC request)</div>
+        <div class="payload">Cookie: __Host-acme_session</div>
+        
+        <aside class="alt"><div class="alt-title">Branch: No session cookie</div><div>If request has no session cookie.</div><div class="alt-result">The proxy redirects to /sign-in before any Server Component or backend call runs.</div></aside>
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:10%;width:20%"></div><div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-next-route" title="Optimistic check only: no session cookie redirects to /sign-in; a present cookie is passed through to be verified by the backend.">
+    <div class="label">Proxy cookie check</div>
+    <div class="mono sym">proxy</div>
+    <div class="where">next-frontend/…/proxy.ts:7</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">3</span></div>
+      <div class="edge">
+        
+        <div class="elabel">NextResponse.next() <span class="sync">sync</span></div>
+        <div class="payload">request (cookie present)</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-next-route" title="Route segment; streams a static directory skeleton inside Suspense while the data component loads.">
+    <div class="label">/employees page</div>
+    <div class="mono sym">EmployeesPage</div>
+    <div class="where">next-frontend/…/app/employees/page.tsx:24</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">4</span></div>
+      <div class="edge">
+        
+        <div class="elabel">&lt;Suspense&gt; renders EmployeesDirectory</div>
+        <div class="payload">searchParams</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-next-route" title="Loads session and token, parses the URL, then calls the API in parallel (options and the employee page) and picks the page state.">
+    <div class="label">EmployeesDirectory (Server Component)</div>
+    <div class="mono sym">EmployeesDirectory</div>
+    <div class="where">next-frontend/…/app/employees/page.tsx:39</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">5</span></div>
+      <div class="edge">
+        
+        <div class="elabel">loadSessionAndToken()</div>
+        <div class="payload">→ { session, token }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-service" title="Reads the httpOnly session cookie on the server (readSessionToken) and resolves the session; the JWT never reaches browser JavaScript.">
+    <div class="label">Session cookie and token</div>
+    <div class="mono sym">loadSessionAndToken</div>
+    <div class="where">next-frontend/…/server/protected.ts:13</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">6</span></div>
+      <div class="edge">
+        
+        <div class="elabel">getSession() → resolveSession(token, api())</div>
+        <div class="payload">token → SessionState</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-service" title="Asks the backend who the token belongs to (GET /auth/me) and keeps only display name, role, and scopes.">
+    <div class="label">resolveSession</div>
+    <div class="mono sym">resolveSession</div>
+    <div class="where">next-frontend/…/server/session.ts:27</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">7</span></div>
+      <div class="edge">
+        
+        <div class="elabel">GET /api/v1/auth/me</div>
+        <div class="payload">Authorization: Bearer → CurrentUserResponse</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:30%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-middleware" title="Assigns the request ID and logs method, path, status, and duration (no bodies).">
+    <div class="label">requestLog</div>
+    <div class="mono sym">requestLog</div>
+    <div class="where">express-backend/…/http/request-log.ts:23</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">8</span></div>
+      <div class="edge">
+        
+        <div class="elabel">router match PATHS.me <span class="sync">sync</span></div>
+        <div class="payload">req</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-route-handler" title="Returns the current user, scopes, and session expiry as CurrentUserResponse.">
+    <div class="label">GET /api/v1/auth/me</div>
+    <div class="mono sym">PATHS.me</div>
+    <div class="where">express-backend/…/http/auth-routes.ts:69</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">9</span></div>
+      <div class="edge">
+        
+        <div class="elabel">requireAuth(auth)</div>
+        <div class="payload">Bearer token</div>
+        
+        <aside class="alt"><div class="alt-title">Branch: Expired or revoked session</div><div>If authenticate throws (session expired, revoked, user inactive, bad JWT).</div><div class="alt-result">Express returns 401 UNAUTHENTICATED; the client maps it to kind UNAUTHENTICATED, requireUser/redirectIfUnauthenticated redirect to /session/expired, which clears the cookie.</div></aside>
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-middleware" title="Reads the Bearer token and puts the freshly loaded principal in res.locals; any auth failure becomes 401 UNAUTHENTICATED.">
+    <div class="label">requireAuth</div>
+    <div class="mono sym">requireAuth</div>
+    <div class="where">express-backend/…/http/auth-routes.ts:29</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">10</span></div>
+      <div class="edge">
+        
+        <div class="elabel">auth.authenticate(token)</div>
+        <div class="payload">token → Principal</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Verifies the HS256 JWT, then reloads the session, user status, role, and scopes from MySQL on every request.">
+    <div class="label">auth.authenticate</div>
+    <div class="mono sym">async function authenticate</div>
+    <div class="where">express-backend/…/access/sessions.ts:171</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">11</span></div>
+      <div class="edge">
+        
+        <div class="elabel">SELECT s.expires_at, s.revoked_at … FROM hr_sessions s</div>
+        <div class="payload">[sessionId, hrUserId] → expires_at, revoked_at</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Session row for the JWT session ID: expiry and revocation.">
+      <div class="cyl-text"><span class="mono">hr_<wbr>sessions</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">12</span></div>
+      <div class="edge">
+        
+        <div class="elabel">JOIN hr_users u ON u.id = s.hr_user_id <span class="sync">sync</span></div>
+        <div class="payload">→ email, display_name, role, status</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="The HR user joined to the session: email, display name, role, status (inactive users are rejected).">
+      <div class="cyl-text"><span class="mono">hr_<wbr>users</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">13</span></div>
+      <div class="edge">
+        <div class="from">from auth.authenticate</div>
+        <div class="elabel">SELECT country_code FROM hr_user_country_scopes</div>
+        <div class="payload">hrUserId → countries[]</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Countries this HR user may see.">
+      <div class="cyl-text"><span class="mono">hr_<wbr>user_<wbr>country_<wbr>scopes</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">14</span></div>
+      <div class="edge">
+        <div class="from">from auth.authenticate</div>
+        <div class="elabel">SELECT d.name FROM hr_user_department_scopes JOIN departments</div>
+        <div class="payload">hrUserId → departments[]</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Departments this HR user may see (joined to departments for names).">
+      <div class="cyl-text"><span class="mono">hr_<wbr>user_<wbr>department_<wbr>scopes</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">15</span></div>
+      <div class="edge">
+        <div class="from">from EmployeesDirectory (Server Component)</div>
+        <div class="elabel">parseDirectoryQuery(searchParams) <span class="sync">sync</span></div>
+        <div class="payload">searchParams → { query, invalid[] }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:30%;width:40%"></div><div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-service" title="Validates URL search params into a DirectoryQuery; invalid params mean no backend call for the list.">
+    <div class="label">parseDirectoryQuery</div>
+    <div class="mono sym">parseDirectoryQuery</div>
+    <div class="where">next-frontend/…/server/directory-query.ts:79</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">16</span></div>
+      <div class="edge">
+        <div class="from">from EmployeesDirectory (Server Component)</div>
+        <div class="elabel">client.listEmployees(token, query) (parallel with getDirectoryOptions)</div>
+        <div class="payload">DirectoryQuery</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-api-client" title="Builds GET /api/v1/employees with the query string and the response validator isDirectoryResponse.">
+    <div class="label">api().listEmployees</div>
+    <div class="mono sym">listEmployees</div>
+    <div class="where">next-frontend/…/server/api/client.ts:236</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">17</span></div>
+      <div class="edge">
+        
+        <div class="elabel">request&lt;DirectoryResponse&gt;(spec)</div>
+        <div class="payload">{ q, department, country, status, sort, direction, page, pageSize }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-http" title="Server-side fetch with Authorization: Bearer &lt;token&gt;, cache no-store, redirect error, and a timeout.">
+    <div class="label">fetch to Express</div>
+    <div class="mono sym">doFetch</div>
+    <div class="where">next-frontend/…/server/api/client.ts:162</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">18</span></div>
+      <div class="edge">
+        
+        <div class="elabel">GET /api/v1/employees?…</div>
+        <div class="payload">Authorization: Bearer → DirectoryResponse</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:30%;width:20%"></div><div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-middleware" title="Assigns the request ID and logs method, path, status, and duration (no bodies).">
+    <div class="label">requestLog<span class="again">again</span></div>
+    <div class="mono sym">requestLog</div>
+    <div class="where">express-backend/…/http/request-log.ts:23</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">19</span></div>
+      <div class="edge">
+        
+        <div class="elabel">router match PATHS.employees <span class="sync">sync</span></div>
+        <div class="payload">req</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-route-handler" title="Directory list route: no-store, requireAuth, validate, call the service, validate the response.">
+    <div class="label">GET /api/v1/employees</div>
+    <div class="mono sym">PATHS.employees</div>
+    <div class="where">express-backend/…/http/directory-routes.ts:29</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">20</span></div>
+      <div class="edge">
+        
+        <div class="elabel">requireAuth(auth) (principal reloaded again from MySQL, steps 10–13)</div>
+        <div class="payload">Bearer token → res.locals.principal</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-middleware" title="Reads the Bearer token and puts the freshly loaded principal in res.locals; any auth failure becomes 401 UNAUTHENTICATED.">
+    <div class="label">requireAuth<span class="again">again</span></div>
+    <div class="mono sym">requireAuth</div>
+    <div class="where">express-backend/…/http/auth-routes.ts:29</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">21</span></div>
+      <div class="edge">
+        <div class="from">from GET /api/v1/employees</div>
+        <div class="elabel">DirectoryQueryParams.safeParse(req.query) <span class="sync">sync</span></div>
+        <div class="payload">req.query → DirectoryQuery</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-middleware" title="Strict query schema (q, filters, sort, page, pageSize ≤ 100); failure is 400 VALIDATION_ERROR.">
+    <div class="label">DirectoryQueryParams (Zod)</div>
+    <div class="mono sym">DirectoryQueryParams</div>
+    <div class="where">express-backend/…/http/contract.ts:233</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">22</span></div>
+      <div class="edge">
+        <div class="from">from GET /api/v1/employees</div>
+        <div class="elabel">directory.list(principal, query)</div>
+        <div class="payload">Principal, DirectoryQuery → DirectoryResponse</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-service" title="Runs the page query and the count query, maps rows to DirectoryRow with selected compensation and USD context.">
+    <div class="label">directory.list</div>
+    <div class="mono sym">async function list</div>
+    <div class="where">express-backend/…/directory/directory-repository.ts:326</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">23</span></div>
+      <div class="edge">
+        
+        <div class="elabel">buildListQueries(principal, query, { asOf, exchangeRate }) <span class="sync">sync</span></div>
+        <div class="payload">→ { rows.sql, count.sql, params }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-repository" title="Builds parameterised SELECT and COUNT SQL: WHERE (scope AND filters), ORDER BY, LIMIT/OFFSET.">
+    <div class="label">buildListQueries</div>
+    <div class="mono sym">buildListQueries</div>
+    <div class="where">express-backend/…/directory/directory-repository.ts:240</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">24</span></div>
+      <div class="edge">
+        
+        <div class="elabel">whereClause → scopeCondition(principal) <span class="sync">sync</span></div>
+        <div class="payload">Principal → { sql, params }</div>
+        <div class="note scope-note"><b>Scope:</b> This is where Rohan's view is limited: e.country_code IN ('IN') AND d.name IN ('Support','Tech') inside the SQL, so rows, counts, and pages are all scoped.</div>
+        <aside class="alt"><div class="alt-title">Branch: Scoped HR (Rohan)</div><div>If principal.role = SCOPED with countries [IN] and departments [Support, Tech].</div><div class="alt-result">The WHERE clause adds e.country_code IN (?) AND d.name IN (?): Rohan's page, total count, and pagination include only India Support and Tech employees. Nothing is filtered in the browser.</div></aside>
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-repository" title="Turns the principal into a WHERE fragment: ADMIN → TRUE; SCOPED → country IN (…) AND department IN (…); anything else → FALSE.">
+    <div class="label">scopeCondition</div>
+    <div class="mono sym">scopeCondition</div>
+    <div class="where">express-backend/…/directory/directory-repository.ts:133</div>
+    <div class="badges"><span class="badge scope">scope rule</span></div>
+  </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">25</span></div>
+      <div class="edge">
+        <div class="from">from directory.list</div>
+        <div class="elabel">pool.query(rows.sql): SELECT … FROM employees e … WHERE scope AND filters ORDER BY … LIMIT ? OFFSET ?</div>
+        <div class="payload">params → EmployeeRow[]</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h solid" style="left:50%;width:20%"></div><div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Employee rows (FROM_EMPLOYEES).">
+      <div class="cyl-text"><span class="mono">employees</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">26</span></div>
+      <div class="edge">
+        
+        <div class="elabel">JOIN job_titles jt ON jt.id = e.job_title_id <span class="sync">sync</span></div>
+        <div class="payload">job title, level</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Job title and level for each employee.">
+      <div class="cyl-text"><span class="mono">job_<wbr>titles</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">27</span></div>
+      <div class="edge">
+        
+        <div class="elabel">JOIN departments d ON d.id = jt.department_id <span class="sync">sync</span></div>
+        <div class="payload">department name</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="Department name (used by the scope rule and filters).">
+      <div class="cyl-text"><span class="mono">departments</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row">
+      <div class="num"><span class="dot">28</span></div>
+      <div class="edge">
+        <div class="from">from employees</div>
+        <div class="elabel">LEFT JOIN LATERAL (… FROM compensation_records c …) <span class="sync">sync</span></div>
+        <div class="payload">selected compensation as of today</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v solid" style="left:70%"></div>
+        <div class="cell" style="grid-column:4"><div class="cyl" title="LATERAL join picks the selected (current, upcoming, or last) compensation record as of today.">
+      <div class="cyl-text"><span class="mono">compensation_<wbr>records</span><span class="op">SELECT</span></div>
+      
+    </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">29</span></div>
+      <div class="edge">
+        <div class="from">from directory.list</div>
+        <div class="elabel">pool.query(count.sql) then map rows; return DirectoryResponse</div>
+        <div class="payload">{ employees, page, sort, exchangeRate }</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:50%;width:20%"></div><div class="v dashed" style="left:50%"></div>
+        <div class="cell" style="grid-column:3"><div class="card kind-response" title="The backend validates its own output against the contract before res.json.">
+    <div class="label">DirectoryResponse.parse</div>
+    <div class="mono sym">DirectoryResponse.parse</div>
+    <div class="where">express-backend/…/http/directory-routes.ts:34</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">30</span></div>
+      <div class="edge">
+        
+        <div class="elabel">200 application/json (Cache-Control: no-store)</div>
+        <div class="payload">DirectoryResponse</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:30%;width:20%"></div><div class="v dashed" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-response" title="Next server validates the JSON against the generated OpenAPI schema; a mismatch is INVALID_RESPONSE and no data is shown.">
+    <div class="label">isDirectoryResponse (Ajv)</div>
+    <div class="mono sym">isDirectoryResponse</div>
+    <div class="where">next-frontend/…/server/api/contract.ts:93</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">31</span></div>
+      <div class="edge">
+        
+        <div class="elabel">ok → &lt;DirectoryResults data={list.data} …&gt; <span class="sync">sync</span></div>
+        <div class="payload">DirectoryResponse, DirectoryQuery</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="v dashed" style="left:30%"></div>
+        <div class="cell" style="grid-column:2"><div class="card kind-render" title="Server-renders the table (desktop) or ruled list (mobile) with native-currency money and the rate note.">
+    <div class="label">DirectoryResults</div>
+    <div class="mono sym">DirectoryResults</div>
+    <div class="where">next-frontend/…/app/employees/directory-results.tsx:297</div>
+    
+  </div></div>
+      </div>
+    </div>
+<div class="row back">
+      <div class="num"><span class="dot dot-back">32</span></div>
+      <div class="edge">
+        
+        <div class="elabel">RSC payload streamed to the browser</div>
+        <div class="payload">rendered table / list</div>
+        
+        
+      </div>
+      <div class="lanes">
+        <div class="h dashed" style="left:10%;width:20%"></div><div class="v dashed" style="left:10%"></div>
+        <div class="cell" style="grid-column:1"><div class="pill kind-render" title="Client component the streamed RSC payload is committed into; later filter and page changes run as router transitions here.">
+    <div class="label">Browser shows the page</div>
+    <div class="mono sym">DirectoryNavigationProvider</div>
+    <div class="where">next-frontend/…/app/employees/directory-navigation.tsx:14</div>
+    
+  </div></div>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <p>Traced at master 9236ac4 (worktree feat/architecture-flows). Generated from flows/F1-employees.json.</p>
+    
+    <ul><li>EmployeesDirectory also calls getDirectoryOptions (GET /api/v1/employee-directory/options) in parallel; it follows the same requireAuth path and is not drawn.</li><li>requireAuth runs on every backend request, so the principal is reloaded from MySQL twice in this flow (for /auth/me and for /employees).</li></ul>
+  </footer>
+</div>
+</body>
+</html>

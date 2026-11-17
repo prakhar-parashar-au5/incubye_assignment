@@ -1,0 +1,634 @@
+{
+  "id": "F1",
+  "title": "Admin clicks Employees in the side navigation",
+  "actor": "Meera Iyer (Admin HR)",
+  "trigger": "Click on the 'Employees' link in the rail (desktop) or Menu (mobile)",
+  "traceBase": "master 9236ac4 (worktree feat/architecture-flows)",
+  "nodes": [
+    {
+      "id": "nav-click",
+      "kind": "ui-event",
+      "label": "Click 'Employees'",
+      "file": "next-frontend/src/components/shell/app-shell.tsx",
+      "symbol": "Navigation",
+      "line": 32,
+      "does": "Rail navigation renders one link per built section; the user clicks Employees (href /employees).",
+      "lane": "browser"
+    },
+    {
+      "id": "link-nav",
+      "kind": "browser",
+      "label": "Client navigation",
+      "file": "next-frontend/src/components/shell/app-shell.tsx",
+      "symbol": "Link",
+      "line": 38,
+      "does": "next/link performs a client-side navigation and requests the RSC payload for /employees (the session cookie travels with it).",
+      "lane": "browser"
+    },
+    {
+      "id": "proxy",
+      "kind": "next-route",
+      "label": "Proxy cookie check",
+      "file": "next-frontend/src/proxy.ts",
+      "symbol": "proxy",
+      "line": 7,
+      "does": "Optimistic check only: no session cookie redirects to /sign-in; a present cookie is passed through to be verified by the backend.",
+      "lane": "next-server"
+    },
+    {
+      "id": "employees-page",
+      "kind": "next-route",
+      "label": "/employees page",
+      "file": "next-frontend/src/app/employees/page.tsx",
+      "symbol": "EmployeesPage",
+      "line": 24,
+      "does": "Route segment; streams a static directory skeleton inside Suspense while the data component loads.",
+      "lane": "next-server"
+    },
+    {
+      "id": "employees-directory",
+      "kind": "next-route",
+      "label": "EmployeesDirectory (Server Component)",
+      "file": "next-frontend/src/app/employees/page.tsx",
+      "symbol": "EmployeesDirectory",
+      "line": 39,
+      "does": "Loads session and token, parses the URL, then calls the API in parallel (options and the employee page) and picks the page state.",
+      "lane": "next-server"
+    },
+    {
+      "id": "load-session",
+      "kind": "service",
+      "label": "Session cookie and token",
+      "file": "next-frontend/src/server/protected.ts",
+      "symbol": "loadSessionAndToken",
+      "line": 13,
+      "does": "Reads the httpOnly session cookie on the server (readSessionToken) and resolves the session; the JWT never reaches browser JavaScript.",
+      "lane": "next-server"
+    },
+    {
+      "id": "resolve-session",
+      "kind": "service",
+      "label": "resolveSession",
+      "file": "next-frontend/src/server/session.ts",
+      "symbol": "resolveSession",
+      "line": 27,
+      "does": "Asks the backend who the token belongs to (GET /auth/me) and keeps only display name, role, and scopes.",
+      "lane": "next-server"
+    },
+    {
+      "id": "parse-query",
+      "kind": "service",
+      "label": "parseDirectoryQuery",
+      "file": "next-frontend/src/server/directory-query.ts",
+      "symbol": "parseDirectoryQuery",
+      "line": 79,
+      "does": "Validates URL search params into a DirectoryQuery; invalid params mean no backend call for the list.",
+      "lane": "next-server"
+    },
+    {
+      "id": "client-list",
+      "kind": "api-client",
+      "label": "api().listEmployees",
+      "file": "next-frontend/src/server/api/client.ts",
+      "symbol": "listEmployees",
+      "line": 236,
+      "does": "Builds GET /api/v1/employees with the query string and the response validator isDirectoryResponse.",
+      "lane": "next-server"
+    },
+    {
+      "id": "client-request",
+      "kind": "http",
+      "label": "fetch to Express",
+      "file": "next-frontend/src/server/api/client.ts",
+      "symbol": "doFetch",
+      "line": 162,
+      "does": "Server-side fetch with Authorization: Bearer <token>, cache no-store, redirect error, and a timeout.",
+      "lane": "next-server"
+    },
+    {
+      "id": "request-log",
+      "kind": "middleware",
+      "label": "requestLog",
+      "file": "express-backend/src/http/request-log.ts",
+      "symbol": "requestLog",
+      "line": 23,
+      "does": "Assigns the request ID and logs method, path, status, and duration (no bodies).",
+      "lane": "express"
+    },
+    {
+      "id": "me-route",
+      "kind": "route-handler",
+      "label": "GET /api/v1/auth/me",
+      "file": "express-backend/src/http/auth-routes.ts",
+      "symbol": "PATHS.me",
+      "line": 69,
+      "does": "Returns the current user, scopes, and session expiry as CurrentUserResponse.",
+      "lane": "express"
+    },
+    {
+      "id": "require-auth",
+      "kind": "middleware",
+      "label": "requireAuth",
+      "file": "express-backend/src/http/auth-routes.ts",
+      "symbol": "requireAuth",
+      "line": 29,
+      "does": "Reads the Bearer token and puts the freshly loaded principal in res.locals; any auth failure becomes 401 UNAUTHENTICATED.",
+      "lane": "express"
+    },
+    {
+      "id": "authenticate",
+      "kind": "service",
+      "label": "auth.authenticate",
+      "file": "express-backend/src/access/sessions.ts",
+      "symbol": "async function authenticate",
+      "line": 171,
+      "does": "Verifies the HS256 JWT, then reloads the session, user status, role, and scopes from MySQL on every request.",
+      "lane": "express"
+    },
+    {
+      "id": "t-hr-sessions",
+      "kind": "db-table",
+      "label": "hr_sessions",
+      "file": "express-backend/src/access/sessions.ts",
+      "symbol": "hr_sessions",
+      "line": 175,
+      "does": "Session row for the JWT session ID: expiry and revocation.",
+      "lane": "mysql",
+      "table": "hr_sessions",
+      "operation": "SELECT"
+    },
+    {
+      "id": "t-hr-users",
+      "kind": "db-table",
+      "label": "hr_users",
+      "file": "express-backend/src/access/sessions.ts",
+      "symbol": "JOIN hr_users",
+      "line": 175,
+      "does": "The HR user joined to the session: email, display name, role, status (inactive users are rejected).",
+      "lane": "mysql",
+      "table": "hr_users",
+      "operation": "SELECT"
+    },
+    {
+      "id": "t-country-scopes",
+      "kind": "db-table",
+      "label": "hr_user_country_scopes",
+      "file": "express-backend/src/access/sessions.ts",
+      "symbol": "hr_user_country_scopes",
+      "line": 189,
+      "does": "Countries this HR user may see.",
+      "lane": "mysql",
+      "table": "hr_user_country_scopes",
+      "operation": "SELECT"
+    },
+    {
+      "id": "t-dept-scopes",
+      "kind": "db-table",
+      "label": "hr_user_department_scopes",
+      "file": "express-backend/src/access/sessions.ts",
+      "symbol": "hr_user_department_scopes",
+      "line": 191,
+      "does": "Departments this HR user may see (joined to departments for names).",
+      "lane": "mysql",
+      "table": "hr_user_department_scopes",
+      "operation": "SELECT"
+    },
+    {
+      "id": "employees-route",
+      "kind": "route-handler",
+      "label": "GET /api/v1/employees",
+      "file": "express-backend/src/http/directory-routes.ts",
+      "symbol": "PATHS.employees",
+      "line": 29,
+      "does": "Directory list route: no-store, requireAuth, validate, call the service, validate the response.",
+      "lane": "express"
+    },
+    {
+      "id": "query-validation",
+      "kind": "middleware",
+      "label": "DirectoryQueryParams (Zod)",
+      "file": "express-backend/src/http/contract.ts",
+      "symbol": "DirectoryQueryParams",
+      "line": 233,
+      "does": "Strict query schema (q, filters, sort, page, pageSize ≤ 100); failure is 400 VALIDATION_ERROR.",
+      "lane": "express"
+    },
+    {
+      "id": "directory-list",
+      "kind": "service",
+      "label": "directory.list",
+      "file": "express-backend/src/directory/directory-repository.ts",
+      "symbol": "async function list",
+      "line": 326,
+      "does": "Runs the page query and the count query, maps rows to DirectoryRow with selected compensation and USD context.",
+      "lane": "express"
+    },
+    {
+      "id": "build-queries",
+      "kind": "repository",
+      "label": "buildListQueries",
+      "file": "express-backend/src/directory/directory-repository.ts",
+      "symbol": "buildListQueries",
+      "line": 240,
+      "does": "Builds parameterised SELECT and COUNT SQL: WHERE (scope AND filters), ORDER BY, LIMIT/OFFSET.",
+      "lane": "express"
+    },
+    {
+      "id": "scope-condition",
+      "kind": "repository",
+      "label": "scopeCondition",
+      "file": "express-backend/src/directory/directory-repository.ts",
+      "symbol": "scopeCondition",
+      "line": 133,
+      "does": "Turns the principal into a WHERE fragment: ADMIN → TRUE; SCOPED → country IN (…) AND department IN (…); anything else → FALSE.",
+      "lane": "express",
+      "scopeRule": "This is where Rohan's view is limited: e.country_code IN ('IN') AND d.name IN ('Support','Tech') inside the SQL, so rows, counts, and pages are all scoped."
+    },
+    {
+      "id": "t-employees",
+      "kind": "db-table",
+      "label": "employees",
+      "file": "express-backend/src/directory/directory-repository.ts",
+      "symbol": "employees",
+      "line": 79,
+      "does": "Employee rows (FROM_EMPLOYEES).",
+      "lane": "mysql",
+      "table": "employees",
+      "operation": "SELECT"
+    },
+    {
+      "id": "t-job-titles",
+      "kind": "db-table",
+      "label": "job_titles",
+      "file": "express-backend/src/directory/directory-repository.ts",
+      "symbol": "job_titles",
+      "line": 80,
+      "does": "Job title and level for each employee.",
+      "lane": "mysql",
+      "table": "job_titles",
+      "operation": "SELECT"
+    },
+    {
+      "id": "t-departments",
+      "kind": "db-table",
+      "label": "departments",
+      "file": "express-backend/src/directory/directory-repository.ts",
+      "symbol": "departments",
+      "line": 81,
+      "does": "Department name (used by the scope rule and filters).",
+      "lane": "mysql",
+      "table": "departments",
+      "operation": "SELECT"
+    },
+    {
+      "id": "t-compensation",
+      "kind": "db-table",
+      "label": "compensation_records",
+      "file": "express-backend/src/directory/directory-repository.ts",
+      "symbol": "compensation_records",
+      "line": 93,
+      "does": "LATERAL join picks the selected (current, upcoming, or last) compensation record as of today.",
+      "lane": "mysql",
+      "table": "compensation_records",
+      "operation": "SELECT"
+    },
+    {
+      "id": "response-parse",
+      "kind": "response",
+      "label": "DirectoryResponse.parse",
+      "file": "express-backend/src/http/directory-routes.ts",
+      "symbol": "DirectoryResponse.parse",
+      "line": 34,
+      "does": "The backend validates its own output against the contract before res.json.",
+      "lane": "express"
+    },
+    {
+      "id": "response-validate",
+      "kind": "response",
+      "label": "isDirectoryResponse (Ajv)",
+      "file": "next-frontend/src/server/api/contract.ts",
+      "symbol": "isDirectoryResponse",
+      "line": 93,
+      "does": "Next server validates the JSON against the generated OpenAPI schema; a mismatch is INVALID_RESPONSE and no data is shown.",
+      "lane": "next-server"
+    },
+    {
+      "id": "render-results",
+      "kind": "render",
+      "label": "DirectoryResults",
+      "file": "next-frontend/src/app/employees/directory-results.tsx",
+      "symbol": "DirectoryResults",
+      "line": 297,
+      "does": "Server-renders the table (desktop) or ruled list (mobile) with native-currency money and the rate note.",
+      "lane": "next-server"
+    },
+    {
+      "id": "browser-commit",
+      "kind": "render",
+      "label": "Browser shows the page",
+      "file": "next-frontend/src/app/employees/directory-navigation.tsx",
+      "symbol": "DirectoryNavigationProvider",
+      "line": 14,
+      "does": "Client component the streamed RSC payload is committed into; later filter and page changes run as router transitions here.",
+      "lane": "browser"
+    }
+  ],
+  "edges": [
+    {
+      "from": "nav-click",
+      "to": "link-nav",
+      "order": 1,
+      "label": "click → <Link href=\"/employees\">",
+      "payload": "href /employees",
+      "async": false
+    },
+    {
+      "from": "link-nav",
+      "to": "proxy",
+      "order": 2,
+      "label": "GET /employees (RSC request)",
+      "payload": "Cookie: __Host-acme_session",
+      "async": true
+    },
+    {
+      "from": "proxy",
+      "to": "employees-page",
+      "order": 3,
+      "label": "NextResponse.next()",
+      "payload": "request (cookie present)",
+      "async": false
+    },
+    {
+      "from": "employees-page",
+      "to": "employees-directory",
+      "order": 4,
+      "label": "<Suspense> renders EmployeesDirectory",
+      "payload": "searchParams",
+      "async": true
+    },
+    {
+      "from": "employees-directory",
+      "to": "load-session",
+      "order": 5,
+      "label": "loadSessionAndToken()",
+      "payload": "→ { session, token }",
+      "async": true
+    },
+    {
+      "from": "load-session",
+      "to": "resolve-session",
+      "order": 6,
+      "label": "getSession() → resolveSession(token, api())",
+      "payload": "token → SessionState",
+      "async": true
+    },
+    {
+      "from": "resolve-session",
+      "to": "request-log",
+      "order": 7,
+      "label": "GET /api/v1/auth/me",
+      "payload": "Authorization: Bearer → CurrentUserResponse",
+      "async": true
+    },
+    {
+      "from": "request-log",
+      "to": "me-route",
+      "order": 8,
+      "label": "router match PATHS.me",
+      "payload": "req",
+      "async": false
+    },
+    {
+      "from": "me-route",
+      "to": "require-auth",
+      "order": 9,
+      "label": "requireAuth(auth)",
+      "payload": "Bearer token",
+      "async": true
+    },
+    {
+      "from": "require-auth",
+      "to": "authenticate",
+      "order": 10,
+      "label": "auth.authenticate(token)",
+      "payload": "token → Principal",
+      "async": true
+    },
+    {
+      "from": "authenticate",
+      "to": "t-hr-sessions",
+      "order": 11,
+      "label": "SELECT s.expires_at, s.revoked_at … FROM hr_sessions s",
+      "payload": "[sessionId, hrUserId] → expires_at, revoked_at",
+      "async": true
+    },
+    {
+      "from": "t-hr-sessions",
+      "to": "t-hr-users",
+      "order": 12,
+      "label": "JOIN hr_users u ON u.id = s.hr_user_id",
+      "payload": "→ email, display_name, role, status",
+      "async": false
+    },
+    {
+      "from": "authenticate",
+      "to": "t-country-scopes",
+      "order": 13,
+      "label": "SELECT country_code FROM hr_user_country_scopes",
+      "payload": "hrUserId → countries[]",
+      "async": true
+    },
+    {
+      "from": "authenticate",
+      "to": "t-dept-scopes",
+      "order": 14,
+      "label": "SELECT d.name FROM hr_user_department_scopes JOIN departments",
+      "payload": "hrUserId → departments[]",
+      "async": true
+    },
+    {
+      "from": "employees-directory",
+      "to": "parse-query",
+      "order": 15,
+      "label": "parseDirectoryQuery(searchParams)",
+      "payload": "searchParams → { query, invalid[] }",
+      "async": false
+    },
+    {
+      "from": "employees-directory",
+      "to": "client-list",
+      "order": 16,
+      "label": "client.listEmployees(token, query) (parallel with getDirectoryOptions)",
+      "payload": "DirectoryQuery",
+      "async": true
+    },
+    {
+      "from": "client-list",
+      "to": "client-request",
+      "order": 17,
+      "label": "request<DirectoryResponse>(spec)",
+      "payload": "{ q, department, country, status, sort, direction, page, pageSize }",
+      "async": true
+    },
+    {
+      "from": "client-request",
+      "to": "request-log",
+      "order": 18,
+      "label": "GET /api/v1/employees?…",
+      "payload": "Authorization: Bearer → DirectoryResponse",
+      "async": true
+    },
+    {
+      "from": "request-log",
+      "to": "employees-route",
+      "order": 19,
+      "label": "router match PATHS.employees",
+      "payload": "req",
+      "async": false
+    },
+    {
+      "from": "employees-route",
+      "to": "require-auth",
+      "order": 20,
+      "label": "requireAuth(auth) (principal reloaded again from MySQL, steps 10–13)",
+      "payload": "Bearer token → res.locals.principal",
+      "async": true
+    },
+    {
+      "from": "employees-route",
+      "to": "query-validation",
+      "order": 21,
+      "label": "DirectoryQueryParams.safeParse(req.query)",
+      "payload": "req.query → DirectoryQuery",
+      "async": false
+    },
+    {
+      "from": "employees-route",
+      "to": "directory-list",
+      "order": 22,
+      "label": "directory.list(principal, query)",
+      "payload": "Principal, DirectoryQuery → DirectoryResponse",
+      "async": true
+    },
+    {
+      "from": "directory-list",
+      "to": "build-queries",
+      "order": 23,
+      "label": "buildListQueries(principal, query, { asOf, exchangeRate })",
+      "payload": "→ { rows.sql, count.sql, params }",
+      "async": false
+    },
+    {
+      "from": "build-queries",
+      "to": "scope-condition",
+      "order": 24,
+      "label": "whereClause → scopeCondition(principal)",
+      "payload": "Principal → { sql, params }",
+      "async": false
+    },
+    {
+      "from": "directory-list",
+      "to": "t-employees",
+      "order": 25,
+      "label": "pool.query(rows.sql): SELECT … FROM employees e … WHERE scope AND filters ORDER BY … LIMIT ? OFFSET ?",
+      "payload": "params → EmployeeRow[]",
+      "async": true
+    },
+    {
+      "from": "t-employees",
+      "to": "t-job-titles",
+      "order": 26,
+      "label": "JOIN job_titles jt ON jt.id = e.job_title_id",
+      "payload": "job title, level",
+      "async": false
+    },
+    {
+      "from": "t-job-titles",
+      "to": "t-departments",
+      "order": 27,
+      "label": "JOIN departments d ON d.id = jt.department_id",
+      "payload": "department name",
+      "async": false
+    },
+    {
+      "from": "t-employees",
+      "to": "t-compensation",
+      "order": 28,
+      "label": "LEFT JOIN LATERAL (… FROM compensation_records c …)",
+      "payload": "selected compensation as of today",
+      "async": false
+    },
+    {
+      "from": "directory-list",
+      "to": "response-parse",
+      "order": 29,
+      "label": "pool.query(count.sql) then map rows; return DirectoryResponse",
+      "payload": "{ employees, page, sort, exchangeRate }",
+      "async": true
+    },
+    {
+      "from": "response-parse",
+      "to": "response-validate",
+      "order": 30,
+      "label": "200 application/json (Cache-Control: no-store)",
+      "payload": "DirectoryResponse",
+      "async": true
+    },
+    {
+      "from": "response-validate",
+      "to": "render-results",
+      "order": 31,
+      "label": "ok → <DirectoryResults data={list.data} …>",
+      "payload": "DirectoryResponse, DirectoryQuery",
+      "async": false
+    },
+    {
+      "from": "render-results",
+      "to": "browser-commit",
+      "order": 32,
+      "label": "RSC payload streamed to the browser",
+      "payload": "rendered table / list",
+      "async": true
+    }
+  ],
+  "alternatives": [
+    {
+      "id": "scoped-hr",
+      "label": "Scoped HR (Rohan)",
+      "at": "scope-condition",
+      "condition": "principal.role = SCOPED with countries [IN] and departments [Support, Tech]",
+      "via": [
+        "scope-condition",
+        "t-employees",
+        "t-departments"
+      ],
+      "result": "The WHERE clause adds e.country_code IN (?) AND d.name IN (?): Rohan's page, total count, and pagination include only India Support and Tech employees. Nothing is filtered in the browser."
+    },
+    {
+      "id": "unauthenticated",
+      "label": "Expired or revoked session",
+      "at": "require-auth",
+      "condition": "authenticate throws (session expired, revoked, user inactive, bad JWT)",
+      "via": [
+        "require-auth",
+        "client-request",
+        "employees-directory"
+      ],
+      "result": "Express returns 401 UNAUTHENTICATED; the client maps it to kind UNAUTHENTICATED, requireUser/redirectIfUnauthenticated redirect to /session/expired, which clears the cookie."
+    },
+    {
+      "id": "no-cookie",
+      "label": "No session cookie",
+      "at": "proxy",
+      "condition": "request has no session cookie",
+      "via": [
+        "proxy"
+      ],
+      "result": "The proxy redirects to /sign-in before any Server Component or backend call runs."
+    }
+  ],
+  "notes": [
+    "EmployeesDirectory also calls getDirectoryOptions (GET /api/v1/employee-directory/options) in parallel; it follows the same requireAuth path and is not drawn.",
+    "requireAuth runs on every backend request, so the principal is reloaded from MySQL twice in this flow (for /auth/me and for /employees)."
+  ]
+}

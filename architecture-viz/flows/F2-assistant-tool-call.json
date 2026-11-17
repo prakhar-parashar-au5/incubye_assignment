@@ -1,0 +1,783 @@
+{
+  "id": "F2",
+  "title": "Admin asks the assistant \"Who earns the most in Tech in India?\"",
+  "actor": "Meera Iyer (Admin HR)",
+  "trigger": "Type the question in the composer on /assistant (new conversation) and press Enter",
+  "traceBase": "master 9236ac4, re-checked after the merge of master with AI Task 05 (feat/architecture-flows)",
+  "evidence": {
+    "traceId": "88f78a0a-c3c3-452a-a9ce-b87bf81929b0",
+    "source": "Read-only browse of http://localhost:3224/admin/ai-traces as Meera Iyer (Admin HR), 2026-11-17. No messages sent, no review, no delete.",
+    "observedSteps": [
+      "Step 1 of 5: User prompt (\"Who earns the most?\")",
+      "Step 2 of 5: Model call 1 Succeeded",
+      "Step 3 of 5: Tool call 1: get_top_compensated_employees Succeeded (requested { metric: ANNUAL_BASE, currency: null, limit: 1, comparisonCurrency: USD })",
+      "Step 4 of 5: Model call 2 Succeeded",
+      "Step 5 of 5: Final response"
+    ],
+    "note": "The evaluator lane holds no trace for the exact question \"…in Tech in India?\" and sending one was not allowed, so the closest real trace (same tool, same 2-model/1-tool shape, model gpt-6-luna, status COMPLETED, 6.41 s) confirms the order: model call → tool attempt and outcome → model call → final. Trace 8cf829cd-8576-4953-b26f-69118e4af51f shows the parallel case (one model call requesting two tools, both recorded before model call 2). Re-checked after AI Task 05: prompt version is now assistant-instructions-v2 (PROMPT_VERSION, assistant-service.ts:45). The evidence trace predates Task 05, so its recorded prompt version may be v1; the step order is unchanged by Task 05."
+  },
+  "nodes": [
+    {
+      "id": "composer-send",
+      "kind": "ui-event",
+      "label": "Enter in composer",
+      "file": "next-frontend/src/app/assistant/assistant-chat.tsx",
+      "symbol": "function send",
+      "line": 225,
+      "does": "Trims the draft, blocks empty or >2,000-character text, clears the draft, and starts a submission.",
+      "lane": "browser"
+    },
+    {
+      "id": "run-submission",
+      "kind": "browser",
+      "label": "run(): key + transition",
+      "file": "next-frontend/src/app/assistant/assistant-chat.tsx",
+      "symbol": "function run",
+      "line": 201,
+      "does": "Shows the pending user message, creates the Idempotency-Key (crypto.randomUUID via newKey), and calls the Server Action inside a transition.",
+      "lane": "browser"
+    },
+    {
+      "id": "server-action",
+      "kind": "server-action",
+      "label": "sendConversationMessage",
+      "file": "next-frontend/src/server/actions/assistant.ts",
+      "symbol": "sendConversationMessage",
+      "line": 83,
+      "does": "Untrusted entry point: validates { conversationId|null, content, idempotencyKey, retryOfTraceId? }, reads the session cookie, and calls Express.",
+      "lane": "next-server"
+    },
+    {
+      "id": "create-route",
+      "kind": "route-handler",
+      "label": "POST /assistant/conversations",
+      "file": "express-backend/src/http/assistant-routes.ts",
+      "symbol": "router.post(PATHS.assistantConversations",
+      "line": 84,
+      "does": "requireAuth, 1 kB JSON parser, then conversations.create(principal); 201 AssistantConversationResponse.",
+      "lane": "express"
+    },
+    {
+      "id": "t-ai-conversations",
+      "kind": "db-table",
+      "label": "ai_conversations",
+      "file": "express-backend/src/assistant/observability/repository.ts",
+      "symbol": "ai_conversations",
+      "line": 153,
+      "does": "New conversation row owned by the HR user.",
+      "lane": "mysql",
+      "table": "ai_conversations",
+      "operation": "INSERT",
+      "observability": true
+    },
+    {
+      "id": "client-send",
+      "kind": "api-client",
+      "label": "sendAssistantConversationMessage",
+      "file": "next-frontend/src/server/api/client.ts",
+      "symbol": "sendAssistantConversationMessage",
+      "line": 287,
+      "does": "POST …/messages with Authorization: Bearer, the Idempotency-Key header, one message only, the assistant timeout, and isAssistantTurnResponse as validator.",
+      "lane": "next-server"
+    },
+    {
+      "id": "require-auth",
+      "kind": "middleware",
+      "label": "requireAuth",
+      "file": "express-backend/src/http/auth-routes.ts",
+      "symbol": "requireAuth",
+      "line": 29,
+      "does": "Reloads the principal (session, status, role, scopes) from MySQL for this request; failure is 401.",
+      "lane": "express"
+    },
+    {
+      "id": "rate-limit",
+      "kind": "middleware",
+      "label": "assistantRequestLimiter",
+      "file": "express-backend/src/http/rate-limit.ts",
+      "symbol": "assistantRequestLimiter",
+      "line": 164,
+      "does": "20 message submissions per HR user per 15 minutes; over the limit is 429 with Retry-After.",
+      "lane": "express"
+    },
+    {
+      "id": "messages-route",
+      "kind": "route-handler",
+      "label": "POST …/messages",
+      "file": "express-backend/src/http/assistant-routes.ts",
+      "symbol": "PATHS.assistantConversationMessages",
+      "line": 94,
+      "does": "12 kB parser; requires an Idempotency-Key matching ASSISTANT_IDEMPOTENCY_KEY; parses AssistantMessageRequest; calls conversations.submit.",
+      "lane": "express"
+    },
+    {
+      "id": "submit",
+      "kind": "service",
+      "label": "conversations.submit",
+      "file": "express-backend/src/assistant/conversation-service.ts",
+      "symbol": "async function submit",
+      "line": 322,
+      "does": "Owns the turn: loads the owned conversation (store.readConversation, else 404), idempotency, history, trace creation, runTurn, finalisation; maps failures to public errors.",
+      "lane": "express"
+    },
+    {
+      "id": "find-idempotency",
+      "kind": "repository",
+      "label": "findTraceByIdempotency",
+      "file": "express-backend/src/assistant/observability/repository.ts",
+      "symbol": "async findTraceByIdempotency",
+      "line": 341,
+      "does": "Looks up a trace in this conversation with the same Idempotency-Key (SELECT ai_traces ⋈ ai_messages); a hit replays instead of running a new turn.",
+      "lane": "express"
+    },
+    {
+      "id": "select-history",
+      "kind": "service",
+      "label": "selectHistory",
+      "file": "express-backend/src/assistant/conversation-service.ts",
+      "symbol": "selectHistory",
+      "line": 171,
+      "does": "Bounded server-side history: up to 4 recent COMPLETED turns and 16,000 characters, dropping turns the caller's current scope no longer covers; the browser's history is never used.",
+      "lane": "express"
+    },
+    {
+      "id": "create-trace",
+      "kind": "repository",
+      "label": "createTrace",
+      "file": "express-backend/src/assistant/observability/repository.ts",
+      "symbol": "async createTrace",
+      "line": 181,
+      "does": "One transaction: STARTED trace (prompt version assistant-instructions-v2 and its hash, model, actor scope snapshot, exact model messages, key + command hash) and the user message.",
+      "lane": "express",
+      "observability": true,
+      "failClosed": "TRACE_CREATE: if this write fails the API returns 503 TRACE_UNAVAILABLE and OpenAI is never called; a reused key with different content is 409 DUPLICATE_OPERATION."
+    },
+    {
+      "id": "t-ai-traces-insert",
+      "kind": "db-table",
+      "label": "ai_traces",
+      "file": "express-backend/src/assistant/observability/repository.ts",
+      "symbol": "INSERT INTO ai_traces",
+      "line": 207,
+      "does": "The trace row, status STARTED.",
+      "lane": "mysql",
+      "table": "ai_traces",
+      "operation": "INSERT",
+      "observability": true
+    },
+    {
+      "id": "t-ai-messages-insert",
+      "kind": "db-table",
+      "label": "ai_messages",
+      "file": "express-backend/src/assistant/observability/repository.ts",
+      "symbol": "INSERT INTO ai_messages",
+      "line": 210,
+      "does": "The USER message of this turn (the ASSISTANT message is inserted the same way in finishTrace).",
+      "lane": "mysql",
+      "table": "ai_messages",
+      "operation": "INSERT",
+      "observability": true
+    },
+    {
+      "id": "run-turn",
+      "kind": "service",
+      "label": "assistant.runTurn",
+      "file": "express-backend/src/assistant/assistant-service.ts",
+      "symbol": "async function runTurn",
+      "line": 255,
+      "does": "The tool loop with a turn deadline: record attempt → call model → record outcome → for each tool: record attempt → validate/run → record outcome → next model call.",
+      "lane": "express",
+      "failClosed": "No model configured: TurnFailure(MODEL_CALL, not_configured) before any provider or tool call; the turn is finalised FAILED."
+    },
+    {
+      "id": "t-ai-model-calls-insert",
+      "kind": "db-table",
+      "label": "ai_model_calls (attempt)",
+      "file": "express-backend/src/assistant/observability/repository.ts",
+      "symbol": "INSERT INTO ai_model_calls",
+      "line": 222,
+      "does": "startModelCall: the exact model input (instructions, messages, earlier exchanges) and tool schemas, before the provider call.",
+      "lane": "mysql",
+      "table": "ai_model_calls",
+      "operation": "INSERT",
+      "observability": true,
+      "failClosed": "MODEL_TRACE_WRITE: persist() throws TurnFailure, so no unrecorded provider call is made."
+    },
+    {
+      "id": "model-session",
+      "kind": "service",
+      "label": "OpenAI adapter session.next",
+      "file": "express-backend/src/assistant/openai-model.ts",
+      "symbol": "async next",
+      "line": 97,
+      "does": "Appends tool outputs to the replayed input and calls the Responses API (store: false, tool_choice auto, parallel tool calls, no SDK retries).",
+      "lane": "express"
+    },
+    {
+      "id": "openai",
+      "kind": "external-api",
+      "label": "OpenAI Responses API",
+      "file": "express-backend/src/assistant/openai-model.ts",
+      "symbol": "client.responses.create",
+      "line": 80,
+      "does": "The language model: returns either function_call items (tool decisions) or answer text, plus token usage.",
+      "lane": "openai"
+    },
+    {
+      "id": "t-ai-model-calls-update",
+      "kind": "db-table",
+      "label": "ai_model_calls (outcome)",
+      "file": "express-backend/src/assistant/observability/repository.ts",
+      "symbol": "UPDATE ai_model_calls",
+      "line": 235,
+      "does": "finishModelCall: SUCCEEDED with output text, tool decisions (scrubbed JSON arguments), tokens, latency, provider request ID — or FAILED with a safe category.",
+      "lane": "mysql",
+      "table": "ai_model_calls",
+      "operation": "UPDATE",
+      "observability": true,
+      "failClosed": "MODEL_TRACE_WRITE: if the outcome cannot be saved, the reply's text and tool decisions are never used."
+    },
+    {
+      "id": "t-ai-tool-calls-insert",
+      "kind": "db-table",
+      "label": "ai_tool_calls (attempt)",
+      "file": "express-backend/src/assistant/observability/repository.ts",
+      "symbol": "INSERT INTO ai_tool_calls",
+      "line": 247,
+      "does": "startToolCall: tool name, provider call ID, requested arguments; only after the parent model call is SUCCEEDED.",
+      "lane": "mysql",
+      "table": "ai_tool_calls",
+      "operation": "INSERT",
+      "observability": true,
+      "failClosed": "TOOL_TRACE_WRITE: the tool is not validated or run without this row."
+    },
+    {
+      "id": "tool-validate",
+      "kind": "service",
+      "label": "tools.run → runTyped (validation)",
+      "file": "express-backend/src/assistant/tools.ts",
+      "symbol": "runTyped",
+      "line": 328,
+      "does": "Unknown name → REJECTED UNKNOWN_TOOL; TOOL_INPUT_SCHEMAS[name].safeParse(args) fails → REJECTED INVALID_ARGUMENTS; otherwise calls the handler with the server principal.",
+      "lane": "express"
+    },
+    {
+      "id": "tool-handler",
+      "kind": "service",
+      "label": "get_top_compensated_employees",
+      "file": "express-backend/src/assistant/tools.ts",
+      "symbol": "get_top_compensated_employees",
+      "line": 221,
+      "does": "Ranks by { metric, currency, limit } (no department or country argument exists), checks every row with assertPermitted, builds an employee_list card, and adds limitations through withScope (scopeLimitation for Scoped HR).",
+      "lane": "express"
+    },
+    {
+      "id": "insights-top",
+      "kind": "repository",
+      "label": "insights.topCompensated",
+      "file": "express-backend/src/assistant/compensation-insights.ts",
+      "symbol": "async function topCompensated",
+      "line": 111,
+      "does": "Read-only ranking SQL over currently working employees; native currency, or USD equivalent via the saved rate.",
+      "lane": "express",
+      "scopeRule": "scopeCondition(principal) in the WHERE clause, the same rule as the directory: ADMIN sees all; SCOPED only their countries AND departments. The model cannot pass identity or scope."
+    },
+    {
+      "id": "t-employees",
+      "kind": "db-table",
+      "label": "employees ⋈ job_titles ⋈ departments",
+      "file": "express-backend/src/assistant/compensation-insights.ts",
+      "symbol": "FROM_EMPLOYEES",
+      "line": 126,
+      "does": "Employees in scope, joined to job titles and departments (FROM_EMPLOYEES).",
+      "lane": "mysql",
+      "table": "employees",
+      "operation": "SELECT"
+    },
+    {
+      "id": "t-compensation",
+      "kind": "db-table",
+      "label": "compensation_records",
+      "file": "express-backend/src/directory/directory-repository.ts",
+      "symbol": "FROM compensation_records c",
+      "line": 93,
+      "does": "SELECTED_COMPENSATION LATERAL join (used by topCompensated at compensation-insights.ts:127): the selected record per employee, which the ranking orders by base or cash.",
+      "lane": "mysql",
+      "table": "compensation_records",
+      "operation": "SELECT"
+    },
+    {
+      "id": "scope-limitation",
+      "kind": "service",
+      "label": "scopeLimitation",
+      "file": "express-backend/src/assistant/tools.ts",
+      "symbol": "export function scopeLimitation",
+      "line": 63,
+      "does": "Fixed coverage statement from the principal's current scope, prepended to ranking, summary, and recent-change limitations. Admin HR: null (nothing added).",
+      "lane": "express",
+      "scopeRule": "Scoped HR results always carry 'Covers only employees in your access: …' so a scoped figure is never presented as company-wide; for this Admin flow it returns null."
+    },
+    {
+      "id": "t-ai-tool-calls-update",
+      "kind": "db-table",
+      "label": "ai_tool_calls (outcome)",
+      "file": "express-backend/src/assistant/observability/repository.ts",
+      "symbol": "UPDATE ai_tool_calls",
+      "line": 257,
+      "does": "finishToolCall: SUCCEEDED with the complete structured result, or REJECTED with validation errors, or FAILED with a safe category; duration.",
+      "lane": "mysql",
+      "table": "ai_tool_calls",
+      "operation": "UPDATE",
+      "observability": true,
+      "failClosed": "TOOL_TRACE_WRITE: cards are not used and the next model call is not made until this outcome is saved."
+    },
+    {
+      "id": "finish-trace",
+      "kind": "repository",
+      "label": "finishTrace",
+      "file": "express-backend/src/assistant/observability/repository.ts",
+      "symbol": "async finishTrace",
+      "line": 261,
+      "does": "One transaction: ASSISTANT message with the final response, then the trace COMPLETED with totals summed from its model and tool calls.",
+      "lane": "express",
+      "observability": true,
+      "failClosed": "FINAL_TRACE_WRITE: if this fails the trace is marked FAILED and the API returns 503; the answer is never returned unrecorded."
+    },
+    {
+      "id": "t-ai-traces-update",
+      "kind": "db-table",
+      "label": "ai_traces (final)",
+      "file": "express-backend/src/assistant/observability/repository.ts",
+      "symbol": "UPDATE ai_traces SET status",
+      "line": 291,
+      "does": "Terminal status, final response, duration, token totals, model and tool call counts.",
+      "lane": "mysql",
+      "table": "ai_traces",
+      "operation": "UPDATE",
+      "observability": true
+    },
+    {
+      "id": "response-parse",
+      "kind": "response",
+      "label": "AssistantTurnResponse.parse",
+      "file": "express-backend/src/http/assistant-routes.ts",
+      "symbol": "AssistantTurnResponse.parse",
+      "line": 102,
+      "does": "Validated turn response: answer, toolCalls, cards, limitations, trace and sequence IDs, withheld.",
+      "lane": "express"
+    },
+    {
+      "id": "response-validate",
+      "kind": "response",
+      "label": "isAssistantTurnResponse (Ajv)",
+      "file": "next-frontend/src/server/api/contract.ts",
+      "symbol": "isAssistantTurnResponse",
+      "line": 99,
+      "does": "The Next server rejects any response that breaks the generated contract (shown as an unconfirmed send).",
+      "lane": "next-server"
+    },
+    {
+      "id": "conversation-page",
+      "kind": "next-route",
+      "label": "/assistant/[id] Server Component",
+      "file": "next-frontend/src/app/assistant/[conversationId]/page.tsx",
+      "symbol": "async function Conversation",
+      "line": 44,
+      "does": "After router.replace, loads the saved conversation (GET …/conversations/{id}) and the list; 404 for unknown or unowned IDs.",
+      "lane": "next-server"
+    },
+    {
+      "id": "build-thread",
+      "kind": "render",
+      "label": "buildThread",
+      "file": "next-frontend/src/lib/assistant.ts",
+      "symbol": "buildThread",
+      "line": 103,
+      "does": "Orders messages by sequence, attaches turn states, and re-filters cards to the current scope (filterCardsToScope).",
+      "lane": "next-server"
+    },
+    {
+      "id": "render-answer",
+      "kind": "render",
+      "label": "AnswerView + cards",
+      "file": "next-frontend/src/app/assistant/assistant-chat.tsx",
+      "symbol": "AnswerView",
+      "line": 66,
+      "does": "Client component: model text as plain text, tool activity, AssistantCardView cards in native currency with rate context, limitations.",
+      "lane": "browser"
+    }
+  ],
+  "edges": [
+    {
+      "from": "composer-send",
+      "to": "run-submission",
+      "order": 1,
+      "label": "send(draft) → run({ content, key: newKey() })",
+      "payload": "{ content, key }",
+      "async": false
+    },
+    {
+      "from": "run-submission",
+      "to": "server-action",
+      "order": 2,
+      "label": "Server Action POST (startTransition)",
+      "payload": "{ conversationId: null, content, idempotencyKey }",
+      "async": true
+    },
+    {
+      "from": "server-action",
+      "to": "create-route",
+      "order": 3,
+      "label": "client.createAssistantConversation(token) → POST /api/v1/assistant/conversations (first message only)",
+      "payload": "AssistantConversationCreateRequest {} → AssistantConversationResponse",
+      "async": true
+    },
+    {
+      "from": "create-route",
+      "to": "t-ai-conversations",
+      "order": 4,
+      "label": "conversations.create → store.createConversation: INSERT INTO ai_conversations",
+      "payload": "[id, hr_user_id, created_at] → AssistantConversationSummary",
+      "async": true
+    },
+    {
+      "from": "server-action",
+      "to": "client-send",
+      "order": 5,
+      "label": "client.sendAssistantConversationMessage(token, conversationId, body, key)",
+      "payload": "AssistantMessageRequest { content }",
+      "async": true
+    },
+    {
+      "from": "client-send",
+      "to": "require-auth",
+      "order": 6,
+      "label": "POST /api/v1/assistant/conversations/{conversationId}/messages",
+      "payload": "Authorization: Bearer, Idempotency-Key, AssistantMessageRequest",
+      "async": true
+    },
+    {
+      "from": "require-auth",
+      "to": "rate-limit",
+      "order": 7,
+      "label": "next()",
+      "payload": "res.locals.principal",
+      "async": false
+    },
+    {
+      "from": "rate-limit",
+      "to": "messages-route",
+      "order": 8,
+      "label": "next() (under 20 per 15 min)",
+      "payload": "req",
+      "async": false
+    },
+    {
+      "from": "messages-route",
+      "to": "submit",
+      "order": 9,
+      "label": "conversations.submit(principal, conversationId, body, key, requestId)",
+      "payload": "Principal, { content }, Idempotency-Key",
+      "async": true
+    },
+    {
+      "from": "submit",
+      "to": "find-idempotency",
+      "order": 10,
+      "label": "store.findTraceByIdempotency(conversationId, key)",
+      "payload": "SELECT ai_traces ⋈ ai_messages → existing trace | null",
+      "async": true
+    },
+    {
+      "from": "submit",
+      "to": "select-history",
+      "order": 11,
+      "label": "selectHistory(conversation, { principal }) + the new user message",
+      "payload": "→ ModelMessage[]",
+      "async": false
+    },
+    {
+      "from": "submit",
+      "to": "create-trace",
+      "order": 12,
+      "label": "store.createTrace({ …, idempotencyKey, commandHash, actorScope, modelMessages })",
+      "payload": "→ { id: traceId, userMessageSequence }",
+      "async": true
+    },
+    {
+      "from": "create-trace",
+      "to": "t-ai-traces-insert",
+      "order": 13,
+      "label": "INSERT INTO ai_traces (… status STARTED)",
+      "payload": "trace row",
+      "async": true
+    },
+    {
+      "from": "create-trace",
+      "to": "t-ai-messages-insert",
+      "order": 14,
+      "label": "INSERT INTO ai_messages (role USER)",
+      "payload": "{ text, retryOfTraceId }",
+      "async": true
+    },
+    {
+      "from": "submit",
+      "to": "run-turn",
+      "order": 15,
+      "label": "assistant.runTurn({ principal, messages, prompt, recorder })",
+      "payload": "ModelMessage[] → AssistantMessagesResponse",
+      "async": true
+    },
+    {
+      "from": "run-turn",
+      "to": "t-ai-model-calls-insert",
+      "order": 16,
+      "label": "persist(MODEL_TRACE_WRITE, recorder.startModelCall) — model call 1",
+      "payload": "{ provider, model, input, tools, promptVersion: assistant-instructions-v2, promptHash }",
+      "async": true
+    },
+    {
+      "from": "run-turn",
+      "to": "model-session",
+      "order": 17,
+      "label": "session.next([], signal) — model call 1",
+      "payload": "instructions + messages + tool schemas",
+      "async": true
+    },
+    {
+      "from": "model-session",
+      "to": "openai",
+      "order": 18,
+      "label": "POST /v1/responses (responses.create, store: false)",
+      "payload": "{ model, instructions, input, tools, tool_choice: auto }",
+      "async": true
+    },
+    {
+      "from": "openai",
+      "to": "model-session",
+      "order": 19,
+      "label": "Response: function_call get_top_compensated_employees",
+      "payload": "{ call_id, name, arguments: { metric, currency, limit } }, usage",
+      "async": true
+    },
+    {
+      "from": "run-turn",
+      "to": "t-ai-model-calls-update",
+      "order": 20,
+      "label": "persist(MODEL_TRACE_WRITE, recorder.finishModelCall) — SUCCEEDED, tool decision recorded",
+      "payload": "{ output, decisions[], tokens, latencyMs }",
+      "async": true
+    },
+    {
+      "from": "run-turn",
+      "to": "t-ai-tool-calls-insert",
+      "order": 21,
+      "label": "persist(TOOL_TRACE_WRITE, recorder.startToolCall)",
+      "payload": "{ modelCallId, providerToolCallId, toolName, arguments }",
+      "async": true
+    },
+    {
+      "from": "run-turn",
+      "to": "tool-validate",
+      "order": 22,
+      "label": "decideTool → tools.run(name, args, { principal, asOf, now })",
+      "payload": "unknown args → validated ToolInput",
+      "async": true
+    },
+    {
+      "from": "tool-validate",
+      "to": "tool-handler",
+      "order": 23,
+      "label": "handlers.get_top_compensated_employees(parsed.data, context)",
+      "payload": "{ metric, currency, limit } → ToolResult { data, cards, limitations }",
+      "async": true
+    },
+    {
+      "from": "tool-handler",
+      "to": "insights-top",
+      "order": 24,
+      "label": "insights.topCompensated(principal, { metric, currency, limit }, asOf)",
+      "payload": "→ InsightEmployeeRow[]",
+      "async": true
+    },
+    {
+      "from": "insights-top",
+      "to": "t-employees",
+      "order": 25,
+      "label": "SELECT … FROM employees e JOIN job_titles JOIN departments WHERE scope AND CURRENTLY_WORKING ORDER BY rank_value DESC LIMIT ?",
+      "payload": "params → rows",
+      "async": true
+    },
+    {
+      "from": "t-employees",
+      "to": "t-compensation",
+      "order": 26,
+      "label": "LEFT JOIN LATERAL (… FROM compensation_records c …) AS sc",
+      "payload": "selected compensation per employee → rank_value",
+      "async": false
+    },
+    {
+      "from": "tool-handler",
+      "to": "scope-limitation",
+      "order": 27,
+      "label": "withScope(principal, ['Ranks currently working employees only.'])",
+      "payload": "Principal → limitations[] (null for Admin HR)",
+      "async": false
+    },
+    {
+      "from": "run-turn",
+      "to": "t-ai-tool-calls-update",
+      "order": 28,
+      "label": "persist(TOOL_TRACE_WRITE, recorder.finishToolCall) — SUCCEEDED with complete result",
+      "payload": "RecordedToolOutcome { status, result, durationMs }",
+      "async": true
+    },
+    {
+      "from": "run-turn",
+      "to": "t-ai-model-calls-insert",
+      "order": 29,
+      "label": "persist(MODEL_TRACE_WRITE, recorder.startModelCall) — model call 2 (input includes the tool exchange)",
+      "payload": "{ input: { messages, exchanges } }",
+      "async": true
+    },
+    {
+      "from": "run-turn",
+      "to": "model-session",
+      "order": 30,
+      "label": "session.next(outputs, signal) — model call 2",
+      "payload": "ModelToolOutput[] { callId, output }",
+      "async": true
+    },
+    {
+      "from": "model-session",
+      "to": "openai",
+      "order": 31,
+      "label": "POST /v1/responses with function_call_output — model call 2",
+      "payload": "input + [{ type: function_call_output, call_id, output }]",
+      "async": true
+    },
+    {
+      "from": "openai",
+      "to": "run-turn",
+      "order": 32,
+      "label": "Response: answer text",
+      "payload": "{ text }, usage",
+      "async": true
+    },
+    {
+      "from": "run-turn",
+      "to": "t-ai-model-calls-update",
+      "order": 33,
+      "label": "persist(MODEL_TRACE_WRITE, recorder.finishModelCall) — model call 2 SUCCEEDED",
+      "payload": "{ output: { text }, decisions: [] }",
+      "async": true
+    },
+    {
+      "from": "submit",
+      "to": "finish-trace",
+      "order": 34,
+      "label": "store.finishTrace(traceId, { status: COMPLETED, finalResponse })",
+      "payload": "AssistantMessagesResponse { answer, toolCalls, cards, limitations }",
+      "async": true
+    },
+    {
+      "from": "finish-trace",
+      "to": "t-ai-messages-insert",
+      "order": 35,
+      "label": "INSERT INTO ai_messages (role ASSISTANT)",
+      "payload": "final response JSON",
+      "async": true
+    },
+    {
+      "from": "finish-trace",
+      "to": "t-ai-traces-update",
+      "order": 36,
+      "label": "UPDATE ai_traces SET status = COMPLETED, totals …",
+      "payload": "duration, tokens, model_call_count 2, tool_call_count 1",
+      "async": true
+    },
+    {
+      "from": "submit",
+      "to": "response-parse",
+      "order": 37,
+      "label": "return { value, replayed: false }",
+      "payload": "AssistantTurnResponse",
+      "async": false
+    },
+    {
+      "from": "response-parse",
+      "to": "response-validate",
+      "order": 38,
+      "label": "200 application/json (Cache-Control: no-store)",
+      "payload": "AssistantTurnResponse",
+      "async": true
+    },
+    {
+      "from": "response-validate",
+      "to": "conversation-page",
+      "order": 39,
+      "label": "action returns { ok, conversationId } → router.replace(/assistant/{id}) → GET /api/v1/assistant/conversations/{id}",
+      "payload": "AssistantConversationDetailResponse",
+      "async": true
+    },
+    {
+      "from": "conversation-page",
+      "to": "build-thread",
+      "order": 40,
+      "label": "buildThread(detail, currentScope)",
+      "payload": "messages + turns → ThreadItem[]",
+      "async": false
+    },
+    {
+      "from": "build-thread",
+      "to": "render-answer",
+      "order": 41,
+      "label": "<AssistantChat items={…}> → AnswerView (RSC payload to browser)",
+      "payload": "ThreadItem { kind: answer, text, response.cards }",
+      "async": true
+    }
+  ],
+  "alternatives": [
+    {
+      "id": "model-failure",
+      "label": "Model call fails or times out",
+      "at": "model-session",
+      "condition": "responses.create throws (timeout, rate limit, provider error, invalid response)",
+      "via": [
+        "t-ai-model-calls-update",
+        "submit"
+      ],
+      "result": "finishModelCall records FAILED with a safe category; TurnFailure(MODEL_CALL) → failTrace marks the trace FAILED; the API returns 502 MODEL_PROVIDER_FAILED; the UI shows the recorded failed turn with Retry (new key, retryOfTraceId)."
+    },
+    {
+      "id": "tool-rejected",
+      "label": "Rejected tool call",
+      "at": "tool-validate",
+      "condition": "unknown tool name or arguments fail TOOL_INPUT_SCHEMAS (for example a department argument the tool does not have)",
+      "via": [
+        "t-ai-tool-calls-update",
+        "t-ai-model-calls-insert"
+      ],
+      "result": "The tool never runs; ai_tool_calls is finished REJECTED with the validation errors, and the error text goes back to the model as the tool output for the next model call."
+    },
+    {
+      "id": "idempotent-replay",
+      "label": "Same Idempotency-Key again",
+      "at": "find-idempotency",
+      "condition": "Send again after an unconfirmed send reuses the key with the same content",
+      "via": [
+        "find-idempotency",
+        "response-parse"
+      ],
+      "result": "No new trace and no model call: the stored result is returned with Idempotency-Replayed: true (or 409 ASSISTANT_TURN_IN_PROGRESS while it still runs; different content with the same key is 409 DUPLICATE_OPERATION)."
+    }
+  ],
+  "notes": [
+    "Observability writes: steps 4, 12, 13, 14, 16, 20, 21, 28, 29, 33, 34, 35, 36. Every model and tool step is written before (attempt) and after (outcome) it runs.",
+    "Fail-closed points: createTrace (TRACE_CREATE), every persist(MODEL_TRACE_WRITE | TOOL_TRACE_WRITE) in runTurn, and finishTrace (FINAL_TRACE_WRITE). A failed write stops the turn; nothing unrecorded runs or is returned.",
+    "Model call 2 reuses the same nodes (orders 29–33); the arrows at those orders are the second model call.",
+    "Product finding: no assistant tool accepts a department or country, so \"in Tech in India\" cannot be passed as a filter. The model can only restrict by currency (INR) or rank everyone; the Admin's scope is ALL. This is how the code behaves today, not an invented step.",
+    "Secrets: a key-based scrubber replaces secret-named fields (authorization, cookie, password, token, API key, database URL, reasoning) before persistence; the provider key and the JWT are not part of any recorded input.",
+    "AI Task 05: every ranking, summary, and recent-change tool result for Scoped HR now starts its limitations with scopeLimitation's fixed coverage statement; Admin HR gets none."
+  ]
+}
