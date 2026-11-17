@@ -46,7 +46,7 @@ describe('OpenAI Responses adapter', () => {
   test('sends a stateless Responses request with strict function tools only', async () => {
     const fake = recordingCreate([fakeResponse([], 'Hello.')]);
     const session = createOpenAiModelAdapter({ apiKey: 'test-only-not-a-key', createResponse: fake.create, callTimeoutMs: 1234 }).open(REQUEST);
-    assert.deepEqual(await session.next([], signal), { kind: 'answer', text: 'Hello.' });
+    assert.deepEqual(await session.next([], signal), { kind: 'answer', text: 'Hello.', telemetry: { usage: {} } });
     const body = fake.bodies[0];
     assert.equal(body?.model, DEFAULT_OPENAI_MODEL);
     assert.equal(body?.store, false);
@@ -64,10 +64,14 @@ describe('OpenAI Responses adapter', () => {
     const reasoning = { type: 'reasoning', id: 'rs_1', summary: [], encrypted_content: 'opaque' };
     const fake = recordingCreate([fakeResponse([reasoning, call]), fakeResponse([], 'Done.')]);
     const session = createOpenAiModelAdapter({ apiKey: 'test-only-not-a-key', createResponse: fake.create }).open(REQUEST);
-    assert.deepEqual(await session.next([], signal), {
+    const first = await session.next([], signal);
+    assert.deepEqual(first, {
       kind: 'tool_calls',
       calls: [{ callId: 'call_1', name: 'get_top_compensated_employees', arguments: '{"metric":"ANNUAL_CASH"}' }],
+      telemetry: { usage: {} },
     });
+    // The encrypted reasoning item stays inside the live session: it is never in the reply.
+    assert.ok(!JSON.stringify(first).includes('opaque'));
     await session.next([{ callId: 'call_1', output: '{"employees":[]}' }], signal);
     const input = fake.bodies[1]?.input;
     assert.ok(Array.isArray(input));
@@ -99,6 +103,28 @@ describe('OpenAI Responses adapter', () => {
     const fake = recordingCreate([new RateLimitError(429, {}, 'x', new Headers())]);
     const session = createOpenAiModelAdapter({ apiKey: 'test-only-not-a-key', createResponse: fake.create }).open(REQUEST);
     await assert.rejects(session.next([], signal), (e: unknown) => e instanceof ModelFailure && e.category === 'rate_limited');
+  });
+
+  // Detects: lost token counts or request IDs, or provider fields copied wholesale.
+  test('reports the request ID, provider, model, and token counts only', async () => {
+    const response = Object.assign(fakeResponse([], 'Hi.'), {
+      _request_id: 'req_abc123',
+      usage: { input_tokens: 120, output_tokens: 30, total_tokens: 150, input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 12 } },
+    });
+    const fake = recordingCreate([response]);
+    const adapter = createOpenAiModelAdapter({ apiKey: 'test-only-not-a-key', model: 'test-model', createResponse: fake.create });
+    assert.deepEqual([adapter.provider, adapter.model], ['openai', 'test-model']);
+    assert.deepEqual(await adapter.open(REQUEST).next([], signal), {
+      kind: 'answer', text: 'Hi.',
+      telemetry: { providerRequestId: 'req_abc123', usage: { inputTokens: 120, outputTokens: 30, totalTokens: 150, reasoningTokens: 12 } },
+    });
+    // A malformed request ID is dropped rather than stored.
+    const odd = recordingCreate([Object.assign(fakeResponse([], 'Hi.'), { _request_id: 'req with spaces <script>' })]);
+    const reply = await createOpenAiModelAdapter({ apiKey: 'test-only-not-a-key', createResponse: odd.create }).open(REQUEST).next([], signal);
+    assert.equal(reply.telemetry?.providerRequestId, undefined);
+    // A provider error keeps its request ID from the x-request-id header.
+    const failure = categorizeOpenAiError(new APIError(500, { message: 'x' }, 'x', new Headers({ 'x-request-id': 'req_failed_1' })));
+    assert.deepEqual([failure.category, failure.providerRequestId], ['provider_error', 'req_failed_1']);
   });
 
   // Detects: constructing the adapter making a network call or requiring a real key.

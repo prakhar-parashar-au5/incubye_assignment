@@ -2,6 +2,8 @@ export const REDACTED = '[REDACTED]';
 
 export const PAYLOAD_LIMITS = Object.freeze({
   message: 16 * 1024,
+  /** Final assistant response (answer, tool statuses, up to 8 cards, limitations). Task 03. */
+  assistantResponse: 256 * 1024,
   modelInput: 128 * 1024,
   modelOutput: 128 * 1024,
   toolArguments: 32 * 1024,

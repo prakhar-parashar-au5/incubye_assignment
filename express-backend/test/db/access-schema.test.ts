@@ -86,7 +86,7 @@ describe('access schema: structure', () => {
 
   test('records every migration', async () => {
     const repeat = await runMigrations({ databaseUrl: DATABASE_URL });
-    assert.deepEqual(repeat, { applied: [], alreadyApplied: ['001_initial_schema.sql', '002_hr_access_control.sql', '003_salary_adjustments.sql', '004_hr_access_management.sql', '005_ai_observability.sql', '006_temporary_password_regeneration.sql'] });
+    assert.deepEqual(repeat, { applied: [], alreadyApplied: ['001_initial_schema.sql', '002_hr_access_control.sql', '003_salary_adjustments.sql', '004_hr_access_management.sql', '005_ai_observability.sql', '006_temporary_password_regeneration.sql', '007_ai_trace_actor_scope.sql', '008_ai_trace_summary_index.sql'] });
   });
 
   // Detects: missing composite primary keys or lookup indexes.

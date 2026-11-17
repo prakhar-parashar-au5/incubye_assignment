@@ -11,6 +11,8 @@ import { createAssistantService } from './assistant/assistant-service.js';
 import { createCompensationInsights } from './assistant/compensation-insights.js';
 import { createOpenAiModelAdapter } from './assistant/openai-model.js';
 import { createToolRegistry } from './assistant/tools.js';
+import { createObservabilityRepository } from './assistant/observability/repository.js';
+import { createAdminObservabilityRepository } from './assistant/observability/admin-repository.js';
 import { createPreviewTokens } from './compensation/preview-token.js';
 import { createSalaryAdjustmentService } from './compensation/salary-adjustment-service.js';
 import { createDashboardService } from './dashboard/dashboard-service.js';
@@ -50,11 +52,15 @@ const tools = createToolRegistry({ directory, insights: createCompensationInsigh
 // Without OPENAI_API_KEY the assistant reports unavailable; every other route works.
 const model = config.openAiApiKey === null ? null : createOpenAiModelAdapter({ apiKey: config.openAiApiKey, model: config.openAiModel });
 
+const observability = createObservabilityRepository(pool);
 const app = createApp({
   auth: createAuthService({ pool, tokens }),
   directory,
   tools,
   assistant: createAssistantService({ model, tools, logger: stdoutLogger }),
+  assistantStore: observability,
+  mcpStore: observability,
+  adminObservability: createAdminObservabilityRepository(pool),
   salaryAdjustments: createSalaryAdjustmentService({ pool, previewTokens: createPreviewTokens({ signingKey: config.jwtSigningKey }) }),
   dashboard: createDashboardService({ pool, exchangeRate }),
   hrAccess: createHrAccessService({ pool, previewTokens: createAccessPreviewTokens({ signingKey: config.jwtSigningKey }) }),

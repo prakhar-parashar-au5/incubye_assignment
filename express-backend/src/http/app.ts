@@ -6,10 +6,14 @@ import type { Express } from 'express';
 import type { HrAccessService } from '../access/hr-access-service.js';
 import type { AuthService } from '../access/sessions.js';
 import type { AssistantService } from '../assistant/assistant-service.js';
+import type { AssistantStore } from '../assistant/assistant-store.js';
+import { createConversationService } from '../assistant/conversation-service.js';
 import type { SalaryAdjustmentService } from '../compensation/salary-adjustment-service.js';
 import type { DashboardService } from '../dashboard/dashboard-service.js';
 import type { ToolRegistry } from '../assistant/tools.js';
 import type { DirectoryService } from '../directory/directory-repository.js';
+import { adminObservabilityRoutes } from './admin-observability-routes.js';
+import type { AdminObservabilityStore } from './admin-observability-routes.js';
 import { assistantRoutes } from './assistant-routes.js';
 import { authRoutes } from './auth-routes.js';
 import { HealthResponse, PATHS } from './contract.js';
@@ -19,6 +23,7 @@ import { hrAccessRoutes } from './hr-access-routes.js';
 import { salaryRoutes } from './salary-routes.js';
 import { errorHandler, notFoundHandler } from './errors.js';
 import { mcpRoutes } from './mcp-routes.js';
+import type { McpCallStore } from './mcp-routes.js';
 import { buildOpenApiDocument } from './openapi.js';
 import { assistantRequestLimiter, failedLoginLimiter } from './rate-limit.js';
 import type { ClientIpSource, ClockedMemoryStore } from './rate-limit.js';
@@ -38,6 +43,10 @@ export interface AppDependencies {
   directory: DirectoryService;
   /** The in-product assistant. Reports unavailable when no model is configured. */
   assistant: AssistantService;
+  /** Conversation and trace storage for the assistant (the MySQL observability repository in production). */
+  assistantStore: AssistantStore;
+  /** Clock for conversation times and the assistant as-of date; defaults to the system clock. */
+  assistantClock?: () => Date;
   /** The read-only tools, exposed through MCP (the assistant holds its own reference). */
   tools: ToolRegistry;
   /** As-of clock for MCP tool calls; defaults to the system clock. */
@@ -50,10 +59,14 @@ export interface AppDependencies {
   dashboard: DashboardService;
   /** Admin-only HR access management. */
   hrAccess: HrAccessService;
+  /** MCP call recording (the MySQL observability repository in production). */
+  mcpStore: McpCallStore;
+  /** Admin AI observability read model (the MySQL admin repository in production). */
+  adminObservability: AdminObservabilityStore;
 }
 
 export function createApp({
-  auth, directory, assistant, tools, salaryAdjustments, dashboard, hrAccess, logger, clientIpSource, clock = () => new Date(), rateLimitStore, toolClock, assistantRateLimitStore,
+  auth, directory, assistant, assistantStore, assistantClock, tools, salaryAdjustments, dashboard, hrAccess, adminObservability, mcpStore, logger, clientIpSource, clock = () => new Date(), rateLimitStore, toolClock, assistantRateLimitStore,
 }: AppDependencies): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -63,9 +76,10 @@ export function createApp({
   app.use(requestLog(logger));
   // These two routes authenticate first, then parse their bodies with their
   // own limits, so they are mounted before the app-wide 10 kB parser.
-  // The assistant cost limit applies to the assistant route only.
-  app.use(assistantRoutes({ auth, assistant, limiter: assistantRequestLimiter({ clock, store: assistantRateLimitStore }) }));
-  app.use(mcpRoutes({ auth, tools, logger, clock: toolClock }));
+  // The assistant cost limit applies to message submission only (both routes share one limiter).
+  const conversations = createConversationService({ store: assistantStore, assistant, logger, ...(assistantClock === undefined ? {} : { clock: assistantClock }) });
+  app.use(assistantRoutes({ auth, conversations, limiter: assistantRequestLimiter({ clock, store: assistantRateLimitStore }) }));
+  app.use(mcpRoutes({ auth, tools, store: mcpStore, logger, clock: toolClock }));
   app.use(express.json({ limit: JSON_BODY_LIMIT, strict: true }));
 
   app.get(PATHS.health, (_req, res) => {
@@ -82,6 +96,7 @@ export function createApp({
   app.use(salaryRoutes({ auth, salaryAdjustments }));
   app.use(dashboardRoutes({ auth, dashboard }));
   app.use(hrAccessRoutes({ auth, hrAccess }));
+  app.use(adminObservabilityRoutes({ auth, store: adminObservability, logger, ...(assistantClock === undefined ? {} : { clock: assistantClock }) }));
 
   app.use(notFoundHandler);
   app.use(errorHandler(logger));

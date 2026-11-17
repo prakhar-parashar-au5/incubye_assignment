@@ -12,6 +12,9 @@ import {
   LEVELS,
 } from '../source-workbook/constants.js';
 import {
+  AI_SUMMARY_WINDOWS,
+  AI_TOOL_CALL_STATUSES,
+  AI_TRACE_STATUSES,
   COMPARISON_CURRENCIES,
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
@@ -111,6 +114,22 @@ const dashboardOperation = (operationId: string, summary: string, schema: string
   },
 });
 
+const CONVERSATION_ID_PARAMETER = { name: 'conversationId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } };
+const ASSISTANT_READ_ERRORS = {
+  401: error('UNAUTHENTICATED'),
+  500: error('INTERNAL_ERROR'),
+  503: error('ASSISTANT_UNAVAILABLE: conversation storage is unavailable. Other routes are unaffected.'),
+};
+
+const ASSISTANT_RATE_LIMITED = {
+  ...error('RATE_LIMITED: more than 20 assistant message requests by this HR user in 15 minutes.'),
+  headers: {
+    'Retry-After': { description: 'Seconds until the current 15-minute window resets.', schema: { type: 'integer', minimum: 0 } },
+    RateLimit: { description: 'IETF draft-8 RateLimit header: remaining requests (r) and seconds to reset (t).', schema: { type: 'string' } },
+    'RateLimit-Policy': { description: 'IETF draft-8 policy: limit (q) and window seconds (w).', schema: { type: 'string' } },
+  },
+};
+
 const SALARY_COMMON_ERRORS = {
   400: error('VALIDATION_ERROR, with a reason such as PREVIEW_EXPIRED, PREVIEW_MISMATCH, SALARY_BAND, PERCENTAGE_RANGE, PAST_EFFECTIVE_DATE, FUTURE_CHANGE_EXISTS, NOTE_REQUIRED, or IDEMPOTENCY_KEY_REQUIRED.'),
   401: error('UNAUTHENTICATED'),
@@ -130,6 +149,26 @@ const HR_USER_LIST_PARAMETERS = [
   queryParam('page', { type: 'integer', minimum: 1, maximum: 1_000_000, default: 1 }),
   queryParam('pageSize', { type: 'integer', minimum: 1, maximum: MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE }),
 ];
+const ADMIN_AI_ERRORS = {
+  401: error('UNAUTHENTICATED'),
+  403: error('FORBIDDEN: only active Admin HR. Scoped HR always receives this.'),
+  500: error('INTERNAL_ERROR'),
+  503: error('SERVICE_UNAVAILABLE: observability storage unavailable. Other routes are unaffected.'),
+};
+const TRACE_ID_PARAMETER = { name: 'traceId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Unknown, deleted, or malformed IDs give 404.' };
+const MCP_CALL_ID_PARAMETER = { name: 'mcpCallId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' }, description: 'Unknown or malformed IDs give 404.' };
+const VIEW_PARAMETER = queryParam('view', { type: 'string', enum: ['formatted', 'raw'], default: 'formatted' },
+  'formatted: employee names, codes, and emails replaced by stable per-record placeholders; salary values shown. '
+  + 'raw: exact stored JSON with the synthetic-data warning. Never put trace content in URLs.');
+const AI_DATE_PARAMETERS = [
+  queryParam('from', { type: 'string', format: 'date' }, 'UTC calendar date, inclusive: started at or after 00:00 UTC.'),
+  queryParam('to', { type: 'string', format: 'date' }, 'UTC calendar date, inclusive: started before 00:00 UTC of the next day. Must not be before from.'),
+];
+const AI_PAGE_PARAMETERS = [
+  queryParam('page', { type: 'integer', minimum: 1, maximum: 1_000_000, default: 1 }),
+  queryParam('pageSize', { type: 'integer', minimum: 1, maximum: MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE }, 'Over 100 is a 400, not clamped.'),
+];
+
 const HR_ACCESS_READ_ERRORS = {
   401: error('UNAUTHENTICATED'),
   403: error('FORBIDDEN: only active Admin HR.'),
@@ -291,9 +330,11 @@ export function buildOpenApiDocument(): Record<string, unknown> {
       [PATHS.assistantMessages]: {
         post: {
           operationId: 'sendAssistantMessages',
-          summary: 'Ask the read-only compensation assistant',
-          description: 'Read-only. The server derives identity and scope from the Bearer token. Tools return permission-filtered cards; '
-            + 'the answer text is model-written. At most 4 tool rounds and 45 seconds per request.',
+          summary: 'Deprecated: ask the assistant with browser-supplied history',
+          deprecated: true,
+          description: 'Deprecated compatibility route; use the conversation API. Removal checkpoint: Checkpoint C (the frontend moves to '
+            + '/assistant/conversations). Each call is a recorded turn in a new server-owned conversation that uses only the final user '
+            + 'message: earlier messages in the body are validated but never sent to the model. Responses carry Deprecation and Link headers.',
           security: [{ bearerAuth: [] }],
           requestBody: { required: true, content: { 'application/json': { schema: ref('AssistantMessagesRequest') } } },
           responses: {
@@ -302,6 +343,76 @@ export function buildOpenApiDocument(): Record<string, unknown> {
             401: error('UNAUTHENTICATED'),
             500: error('INTERNAL_ERROR'),
             503: error('ASSISTANT_UNAVAILABLE: no model configured, model timeout, or provider error. Other routes are unaffected.'),
+          },
+        },
+      },
+      [PATHS.assistantConversations]: {
+        get: {
+          operationId: 'listAssistantConversations',
+          summary: 'The caller\'s own saved assistant conversations, most recently active first',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            queryParam('page', { type: 'integer', minimum: 1, maximum: 1_000_000, default: 1 }),
+            queryParam('pageSize', { type: 'integer', minimum: 1, maximum: MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE }),
+          ],
+          responses: { 200: json('AssistantConversationListResponse', 'Summaries only.'), ...ASSISTANT_READ_ERRORS, 400: error('VALIDATION_ERROR') },
+        },
+        post: {
+          operationId: 'createAssistantConversation',
+          summary: 'Start a conversation owned by the caller',
+          description: 'Not idempotent and takes no Idempotency-Key. Send the first message with the message endpoint. A conversation '
+            + 'whose first message never arrived stays listed with messageCount 0; retention removes empty conversations 30 days after creation.',
+          security: [{ bearerAuth: [] }],
+          requestBody: { required: false, content: { 'application/json': { schema: ref('AssistantConversationCreateRequest') } } },
+          responses: { 201: json('AssistantConversationResponse', 'The new conversation.'), ...ASSISTANT_READ_ERRORS, 400: error('VALIDATION_ERROR') },
+        },
+      },
+      [openApiPath(PATHS.assistantConversation)]: {
+        get: {
+          operationId: 'getAssistantConversation',
+          summary: 'One owned conversation: ordered messages and turn states',
+          description: 'Returns every saved message and turn (not paginated). A saved answer whose recorded actor scope the caller\'s '
+            + 'current scope no longer covers is withheld (withheld: true, fixed text, response null); the user message stays visible.',
+          security: [{ bearerAuth: [] }],
+          parameters: [CONVERSATION_ID_PARAMETER],
+          responses: {
+            200: json('AssistantConversationDetailResponse', 'Messages in sequence order. A failed turn has a user message and a safe error, never an assistant answer.'),
+            ...ASSISTANT_READ_ERRORS,
+            404: error('NOT_FOUND: unknown and unowned conversations return the same body.'),
+          },
+        },
+      },
+      [openApiPath(PATHS.assistantConversationMessages)]: {
+        post: {
+          operationId: 'sendAssistantConversationMessage',
+          summary: 'Send one user message and run a recorded assistant turn',
+          description: 'The server loads bounded history: at most the 4 most recent COMPLETED turns (user message plus final answer), '
+            + 'at most 16,000 characters, newest first, stopping at the first turn that does not fit. Failed and in-progress turns, the '
+            + 'retried turn, and tool data from earlier turns are never sent. Every model and tool '
+            + 'step is recorded before and after it runs; the answer is returned only after the assistant message and trace are saved. '
+            + 'On a 502 or 503 the response has no trace ID; when a trace was created it appears in the conversation detail as a FAILED '
+            + 'turn with the same code and reason. Counts toward the limit of 20 assistant requests per HR user per 15 minutes.',
+          security: [{ bearerAuth: [] }],
+          parameters: [CONVERSATION_ID_PARAMETER, {
+            name: 'Idempotency-Key',
+            in: 'header',
+            required: true,
+            description: 'Generated by the client per submission; a UUID v4 (36 characters) fits. Reuse only to retry the same submission: '
+              + 'the same key and command returns the stored result (Idempotency-Replayed: true), or 409 ASSISTANT_TURN_IN_PROGRESS while '
+              + 'it is still running. A user-selected Retry sends a new key with retryOfTraceId.',
+            schema: { type: 'string', pattern: '^[A-Za-z0-9_-]{16,100}$' },
+          }],
+          requestBody: { required: true, content: { 'application/json': { schema: ref('AssistantMessageRequest') } } },
+          responses: {
+            200: json('AssistantTurnResponse', 'The recorded answer, tool statuses, cards, and limitations.'),
+            400: error('VALIDATION_ERROR (IDEMPOTENCY_KEY_REQUIRED, invalid message, or retryOfTraceId outside the conversation).'),
+            401: error('UNAUTHENTICATED'),
+            404: error('NOT_FOUND: unknown and unowned conversations return the same body.'),
+            409: error('DUPLICATE_OPERATION (key reused with different content) or ASSISTANT_TURN_IN_PROGRESS.'),
+            429: ASSISTANT_RATE_LIMITED,
+            500: error('INTERNAL_ERROR'),
+            502: error('MODEL_PROVIDER_FAILED, reason MODEL_TIMEOUT, MODEL_RATE_LIMITED, MODEL_ERROR, or MODEL_INVALID_RESPONSE. The failed turn is recorded.'),
+            503: error('ASSISTANT_UNAVAILABLE, reason MODEL_NOT_CONFIGURED (the message and a FAILED turn are recorded; no model call), TRACE_UNAVAILABLE (required recording failed; nothing unrecorded ran), or TURN_TIMEOUT.'),
           },
         },
       },
@@ -544,6 +655,117 @@ export function buildOpenApiDocument(): Record<string, unknown> {
             ...HR_ACCESS_WRITE_ERRORS,
             404: error('NOT_FOUND'),
             409: error('STALE_VERSION, DUPLICATE_OPERATION, or SELF_PASSWORD_REGENERATION_FORBIDDEN when the target is the caller.'),
+          },
+        },
+      },
+      [PATHS.adminAiTraces]: {
+        get: {
+          operationId: 'listAdminAiTraces',
+          summary: 'Recorded assistant turns, newest first (Admin HR)',
+          description: 'Offset pagination with a total. Filters are exact and run in SQL on typed columns. '
+            + 'Rows never include prompts, responses, arguments, results, or safe-error JSON.',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            ...AI_DATE_PARAMETERS,
+            queryParam('hrUserId', { type: 'integer', minimum: 1 }),
+            queryParam('status', { type: 'string', enum: [...AI_TRACE_STATUSES] }, 'STARTED: still in progress.'),
+            queryParam('model', { type: 'string', maxLength: 120 }, 'Exact model name.'),
+            queryParam('tool', { type: 'string', maxLength: 120 }, 'Exact tool name; traces with at least one call to it.'),
+            queryParam('errorCategory', { type: 'string', maxLength: 80 }, 'Exact trace error category.'),
+            ...AI_PAGE_PARAMETERS,
+          ],
+          responses: { 200: json('AdminTraceListResponse', 'One page of trace summaries.'), 400: error('VALIDATION_ERROR: unknown, repeated, or invalid filter.'), ...ADMIN_AI_ERRORS },
+        },
+      },
+      [PATHS.adminAiTraceOptions]: {
+        get: {
+          operationId: 'getAdminAiTraceOptions',
+          summary: 'Filter choices and closed status and stage lists (Admin HR)',
+          security: [{ bearerAuth: [] }],
+          responses: { 200: json('AdminTraceOptionsResponse', 'Values present in stored traces and MCP calls.'), 400: error('VALIDATION_ERROR: no query parameters are accepted.'), ...ADMIN_AI_ERRORS },
+        },
+      },
+      [PATHS.adminAiTraceSummary]: {
+        get: {
+          operationId: 'getAdminAiTraceSummary',
+          summary: 'AI monitoring aggregates for 24 hours, 7 days, or 30 days (Admin HR)',
+          description: 'Computed in SQL from typed columns. Window [now - length, now], both inclusive. Counts and measurements only.',
+          security: [{ bearerAuth: [] }],
+          parameters: [queryParam('window', { type: 'string', enum: [...AI_SUMMARY_WINDOWS], default: '24h' })],
+          responses: { 200: json('AdminTraceSummaryResponse', 'Monitoring summary.'), 400: error('VALIDATION_ERROR'), ...ADMIN_AI_ERRORS },
+        },
+      },
+      [openApiPath(PATHS.adminAiTrace)]: {
+        get: {
+          operationId: 'getAdminAiTrace',
+          summary: 'One complete trace in sequence order (Admin HR)',
+          security: [{ bearerAuth: [] }],
+          parameters: [TRACE_ID_PARAMETER, VIEW_PARAMETER],
+          responses: {
+            200: json('AdminTraceDetailResponse', 'Trace header, model calls, tool calls, messages, and review.'),
+            400: error('VALIDATION_ERROR: invalid view.'),
+            404: error('NOT_FOUND: unknown or deleted trace.'),
+            ...ADMIN_AI_ERRORS,
+          },
+        },
+        delete: {
+          operationId: 'deleteAdminAiTrace',
+          summary: 'Permanently delete one trace aggregate (Admin HR)',
+          description: 'Removes the trace, its model and tool calls, its review, and the user and assistant messages of that turn. '
+            + 'Other turns of the conversation remain; a later trace\'s previousTraceId becomes null. Repeating returns 404.',
+          security: [{ bearerAuth: [] }],
+          parameters: [TRACE_ID_PARAMETER, queryParam('confirm', { type: 'string', format: 'uuid' }, 'Required: the same trace ID, as explicit confirmation. No request body.')],
+          responses: {
+            200: json('AdminTraceDeleteResponse', 'What was removed.'),
+            400: error('VALIDATION_ERROR, reason DELETE_CONFIRMATION_REQUIRED: confirm missing or different from the path ID.'),
+            404: error('NOT_FOUND: unknown or already deleted trace.'),
+            ...ADMIN_AI_ERRORS,
+          },
+        },
+      },
+      [openApiPath(PATHS.adminAiTraceReview)]: {
+        post: {
+          operationId: 'reviewAdminAiTrace',
+          summary: 'Create or replace the trace review (compare-and-set, Admin HR)',
+          security: [{ bearerAuth: [] }],
+          parameters: [TRACE_ID_PARAMETER],
+          requestBody: { required: true, content: { 'application/json': { schema: ref('AdminTraceReviewRequest') } } },
+          responses: {
+            200: json('AdminTraceReviewResponse', 'The saved review with its new version.'),
+            400: error('VALIDATION_ERROR: verdict, note over 2,000 characters, or expectedVersion.'),
+            404: error('NOT_FOUND: unknown or deleted trace.'),
+            409: error('STALE_VERSION: expectedVersion is not the current version (reload the trace); ASSISTANT_TURN_IN_PROGRESS: the trace is STARTED.'),
+            ...ADMIN_AI_ERRORS,
+          },
+        },
+      },
+      [PATHS.adminMcpCalls]: {
+        get: {
+          operationId: 'listAdminMcpToolCalls',
+          summary: 'Recorded MCP tool calls, newest first (Admin HR)',
+          description: 'Rows never include arguments or results.',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            ...AI_DATE_PARAMETERS,
+            queryParam('hrUserId', { type: 'integer', minimum: 1 }),
+            queryParam('tool', { type: 'string', maxLength: 120 }, 'Exact tool name.'),
+            queryParam('status', { type: 'string', enum: [...AI_TOOL_CALL_STATUSES] }),
+            ...AI_PAGE_PARAMETERS,
+          ],
+          responses: { 200: json('AdminMcpListResponse', 'One page of MCP call summaries.'), 400: error('VALIDATION_ERROR'), ...ADMIN_AI_ERRORS },
+        },
+      },
+      [openApiPath(PATHS.adminMcpCall)]: {
+        get: {
+          operationId: 'getAdminMcpToolCall',
+          summary: 'One recorded MCP tool call (Admin HR)',
+          security: [{ bearerAuth: [] }],
+          parameters: [MCP_CALL_ID_PARAMETER, VIEW_PARAMETER],
+          responses: {
+            200: json('AdminMcpDetailResponse', 'Arguments, validation result, result, and safe error.'),
+            400: error('VALIDATION_ERROR: invalid view.'),
+            404: error('NOT_FOUND'),
+            ...ADMIN_AI_ERRORS,
           },
         },
       },

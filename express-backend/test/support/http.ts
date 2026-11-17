@@ -4,6 +4,7 @@
 import { AuthenticationError, InvalidCredentialsError } from '../../src/access/sessions.js';
 import type { AuthService, Principal } from '../../src/access/sessions.js';
 import { createAssistantService } from '../../src/assistant/assistant-service.js';
+import { fakeAssistantStore } from './fake-assistant-store.js';
 import type { CompensationInsights } from '../../src/assistant/compensation-insights.js';
 import { createToolRegistry } from '../../src/assistant/tools.js';
 import { SalaryAdjustmentError } from '../../src/compensation/salary-adjustment-service.js';
@@ -12,6 +13,8 @@ import { HrAccessError } from '../../src/access/hr-access-service.js';
 import type { HrAccessService } from '../../src/access/hr-access-service.js';
 import type { DashboardService } from '../../src/dashboard/dashboard-service.js';
 import type { DirectoryService } from '../../src/directory/directory-repository.js';
+import type { AdminObservabilityStore } from '../../src/http/admin-observability-routes.js';
+import type { McpCallStore } from '../../src/http/mcp-routes.js';
 import { createApp } from '../../src/http/app.js';
 import type { AppDependencies } from '../../src/http/app.js';
 import type { LogEntry } from '../../src/http/request-log.js';
@@ -100,7 +103,7 @@ export function fakeInsights(): CompensationInsights {
 /** Tools and an assistant with no model configured, for apps that do not test the assistant. */
 export function noModelAssistant(directory: DirectoryService, insights: CompensationInsights = fakeInsights()) {
   const tools = createToolRegistry({ directory, insights, exchangeRate: null });
-  return { tools, assistant: createAssistantService({ model: null, tools, logger: () => undefined }) };
+  return { tools, assistant: createAssistantService({ model: null, tools, logger: () => undefined }), assistantStore: fakeAssistantStore().store };
 }
 
 /** A salary-adjustment double: every operation is forbidden. Real behaviour: test/db/salary-adjustments.test.ts. */
@@ -145,6 +148,42 @@ export function fakeHrAccess(): HrAccessService {
   return { list: notFound, get: notFound, audit: notFound, preview: notFound, create: notFound, change: notFound, previewPasswordRegeneration: notFound, regeneratePassword: notFound };
 }
 
+/**
+ * An Admin observability double whose storage is unavailable (every read
+ * fails like a down database). Real behaviour: test/db/admin-observability.test.ts.
+ */
+export function fakeAdminObservability(): AdminObservabilityStore {
+  const down = async (): Promise<never> => {
+    throw Object.assign(new Error('observability storage unavailable: connect ECONNREFUSED'), { code: 'ECONNREFUSED' });
+  };
+  return { listTraces: down, filterOptions: down, readTrace: down, reviewTrace: down, deleteTrace: down, listMcpCalls: down, readMcpCall: down, summary: down };
+}
+
+/** In-memory MCP call recording with fault injection. Real behaviour: test/db/assistant-tools.test.ts (MCP). */
+export function fakeMcpStore() {
+  const calls: { id: string; actorId: number; requestId: string; toolName: string; arguments: unknown; status: string; outcome: unknown }[] = [];
+  const events: string[] = [];
+  let failOn: 'start' | 'finish' | null = null;
+  const store: McpCallStore = {
+    async startMcpCall(input) {
+      if (failOn === 'start') throw Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' });
+      const id = `00000000-0000-4000-8000-${String(calls.length + 1).padStart(12, '0')}`;
+      calls.push({ id, actorId: input.actorId, requestId: input.requestId, toolName: input.toolName, arguments: JSON.parse(JSON.stringify(input.arguments)) as unknown, status: 'STARTED', outcome: null });
+      events.push(`start:${input.toolName}`);
+      return { id };
+    },
+    async finishMcpCall(callId, input) {
+      if (failOn === 'finish') throw Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' });
+      const call = calls.find((c) => c.id === callId);
+      if (call?.status !== 'STARTED') throw new Error('MCP call is not active');
+      call.status = input.status;
+      call.outcome = input;
+      events.push(`finish:${input.status}`);
+    },
+  };
+  return { store, calls, events, failOn(stage: 'start' | 'finish' | null) { failOn = stage; } };
+}
+
 export interface TestApp {
   app: ReturnType<typeof createApp>;
   logs: LogEntry[];
@@ -164,9 +203,12 @@ export function buildTestApp(overrides: Partial<AppDependencies> = {}): TestApp 
     directory,
     tools,
     assistant: createAssistantService({ model: null, tools, logger: (entry) => logs.push(entry) }),
+    assistantStore: fakeAssistantStore().store,
     salaryAdjustments: fakeSalaryAdjustments(),
     dashboard: fakeDashboard(),
     hrAccess: fakeHrAccess(),
+    adminObservability: fakeAdminObservability(),
+    mcpStore: fakeMcpStore().store,
     logger: (entry) => logs.push(entry),
     clock: () => new Date(Date.now() + offsetMs),
     clientIpSource: 'socket',

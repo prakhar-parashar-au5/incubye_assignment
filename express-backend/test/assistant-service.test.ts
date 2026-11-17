@@ -1,8 +1,9 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { AssistantUnavailableError, LIMITS, createAssistantService } from '../src/assistant/assistant-service.js';
-import type { AssistantLimits } from '../src/assistant/assistant-service.js';
+import { LIMITS, TurnFailure, createAssistantService } from '../src/assistant/assistant-service.js';
+import type { AssistantLimits, TurnRecorder } from '../src/assistant/assistant-service.js';
+import type { ModelMessage } from '../src/assistant/model.js';
 import { ModelFailure } from '../src/assistant/model.js';
 import type { ToolContext, ToolOutcome, ToolRegistry } from '../src/assistant/tools.js';
 import { TOOL_NAMES } from '../src/assistant/tool-schemas.js';
@@ -36,6 +37,19 @@ function stubRegistry(outcome?: (name: string, args: unknown) => ToolOutcome): T
   };
 }
 
+/** A recorder that keeps every step in memory (the loop's persistence port). */
+function memoryRecorder() {
+  const steps: { op: string; id: string; input: unknown }[] = [];
+  let next = 0;
+  const recorder: TurnRecorder = {
+    async startModelCall(input) { next += 1; steps.push({ op: 'startModelCall', id: String(next), input }); return { id: String(next) }; },
+    async finishModelCall(id, input) { steps.push({ op: 'finishModelCall', id, input }); },
+    async startToolCall(input) { next += 1; steps.push({ op: 'startToolCall', id: String(next), input }); return { id: String(next) }; },
+    async finishToolCall(id, input) { steps.push({ op: 'finishToolCall', id, input }); },
+  };
+  return { steps, recorder };
+}
+
 function setup(model: ReturnType<typeof scriptedModel> | null, registry = stubRegistry(), overrides: Partial<AssistantLimits> = {}) {
   const logs: LogEntry[] = [];
   const service = createAssistantService({
@@ -45,8 +59,12 @@ function setup(model: ReturnType<typeof scriptedModel> | null, registry = stubRe
     clock: () => NOW,
     limits: { ...LIMITS, ...overrides },
   });
-  const ask = (content = 'Who earns the most?') => service.ask(MEERA, [{ role: 'user', content }], 'req-1');
-  return { service, registry, logs, ask };
+  const memory = memoryRecorder();
+  const run = (messages: readonly ModelMessage[]) => service.runTurn({
+    principal: MEERA, messages, prompt: service.prompt('2026-11-15'), requestId: 'req-1', traceId: 'trace-1', recorder: memory.recorder,
+  });
+  const ask = (content = 'Who earns the most?') => run([{ role: 'user', content }]);
+  return { service, registry, logs, ask, run, steps: memory.steps };
 }
 
 describe('assistant tool loop', () => {
@@ -82,7 +100,8 @@ describe('assistant tool loop', () => {
   test('the model receives the five tools with strict schemas and the safety instructions', async () => {
     const model = scriptedModel([() => answer('hi')]);
     const { service } = setup(model);
-    await service.ask(MEERA, [{ role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }, { role: 'user', content: 'c' }], 'r');
+    await setup(model).run([{ role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }, { role: 'user', content: 'c' }]);
+    void service;
     const request = model.requests[0];
     assert.deepEqual(request?.tools.map((t) => t.name), [...TOOL_NAMES]);
     for (const tool of request?.tools ?? []) assert.equal(tool.parameters.additionalProperties, false);
@@ -118,15 +137,18 @@ describe('assistant tool loop', () => {
   });
 
   // Detects: a model looping on tool calls forever (cost and latency runaway).
-  test('the tool-round limit stops repeated calls', async () => {
+  test('the tool-round limit stops repeated calls; the final requested call is recorded as rejected', async () => {
     const model = scriptedModel([() => callTool('search_employees', { query: 'again' })]);
-    const { ask, registry } = setup(model);
+    const { ask, registry, steps } = setup(model);
     const res = await ask();
     assert.equal(registry.runs.length, LIMITS.maxToolRounds);
     assert.equal(model.outputsByRound.length, LIMITS.maxToolRounds + 1);
     assert.match(res.answer, /could not finish/i);
     assert.ok(res.limitations.some((l) => /tool-call limit/i.test(l)));
-    assert.equal(res.toolCalls.length, LIMITS.maxToolRounds);
+    // Task 03: every requested call is recorded; the one past the limit is not run.
+    assert.deepEqual(res.toolCalls.map((t) => t.status), [...Array(LIMITS.maxToolRounds).fill('completed'), 'rejected']);
+    const last = steps.filter((s) => s.op === 'finishToolCall').at(-1)?.input as { status: string; validation: unknown };
+    assert.deepEqual([last.status, last.validation], ['REJECTED', { reason: 'TOOL_ROUND_LIMIT' }]);
   });
 
   // Detects: one model reply fanning out into many tool executions.
@@ -158,30 +180,32 @@ describe('assistant tool loop', () => {
 
 describe('assistant unavailability', () => {
   // Detects: a hung provider holding the request open indefinitely.
-  test('a model timeout returns assistant unavailable with category timeout', async () => {
+  test('a model timeout stops the turn at MODEL_CALL with category timeout', async () => {
     const { ask, logs } = setup(scriptedModel([hang]), stubRegistry(), { turnTimeoutMs: 50 });
     const started = Date.now();
-    await assert.rejects(ask(), (e: unknown) => e instanceof AssistantUnavailableError && e.category === 'timeout');
+    await assert.rejects(ask(), (e: unknown) => e instanceof TurnFailure && e.stage === 'MODEL_CALL' && e.category === 'timeout');
     assert.ok(Date.now() - started < 2000);
     assert.deepEqual(logs, [{ event: 'assistant_model_failure', requestId: 'req-1', category: 'timeout' }]);
   });
 
   // Detects: provider errors surfacing as 500 with provider text.
-  test('provider errors and unexpected errors return assistant unavailable', async () => {
+  test('provider errors and unexpected errors stop the turn with a safe category', async () => {
     const providerError = scriptedModel([() => { throw new ModelFailure('rate_limited'); }]);
-    await assert.rejects(setup(providerError).ask(), (e: unknown) => e instanceof AssistantUnavailableError && e.category === 'rate_limited');
+    await assert.rejects(setup(providerError).ask(), (e: unknown) => e instanceof TurnFailure && e.category === 'rate_limited');
     const unexpected = scriptedModel([() => { throw new Error(`provider said ${SECRET_NAME}`); }]);
     const { ask, logs } = setup(unexpected);
-    await assert.rejects(ask(), (e: unknown) => e instanceof AssistantUnavailableError && e.category === 'provider_error' && !e.message.includes(SECRET_NAME));
+    await assert.rejects(ask(), (e: unknown) => e instanceof TurnFailure && e.category === 'provider_error' && !e.message.includes(SECRET_NAME));
     assert.ok(!JSON.stringify(logs).includes(SECRET_NAME));
   });
 
   // Detects: the backend requiring OPENAI_API_KEY for the assistant path to fail cleanly.
   test('without a model the service reports not_configured and runs no tool', async () => {
-    const { ask, registry, service } = setup(null);
+    const { ask, registry, service, steps } = setup(null);
     assert.equal(service.available, false);
-    await assert.rejects(ask(), (e: unknown) => e instanceof AssistantUnavailableError && e.category === 'not_configured');
+    assert.equal(service.model, null);
+    await assert.rejects(ask(), (e: unknown) => e instanceof TurnFailure && e.category === 'not_configured');
     assert.equal(registry.runs.length, 0);
+    assert.equal(steps.length, 0);
   });
 });
 
