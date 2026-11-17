@@ -1,0 +1,14 @@
+MySQL 8.4.13; employees=10000; compensation_records=10000 (non-import 0); requests=0; runs=5
+
+summary (Admin): 8 statement(s); median 42.3 ms, slowest 45.9 ms over 5 runs
+breakdown DEPARTMENT, with median (Admin): 1 statement(s); median 37.2 ms, slowest 37.9 ms over 5 runs
+breakdown COUNTRY (Admin): 1 statement(s); median 34.6 ms, slowest 35.8 ms over 5 runs
+breakdown CURRENCY (Admin): 1 statement(s); median 34.4 ms, slowest 34.6 ms over 5 runs
+recent changes 90 days (Admin): 2 statement(s); median 2.8 ms, slowest 3.1 ms over 5 runs
+without adjustment 12 months (Admin): 2 statement(s); median 23.3 ms, slowest 23.5 ms over 5 runs
+summary (Scoped): 8 statement(s); median 36.2 ms, slowest 37.7 ms over 5 runs
+breakdown DEPARTMENT, with median (Scoped): 1 statement(s); median 20.5 ms, slowest 20.8 ms over 5 runs
+breakdown COUNTRY (Scoped): 1 statement(s); median 19.3 ms, slowest 19.8 ms over 5 runs
+breakdown CURRENCY (Scoped): 1 statement(s); median 19.8 ms, slowest 19.9 ms over 5 runs
+recent changes 90 days (Scoped): 2 statement(s); median 3.0 ms, slowest 3.7 ms over 5 runs
+without adjustment 12 months (Scoped): 2 statement(s); median 26.9 ms, slowest 30.1 ms over 5 runs

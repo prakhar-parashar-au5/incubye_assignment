@@ -1,0 +1,3141 @@
+TAP version 13
+# Subtest: new HR user password length
+    # Subtest: rejects an 11-character password
+    ok 1 - rejects an 11-character password
+      ---
+      duration_ms: 0.765917
+      type: 'test'
+      ...
+    # Subtest: accepts a 12-character password
+    ok 2 - accepts a 12-character password
+      ---
+      duration_ms: 19.938667
+      type: 'test'
+      ...
+    # Subtest: rejects a password longer than 1,024 characters
+    ok 3 - rejects a password longer than 1,024 characters
+      ---
+      duration_ms: 17.281333
+      type: 'test'
+      ...
+    # Subtest: applies the same rule to system-created users
+    ok 4 - applies the same rule to system-created users
+      ---
+      duration_ms: 0.118667
+      type: 'test'
+      ...
+    1..4
+ok 1 - new HR user password length
+  ---
+  duration_ms: 366.781625
+  type: 'suite'
+  ...
+# Subtest: administrator scopes
+    # Subtest: rejects creating an ADMIN with a country or department scope
+    ok 1 - rejects creating an ADMIN with a country or department scope
+      ---
+      duration_ms: 1.207417
+      type: 'test'
+      ...
+    # Subtest: rejects assigning a country or department scope to an ADMIN without changing version or audit
+    ok 2 - rejects assigning a country or department scope to an ADMIN without changing version or audit
+      ---
+      duration_ms: 9.596667
+      type: 'test'
+      ...
+    # Subtest: a SCOPED user with empty lists is valid and has no employee access
+    ok 3 - a SCOPED user with empty lists is valid and has no employee access
+      ---
+      duration_ms: 39.16575
+      type: 'test'
+      ...
+    1..3
+ok 2 - administrator scopes
+  ---
+  duration_ms: 50.109667
+  type: 'suite'
+  ...
+# Subtest: last active administrator
+    # Subtest: the last active administrator cannot be deactivated
+    ok 1 - the last active administrator cannot be deactivated
+      ---
+      duration_ms: 23.724042
+      type: 'test'
+      ...
+    # Subtest: an administrator can deactivate themselves when another active administrator exists
+    ok 2 - an administrator can deactivate themselves when another active administrator exists
+      ---
+      duration_ms: 11.932209
+      type: 'test'
+      ...
+    # Subtest: two concurrent self-deactivations cannot leave zero active administrators
+    ok 3 - two concurrent self-deactivations cannot leave zero active administrators
+      ---
+      duration_ms: 188.54125
+      type: 'test'
+      ...
+    1..3
+ok 3 - last active administrator
+  ---
+  duration_ms: 224.35725
+  type: 'suite'
+  ...
+# Subtest: sign-in and sessions
+    # Subtest: valid credentials create a two-hour session
+    ok 1 - valid credentials create a two-hour session
+      ---
+      duration_ms: 20.62675
+      type: 'test'
+      ...
+    # Subtest: the JWT contains only the approved claims
+    ok 2 - the JWT contains only the approved claims
+      ---
+      duration_ms: 14.682125
+      type: 'test'
+      ...
+    # Subtest: sign-in uses one generic error for unknown email, wrong password, and inactive user
+    ok 3 - sign-in uses one generic error for unknown email, wrong password, and inactive user
+      ---
+      duration_ms: 75.093542
+      type: 'test'
+      ...
+    # Subtest: sign-in matches the email without case sensitivity
+    ok 4 - sign-in matches the email without case sensitivity
+      ---
+      duration_ms: 13.78225
+      type: 'test'
+      ...
+    # Subtest: a valid session authenticates to the current HR user and scopes
+    ok 5 - a valid session authenticates to the current HR user and scopes
+      ---
+      duration_ms: 16.287042
+      type: 'test'
+      ...
+    # Subtest: an invalid signature fails
+    ok 6 - an invalid signature fails
+      ---
+      duration_ms: 0.458959
+      type: 'test'
+      ...
+    # Subtest: an expired JWT fails
+    ok 7 - an expired JWT fails
+      ---
+      duration_ms: 15.209292
+      type: 'test'
+      ...
+    # Subtest: a missing database session fails
+    ok 8 - a missing database session fails
+      ---
+      duration_ms: 0.801708
+      type: 'test'
+      ...
+    # Subtest: a token naming another user's session fails
+    ok 9 - a token naming another user's session fails
+      ---
+      duration_ms: 18.520167
+      type: 'test'
+      ...
+    # Subtest: a session expired in the database fails
+    ok 10 - a session expired in the database fails
+      ---
+      duration_ms: 17.023166
+      type: 'test'
+      ...
+    # Subtest: sign-out revokes the database session and the token stops working
+    ok 11 - sign-out revokes the database session and the token stops working
+      ---
+      duration_ms: 19.292583
+      type: 'test'
+      ...
+    1..11
+ok 4 - sign-in and sessions
+  ---
+  duration_ms: 535.959625
+  type: 'suite'
+  ...
+# Subtest: current access on every request
+    # Subtest: a scope addition affects the next authorization check
+    ok 1 - a scope addition affects the next authorization check
+      ---
+      duration_ms: 17.94075
+      type: 'test'
+      ...
+    # Subtest: a scope removal affects the next authorization check
+    ok 2 - a scope removal affects the next authorization check
+      ---
+      duration_ms: 14.72625
+      type: 'test'
+      ...
+    # Subtest: a previously issued JWT does not preserve old scopes
+    ok 3 - a previously issued JWT does not preserve old scopes
+      ---
+      duration_ms: 1.766208
+      type: 'test'
+      ...
+    # Subtest: changing an HR user to inactive blocks the next request
+    ok 4 - changing an HR user to inactive blocks the next request
+      ---
+      duration_ms: 8.819791
+      type: 'test'
+      ...
+    1..4
+ok 5 - current access on every request
+  ---
+  duration_ms: 78.81325
+  type: 'suite'
+  ...
+# Subtest: HR user management authorization
+    # Subtest: Scoped HR cannot manage HR users
+    ok 1 - Scoped HR cannot manage HR users
+      ---
+      duration_ms: 20.423667
+      type: 'test'
+      ...
+    # Subtest: Admin HR can manage HR users
+    ok 2 - Admin HR can manage HR users
+      ---
+      duration_ms: 18.41275
+      type: 'test'
+      ...
+    # Subtest: an inactive admin cannot manage HR users
+    ok 3 - an inactive admin cannot manage HR users
+      ---
+      duration_ms: 23.429834
+      type: 'test'
+      ...
+    # Subtest: rejects invalid HR user input with value-free messages
+    ok 4 - rejects invalid HR user input with value-free messages
+      ---
+      duration_ms: 44.954
+      type: 'test'
+      ...
+    1..4
+ok 6 - HR user management authorization
+  ---
+  duration_ms: 107.514541
+  type: 'suite'
+  ...
+# Subtest: access audit
+    # Subtest: creating an HR user writes one audit event
+    ok 1 - creating an HR user writes one audit event
+      ---
+      duration_ms: 17.037167
+      type: 'test'
+      ...
+    # Subtest: changing country and department scopes writes old and new states
+    ok 2 - changing country and department scopes writes old and new states
+      ---
+      duration_ms: 26.811375
+      type: 'test'
+      ...
+    # Subtest: deactivation and activation write audit events
+    ok 3 - deactivation and activation write audit events
+      ---
+      duration_ms: 22.861583
+      type: 'test'
+      ...
+    # Subtest: an unchanged value writes no audit event
+    ok 4 - an unchanged value writes no audit event
+      ---
+      duration_ms: 20.018916
+      type: 'test'
+      ...
+    # Subtest: audit state never contains a password hash, JWT, or session ID
+    ok 5 - audit state never contains a password hash, JWT, or session ID
+      ---
+      duration_ms: 14.637666
+      type: 'test'
+      ...
+    # Subtest: a forced audit insert failure rolls back the HR user or scope change
+    ok 6 - a forced audit insert failure rolls back the HR user or scope change
+      ---
+      duration_ms: 42.337541
+      type: 'test'
+      ...
+    1..6
+ok 7 - access audit
+  ---
+  duration_ms: 143.909917
+  type: 'suite'
+  ...
+# Subtest: demo HR users
+    # Subtest: creates Meera (ADMIN) and Rohan (SCOPED, IN, Tech and Support) with hashed passwords
+    ok 1 - creates Meera (ADMIN) and Rohan (SCOPED, IN, Tech and Support) with hashed passwords
+      ---
+      duration_ms: 61.825542
+      type: 'test'
+      ...
+    # Subtest: a second run creates nothing and keeps the existing password hashes
+    ok 2 - a second run creates nothing and keeps the existing password hashes
+      ---
+      duration_ms: 3.126
+      type: 'test'
+      ...
+    # Subtest: refuses an existing demo user whose role or scopes differ
+    ok 3 - refuses an existing demo user whose role or scopes differ
+      ---
+      duration_ms: 24.002417
+      type: 'test'
+      ...
+    # Subtest: refuses production, a missing APP_ENV, and short passwords
+    ok 4 - refuses production, a missing APP_ENV, and short passwords
+      ---
+      duration_ms: 0.204083
+      type: 'test'
+      ...
+    1..4
+ok 8 - demo HR users
+  ---
+  duration_ms: 89.285167
+  type: 'suite'
+  ...
+# Subtest: access schema: structure
+    # Subtest: access tables remain present after later migrations
+    ok 1 - access tables remain present after later migrations
+      ---
+      duration_ms: 3.109542
+      type: 'test'
+      ...
+    # Subtest: records every migration
+    ok 2 - records every migration
+      ---
+      duration_ms: 4.537084
+      type: 'test'
+      ...
+    # Subtest: creates the approved keys and indexes
+    ok 3 - creates the approved keys and indexes
+      ---
+      duration_ms: 1.596375
+      type: 'test'
+      ...
+    # Subtest: creates restrictive foreign keys
+    ok 4 - creates restrictive foreign keys
+      ---
+      duration_ms: 0.761917
+      type: 'test'
+      ...
+    1..4
+ok 9 - access schema: structure
+  ---
+  duration_ms: 188.84025
+  type: 'suite'
+  ...
+# Subtest: access schema: hr_users
+    # Subtest: starts HR user version at 1
+    ok 1 - starts HR user version at 1
+      ---
+      duration_ms: 1.338708
+      type: 'test'
+      ...
+    # Subtest: enforces a unique email without case sensitivity
+    ok 2 - enforces a unique email without case sensitivity
+      ---
+      duration_ms: 2.850708
+      type: 'test'
+      ...
+    # Subtest: rejects unsupported role and status values
+    ok 3 - rejects unsupported role and status values
+      ---
+      duration_ms: 1.176416
+      type: 'test'
+      ...
+    # Subtest: rejects a password_hash that is not an Argon2id PHC string
+    ok 4 - rejects a password_hash that is not an Argon2id PHC string
+      ---
+      duration_ms: 0.523916
+      type: 'test'
+      ...
+    # Subtest: rejects an empty display name and version 0
+    ok 5 - rejects an empty display name and version 0
+      ---
+      duration_ms: 0.844833
+      type: 'test'
+      ...
+    1..5
+ok 10 - access schema: hr_users
+  ---
+  duration_ms: 6.902125
+  type: 'suite'
+  ...
+# Subtest: access schema: scopes
+    # Subtest: rejects a country scope for an unknown HR user
+    ok 1 - rejects a country scope for an unknown HR user
+      ---
+      duration_ms: 1.182083
+      type: 'test'
+      ...
+    # Subtest: rejects a department scope for an unknown HR user
+    ok 2 - rejects a department scope for an unknown HR user
+      ---
+      duration_ms: 0.841208
+      type: 'test'
+      ...
+    # Subtest: rejects unknown country and department assignments
+    ok 3 - rejects unknown country and department assignments
+      ---
+      duration_ms: 1.313625
+      type: 'test'
+      ...
+    # Subtest: rejects duplicate country or department scope rows
+    ok 4 - rejects duplicate country or department scope rows
+      ---
+      duration_ms: 1.565959
+      type: 'test'
+      ...
+    # Subtest: prevents deleting referenced HR users, countries, and departments
+    ok 5 - prevents deleting referenced HR users, countries, and departments
+      ---
+      duration_ms: 1.496458
+      type: 'test'
+      ...
+    1..5
+ok 11 - access schema: scopes
+  ---
+  duration_ms: 7.547959
+  type: 'suite'
+  ...
+# Subtest: access schema: sessions and audit
+    # Subtest: stores session expiry and an optional revocation time
+    ok 1 - stores session expiry and an optional revocation time
+      ---
+      duration_ms: 2.004458
+      type: 'test'
+      ...
+    # Subtest: rejects a session that expires before it is created
+    ok 2 - rejects a session that expires before it is created
+      ---
+      duration_ms: 0.82075
+      type: 'test'
+      ...
+    # Subtest: stores audit before and after states as valid JSON and rejects invalid JSON
+    ok 3 - stores audit before and after states as valid JSON and rejects invalid JSON
+      ---
+      duration_ms: 2.185708
+      type: 'test'
+      ...
+    # Subtest: prevents deleting an HR user referenced by sessions or audit events
+    ok 4 - prevents deleting an HR user referenced by sessions or audit events
+      ---
+      duration_ms: 1.390584
+      type: 'test'
+      ...
+    1..4
+ok 12 - access schema: sessions and audit
+  ---
+  duration_ms: 6.51275
+  type: 'suite'
+  ...
+# Subtest: admin trace list and options
+    # Subtest: filters run server-side; dates are inclusive UTC days on start time; newest first; with totals
+    ok 1 - filters run server-side; dates are inclusive UTC days on start time; newest first; with totals
+      ---
+      duration_ms: 34.853292
+      type: 'test'
+      ...
+    # Subtest: options list stored values plus the closed enumerations
+    ok 2 - options list stored values plus the closed enumerations
+      ---
+      duration_ms: 7.361584
+      type: 'test'
+      ...
+    1..2
+ok 13 - admin trace list and options
+  ---
+  duration_ms: 438.889667
+  type: 'suite'
+  ...
+# Subtest: admin trace detail
+    # Subtest: formatted detail is complete, ordered, and uses placeholders; raw is exact with the warning
+    ok 1 - formatted detail is complete, ordered, and uses placeholders; raw is exact with the warning
+      ---
+      duration_ms: 43.912459
+      type: 'test'
+      ...
+    # Subtest: unknown trace or MCP call is 404
+    ok 2 - unknown trace or MCP call is 404
+      ---
+      duration_ms: 5.685084
+      type: 'test'
+      ...
+    1..2
+ok 14 - admin trace detail
+  ---
+  duration_ms: 49.699
+  type: 'suite'
+  ...
+# Subtest: review and deletion
+    # Subtest: review is compare-and-set; stale is 409 STALE_VERSION; an open trace is 409; unknown is 404
+    ok 1 - review is compare-and-set; stale is 409 STALE_VERSION; an open trace is 409; unknown is 404
+      ---
+      duration_ms: 44.070958
+      type: 'test'
+      ...
+    # Subtest: delete needs confirmation, removes one aggregate only, and a later trace stays readable
+    ok 2 - delete needs confirmation, removes one aggregate only, and a later trace stays readable
+      ---
+      duration_ms: 50.027375
+      type: 'test'
+      ...
+    1..2
+ok 15 - review and deletion
+  ---
+  duration_ms: 94.20075
+  type: 'suite'
+  ...
+# Subtest: MCP list and detail
+    # Subtest: newest first, filterable, no content in the list; detail has formatted and raw views
+    ok 1 - newest first, filterable, no content in the list; detail has formatted and raw views
+      ---
+      duration_ms: 16.337833
+      type: 'test'
+      ...
+    1..1
+ok 16 - MCP list and detail
+  ---
+  duration_ms: 16.403125
+  type: 'suite'
+  ...
+# Subtest: monitoring summary
+    # Subtest: an empty window returns zeros, null percentiles, and zero-filled buckets
+    ok 1 - an empty window returns zeros, null percentiles, and zero-filled buckets
+      ---
+      duration_ms: 24.502625
+      type: 'test'
+      ...
+    # Subtest: mixed statuses, exact percentiles, tokens, tools, MCP, reviews, series, and inclusive window edges
+    ok 2 - mixed statuses, exact percentiles, tokens, tools, MCP, reviews, series, and inclusive window edges
+      ---
+      duration_ms: 336.711125
+      type: 'test'
+      ...
+# EXPLAIN {"24h":{"statuses":["t:range:idx_ai_traces_summary"],"percentiles":["t:range:idx_ai_traces_summary"],"toolCalls":["t:range:idx_ai_traces_started","tc:ref:uk_ai_tool_calls_trace_sequence"],"modelCalls":["t:range:idx_ai_traces_started","mc:ref:uk_ai_model_calls_trace_sequence"],"mcp":["m:range:idx_mcp_started"],"failures":["t:range:idx_ai_traces_status"],"tokens":["t:range:idx_ai_traces_summary"],"series":["t:range:idx_ai_traces_summary"],"unreviewed":["t:range:idx_ai_traces_summary","r:eq_ref:PRIMARY"]},"30d":{"statuses":["t:range:idx_ai_traces_summary"],"percentiles":["t:range:idx_ai_traces_summary"],"toolCalls":["t:range:idx_ai_traces_started","tc:ref:uk_ai_tool_calls_trace_sequence"],"modelCalls":["t:range:idx_ai_traces_started","mc:ref:uk_ai_model_calls_trace_sequence"],"mcp":["m:range:idx_mcp_started"],"failures":["t:range:idx_ai_traces_status"],"tokens":["t:range:idx_ai_traces_summary"],"series":["t:range:idx_ai_traces_summary"],"unreviewed":["t:range:idx_ai_traces_summary","r:eq_ref:PRIMARY"]}}
+    # Subtest: query plans with 10,000 traces over 90 days (recorded in the response)
+    ok 3 - query plans with 10,000 traces over 90 days (recorded in the response)
+      ---
+      duration_ms: 594.490709
+      type: 'test'
+      ...
+    1..3
+ok 17 - monitoring summary
+  ---
+  duration_ms: 955.946834
+  type: 'suite'
+  ...
+# Subtest: owned conversations in MySQL
+    # Subtest: saved user and assistant messages come back in their original order after reload
+    ok 1 - saved user and assistant messages come back in their original order after reload
+      ---
+      duration_ms: 74.59375
+      type: 'test'
+      ...
+    # Subtest: another HR user gets the same 404 as an unknown conversation, and no content
+    ok 2 - another HR user gets the same 404 as an unknown conversation, and no content
+      ---
+      duration_ms: 31.601416
+      type: 'test'
+      ...
+    # Subtest: the list is owner-only and server-paginated (default 25, maximum 100)
+    ok 3 - the list is owner-only and server-paginated (default 25, maximum 100)
+      ---
+      duration_ms: 29.66825
+      type: 'test'
+      ...
+    1..3
+ok 18 - owned conversations in MySQL
+  ---
+  duration_ms: 484.57075
+  type: 'suite'
+  ...
+# Subtest: recorded turns in MySQL
+    # Subtest: bounded server history is sent, and the exact model input is stored on the trace and model call
+    ok 1 - bounded server history is sent, and the exact model input is stored on the trace and model call
+      ---
+      duration_ms: 124.130542
+      type: 'test'
+      ...
+    # Subtest: model-call telemetry is stored and the trace totals agree with the child rows
+    ok 2 - model-call telemetry is stored and the trace totals agree with the child rows
+      ---
+      duration_ms: 33.896667
+      type: 'test'
+      ...
+    # Subtest: succeeded, rejected, and failed tool calls are stored in order with their outcomes
+    ok 3 - succeeded, rejected, and failed tool calls are stored in order with their outcomes
+      ---
+      duration_ms: 46.148833
+      type: 'test'
+      ...
+    # Subtest: scope stays enforced in tool SQL; the stored result has no out-of-scope employee
+    ok 4 - scope stays enforced in tool SQL; the stored result has no out-of-scope employee
+      ---
+      duration_ms: 30.194459
+      type: 'test'
+      ...
+    # Subtest: a saved answer is withheld once the current scope stops covering the trace-time scope; storage is unchanged
+    ok 5 - a saved answer is withheld once the current scope stops covering the trace-time scope; storage is unchanged
+      ---
+      duration_ms: 79.697583
+      type: 'test'
+      ...
+    # Subtest: with no model configured, the message and a FAILED turn are stored; replay and conflict still apply
+    ok 6 - with no model configured, the message and a FAILED turn are stored; replay and conflict still apply
+      ---
+      duration_ms: 55.743458
+      type: 'test'
+      ...
+    # Subtest: malformed tool arguments are stored as the invalid-JSON marker; their text is in no table
+    ok 7 - malformed tool arguments are stored as the invalid-JSON marker; their text is in no table
+      ---
+      duration_ms: 30.191417
+      type: 'test'
+      ...
+    # Subtest: Scoped HR ranking and summary results carry the scope limitation in the stored result and the turn response
+    ok 8 - Scoped HR ranking and summary results carry the scope limitation in the stored result and the turn response
+      ---
+      duration_ms: 53.579458
+      type: 'test'
+      ...
+    # Subtest: provider failure and timeout leave a FAILED trace with no assistant message
+    ok 9 - provider failure and timeout leave a FAILED trace with no assistant message
+      ---
+      duration_ms: 37.768792
+      type: 'test'
+      ...
+    1..9
+ok 19 - recorded turns in MySQL
+  ---
+  duration_ms: 491.673208
+  type: 'suite'
+  ...
+# Subtest: idempotency, retry, and concurrency in MySQL
+    # Subtest: same key and command replays the stored result; other content is 409 and writes nothing
+    ok 1 - same key and command replays the stored result; other content is 409 and writes nothing
+      ---
+      duration_ms: 27.201417
+      type: 'test'
+      ...
+    # Subtest: concurrent submissions with one key create one trace
+    ok 2 - concurrent submissions with one key create one trace
+      ---
+      duration_ms: 86.676959
+      type: 'test'
+      ...
+    # Subtest: a user-selected Retry with a new key creates a new trace linked to the failed one
+    ok 3 - a user-selected Retry with a new key creates a new trace linked to the failed one
+      ---
+      duration_ms: 41.942334
+      type: 'test'
+      ...
+    # Subtest: concurrent messages to one conversation get unique, ordered sequences
+    ok 4 - concurrent messages to one conversation get unique, ordered sequences
+      ---
+      duration_ms: 67.198083
+      type: 'test'
+      ...
+    1..4
+ok 20 - idempotency, retry, and concurrency in MySQL
+  ---
+  duration_ms: 223.188083
+  type: 'suite'
+  ...
+# Subtest: fail-closed recording in MySQL
+    # Subtest: a failed model-outcome write fails the trace, closes the open attempt, and returns no answer
+    ok 1 - a failed model-outcome write fails the trace, closes the open attempt, and returns no answer
+      ---
+      duration_ms: 27.928667
+      type: 'test'
+      ...
+    # Subtest: a failed trace creation makes no model call and writes no trace
+    ok 2 - a failed trace creation makes no model call and writes no trace
+      ---
+      duration_ms: 14.955833
+      type: 'test'
+      ...
+    # Subtest: with AI storage unavailable, sign-in, directory, and dashboard still work
+    ok 3 - with AI storage unavailable, sign-in, directory, and dashboard still work
+      ---
+      duration_ms: 59.638083
+      type: 'test'
+      ...
+    1..3
+ok 21 - fail-closed recording in MySQL
+  ---
+  duration_ms: 102.645292
+  type: 'suite'
+  ...
+# Subtest: recent changes on the pristine seed
+    # Subtest: only INITIAL_IMPORT records exist, so the answer is an honest empty result
+    ok 1 - only INITIAL_IMPORT records exist, so the answer is an honest empty result
+      ---
+      duration_ms: 8.66725
+      type: 'test'
+      ...
+    1..1
+ok 22 - recent changes on the pristine seed
+  ---
+  duration_ms: 2906.040084
+  type: 'suite'
+  ...
+# Subtest: top compensated employees
+    # Subtest: without a currency, Admin ranking uses the exact USD comparison and discloses the rate
+    ok 1 - without a currency, Admin ranking uses the exact USD comparison and discloses the rate
+      ---
+      duration_ms: 27731.707459
+      type: 'test'
+      ...
+    # Subtest: Rohan receives only permitted employees, matching an independent scoped ranking
+    ok 2 - Rohan receives only permitted employees, matching an independent scoped ranking
+      ---
+      duration_ms: 4217.321333
+      type: 'test'
+      ...
+    # Subtest: with a currency, ranks natively within that currency
+    ok 3 - with a currency, ranks natively within that currency
+      ---
+      duration_ms: 9010.918583
+      type: 'test'
+      ...
+    # Subtest: a missing exchange rate returns insufficiency, not a raw comparison
+    ok 4 - a missing exchange rate returns insufficiency, not a raw comparison
+      ---
+      duration_ms: 0.48225
+      type: 'test'
+      ...
+    1..4
+ok 23 - top compensated employees
+  ---
+  duration_ms: 40961.181417
+  type: 'suite'
+  ...
+# Subtest: search and employee compensation
+    # Subtest: Rohan cannot find or open an out-of-scope employee, and both results equal an unknown code
+    ok 1 - Rohan cannot find or open an out-of-scope employee, and both results equal an unknown code
+      ---
+      duration_ms: 22.383625
+      type: 'test'
+      ...
+    # Subtest: Admin sees full history with exact decimal strings
+    ok 2 - Admin sees full history with exact decimal strings
+      ---
+      duration_ms: 2.712417
+      type: 'test'
+      ...
+    # Subtest: Rohan search returns only permitted employees
+    ok 3 - Rohan search returns only permitted employees
+      ---
+      duration_ms: 158.879292
+      type: 'test'
+      ...
+    1..3
+ok 24 - search and employee compensation
+  ---
+  duration_ms: 184.329834
+  type: 'suite'
+  ...
+# Subtest: compensation summary
+    # Subtest: Admin by country keeps native currencies separate and matches independent SQL
+    ok 1 - Admin by country keeps native currencies separate and matches independent SQL
+      ---
+      duration_ms: 8972.388459
+      type: 'test'
+      ...
+    # Subtest: Rohan by department sees only Support and Tech in INR
+    ok 2 - Rohan by department sees only Support and Tech in INR
+      ---
+      duration_ms: 4094.948
+      type: 'test'
+      ...
+    1..2
+ok 25 - compensation summary
+  ---
+  duration_ms: 13067.622667
+  type: 'suite'
+  ...
+# Subtest: recent changes by record creation time
+    # Subtest: Admin sees changes recorded in the window, newest record first, with effective dates
+    ok 1 - Admin sees changes recorded in the window, newest record first, with effective dates
+      ---
+      duration_ms: 10.786041
+      type: 'test'
+      ...
+    # Subtest: the window is measured back from the current time, not from midnight
+    ok 2 - the window is measured back from the current time, not from midnight
+      ---
+      duration_ms: 20.434875
+      type: 'test'
+      ...
+    # Subtest: Rohan sees only the India Tech and Support changes
+    ok 3 - Rohan sees only the India Tech and Support changes
+      ---
+      duration_ms: 6.611541
+      type: 'test'
+      ...
+    # Subtest: a window with no recorded changes says so
+    ok 4 - a window with no recorded changes says so
+      ---
+      duration_ms: 4.453833
+      type: 'test'
+      ...
+    1..4
+ok 26 - recent changes by record creation time
+  ---
+  duration_ms: 54.893834
+  type: 'suite'
+  ...
+# Subtest: HTTP assistant and MCP with real authentication
+    # Subtest: MCP returns the same authorized result as the shared tool implementation
+    ok 1 - MCP returns the same authorized result as the shared tool implementation
+      ---
+      duration_ms: 364.012625
+      type: 'test'
+      ...
+    # Subtest: MCP calls are recorded in mcp_tool_calls only, with scrubbed arguments and in-scope results
+    ok 2 - MCP calls are recorded in mcp_tool_calls only, with scrubbed arguments and in-scope results
+      ---
+      duration_ms: 40.680292
+      type: 'test'
+      ...
+    # Subtest: MCP lists only the five read-only tools and rejects unknown tool names
+    ok 3 - MCP lists only the five read-only tools and rejects unknown tool names
+      ---
+      duration_ms: 23.165584
+      type: 'test'
+      ...
+    # Subtest: evaluation: top-cash-mixed-currency
+    ok 4 - evaluation: top-cash-mixed-currency
+      ---
+      duration_ms: 110.887541
+      type: 'test'
+      ...
+    # Subtest: evaluation: top-base-inr
+    ok 5 - evaluation: top-base-inr
+      ---
+      duration_ms: 79.637291
+      type: 'test'
+      ...
+    # Subtest: evaluation: search-by-name
+    ok 6 - evaluation: search-by-name
+      ---
+      duration_ms: 64.071875
+      type: 'test'
+      ...
+    # Subtest: evaluation: employee-history
+    ok 7 - evaluation: employee-history
+      ---
+      duration_ms: 44.863333
+      type: 'test'
+      ...
+    # Subtest: evaluation: recent-changes
+    ok 8 - evaluation: recent-changes
+      ---
+      duration_ms: 52.52075
+      type: 'test'
+      ...
+    # Subtest: evaluation: summary-by-department
+    ok 9 - evaluation: summary-by-department
+      ---
+      duration_ms: 85.860875
+      type: 'test'
+      ...
+    # Subtest: evaluation: summary-by-currency
+    ok 10 - evaluation: summary-by-currency
+      ---
+      duration_ms: 77.775125
+      type: 'test'
+      ...
+    # Subtest: evaluation: mutation-request
+    ok 11 - evaluation: mutation-request
+      ---
+      duration_ms: 43.774375
+      type: 'test'
+      ...
+    # Subtest: logs from assistant and MCP calls contain no sensitive content
+    ok 12 - logs from assistant and MCP calls contain no sensitive content
+      ---
+      duration_ms: 1.522292
+      type: 'test'
+      ...
+    1..12
+ok 27 - HTTP assistant and MCP with real authentication
+  ---
+  duration_ms: 1081.353625
+  type: 'suite'
+  ...
+# Subtest: POST /api/v1/auth/login with real sessions
+    # Subtest: Meera receives a token, a two-hour expiry, and an Admin summary
+    ok 1 - Meera receives a token, a two-hour expiry, and an Admin summary
+      ---
+      duration_ms: 59.190625
+      type: 'test'
+      ...
+    # Subtest: Rohan receives a token and a Scoped summary
+    ok 2 - Rohan receives a token and a Scoped summary
+      ---
+      duration_ms: 27.021083
+      type: 'test'
+      ...
+    # Subtest: unknown email, wrong password, and inactive user return the identical public response
+    ok 3 - unknown email, wrong password, and inactive user return the identical public response
+      ---
+      duration_ms: 70.563583
+      type: 'test'
+      ...
+    # Subtest: the login response contains no hash, status, or scopes
+    ok 4 - the login response contains no hash, status, or scopes
+      ---
+      duration_ms: 26.8615
+      type: 'test'
+      ...
+    1..4
+ok 28 - POST /api/v1/auth/login with real sessions
+  ---
+  duration_ms: 521.404792
+  type: 'suite'
+  ...
+# Subtest: GET /api/v1/auth/me with real sessions
+    # Subtest: the Admin response has the current role and empty scope lists
+    ok 1 - the Admin response has the current role and empty scope lists
+      ---
+      duration_ms: 29.507459
+      type: 'test'
+      ...
+    # Subtest: the Scoped response has the current country and department lists
+    ok 2 - the Scoped response has the current country and department lists
+      ---
+      duration_ms: 28.338125
+      type: 'test'
+      ...
+    # Subtest: a scope change appears on the next /me request with the same JWT
+    ok 3 - a scope change appears on the next /me request with the same JWT
+      ---
+      duration_ms: 38.482458
+      type: 'test'
+      ...
+    # Subtest: HR deactivation blocks the next /me request
+    ok 4 - HR deactivation blocks the next /me request
+      ---
+      duration_ms: 40.6465
+      type: 'test'
+      ...
+    # Subtest: the response contains no hash, JWT, session ID, or audit data
+    ok 5 - the response contains no hash, JWT, session ID, or audit data
+      ---
+      duration_ms: 27.109542
+      type: 'test'
+      ...
+    # Subtest: invalid signature, expiry, missing, revoked, and inactive sessions return one identical body
+    ok 6 - invalid signature, expiry, missing, revoked, and inactive sessions return one identical body
+      ---
+      duration_ms: 51.509083
+      type: 'test'
+      ...
+    1..6
+ok 29 - GET /api/v1/auth/me with real sessions
+  ---
+  duration_ms: 215.848583
+  type: 'suite'
+  ...
+# Subtest: POST /api/v1/auth/logout with real sessions
+    # Subtest: revokes the matching database session, and the token then fails on /me
+    ok 1 - revokes the matching database session, and the token then fails on /me
+      ---
+      duration_ms: 29.229417
+      type: 'test'
+      ...
+    # Subtest: repeated logout returns success while the JWT is still valid
+    ok 2 - repeated logout returns success while the JWT is still valid
+      ---
+      duration_ms: 28.626125
+      type: 'test'
+      ...
+    # Subtest: cannot revoke another user's session
+    ok 3 - cannot revoke another user's session
+      ---
+      duration_ms: 30.59
+      type: 'test'
+      ...
+    1..3
+ok 30 - POST /api/v1/auth/logout with real sessions
+  ---
+  duration_ms: 88.588
+  type: 'suite'
+  ...
+# Subtest: logs with real sessions
+    # Subtest: logs contain no password, hash, token, or database URL
+    ok 1 - logs contain no password, hash, token, or database URL
+      ---
+      duration_ms: 47.833
+      type: 'test'
+      ...
+    1..1
+ok 31 - logs with real sessions
+  ---
+  duration_ms: 47.938541
+  type: 'suite'
+  ...
+# Subtest: upcoming commitment with soon-to-join adjustments
+    # Subtest: Admin: initial joiner cash once, each signed impact once, per native currency
+    ok 1 - Admin: initial joiner cash once, each signed impact once, per native currency
+      ---
+      duration_ms: 7.714083
+      type: 'test'
+      ...
+    # Subtest: scope, currency, and status filters apply before aggregation; LEFT never contributes
+    ok 2 - scope, currency, and status filters apply before aggregation; LEFT never contributes
+      ---
+      duration_ms: 8.42475
+      type: 'test'
+      ...
+    1..2
+ok 32 - upcoming commitment with soon-to-join adjustments
+  ---
+  duration_ms: 339.363375
+  type: 'suite'
+  ...
+# Subtest: summary
+    # Subtest: Admin figures match the hand-calculated fixture
+    ok 1 - Admin figures match the hand-calculated fixture
+      ---
+      duration_ms: 23.158834
+      type: 'test'
+      ...
+    # Subtest: Rohan sees only India Tech and Support on every metric
+    ok 2 - Rohan sees only India Tech and Support on every metric
+      ---
+      duration_ms: 12.831334
+      type: 'test'
+      ...
+    # Subtest: an empty scope returns no figures and the no-access message
+    ok 3 - an empty scope returns no figures and the no-access message
+      ---
+      duration_ms: 22.951458
+      type: 'test'
+      ...
+    # Subtest: filters narrow every compatible metric and cannot widen scope
+    ok 4 - filters narrow every compatible metric and cannot widen scope
+      ---
+      duration_ms: 34.258541
+      type: 'test'
+      ...
+    # Subtest: the employment-status filter is applied where meaningful and reported where not
+    ok 5 - the employment-status filter is applied where meaningful and reported where not
+      ---
+      duration_ms: 15.950709
+      type: 'test'
+      ...
+    # Subtest: a missing exchange rate keeps native figures and marks USD comparison unavailable
+    ok 6 - a missing exchange rate keeps native figures and marks USD comparison unavailable
+      ---
+      duration_ms: 18.032208
+      type: 'test'
+      ...
+    # Subtest: the periods change the time-based figures only
+    ok 7 - the periods change the time-based figures only
+      ---
+      duration_ms: 21.452708
+      type: 'test'
+      ...
+    1..7
+ok 33 - summary
+  ---
+  duration_ms: 591.693167
+  type: 'suite'
+  ...
+# Subtest: breakdowns
+    # Subtest: department breakdown: exact sums, half-up average, odd and even medians
+    ok 1 - department breakdown: exact sums, half-up average, odd and even medians
+      ---
+      duration_ms: 18.827625
+      type: 'test'
+      ...
+    # Subtest: an even INR group averages the two middle values
+    ok 2 - an even INR group averages the two middle values
+      ---
+      duration_ms: 9.315833
+      type: 'test'
+      ...
+    # Subtest: currency and level breakdowns keep native currencies separate
+    ok 3 - currency and level breakdowns keep native currencies separate
+      ---
+      duration_ms: 13.604167
+      type: 'test'
+      ...
+    # Subtest: employment-status breakdown: working spending, joiner commitment, left count only
+    ok 4 - employment-status breakdown: working spending, joiner commitment, left count only
+      ---
+      duration_ms: 9.606916
+      type: 'test'
+      ...
+    # Subtest: a non-working status filter is reported on a spending breakdown
+    ok 5 - a non-working status filter is reported on a spending breakdown
+      ---
+      duration_ms: 8.750584
+      type: 'test'
+      ...
+    1..5
+ok 34 - breakdowns
+  ---
+  duration_ms: 60.307791
+  type: 'suite'
+  ...
+# Subtest: recent changes
+    # Subtest: default 30 days by creation time, newest first, with previous and new compensation
+    ok 1 - default 30 days by creation time, newest first, with previous and new compensation
+      ---
+      duration_ms: 11.840541
+      type: 'test'
+      ...
+    # Subtest: 7 and 90 days; pagination; Rohan sees only permitted changes
+    ok 2 - 7 and 90 days; pagination; Rohan sees only permitted changes
+      ---
+      duration_ms: 18.813666
+      type: 'test'
+      ...
+    1..2
+ok 35 - recent changes
+  ---
+  duration_ms: 30.755416
+  type: 'suite'
+  ...
+# Subtest: without recent adjustment
+    # Subtest: working employees only; count equals the list total; wording claims nothing before import
+    ok 1 - working employees only; count equals the list total; wording claims nothing before import
+      ---
+      duration_ms: 18.302625
+      type: 'test'
+      ...
+    1..1
+ok 36 - without recent adjustment
+  ---
+  duration_ms: 18.381084
+  type: 'suite'
+  ...
+# Subtest: validation, privacy, and logging
+    # Subtest: strict query validation on every endpoint
+    ok 1 - strict query validation on every endpoint
+      ---
+      duration_ms: 33.959542
+      type: 'test'
+      ...
+    # Subtest: responses contain no internal IDs, keys, or notes
+    ok 2 - responses contain no internal IDs, keys, or notes
+      ---
+      duration_ms: 24.602125
+      type: 'test'
+      ...
+    # Subtest: logs contain only route patterns: no codes, salaries, or tokens
+    ok 3 - logs contain only route patterns: no codes, salaries, or tokens
+      ---
+      duration_ms: 16.02525
+      type: 'test'
+      ...
+    # Subtest: the summary runs a bounded number of SQL statements and fetches no per-employee rows
+    ok 4 - the summary runs a bounded number of SQL statements and fetches no per-employee rows
+      ---
+      duration_ms: 5.967
+      type: 'test'
+      ...
+    1..4
+ok 37 - validation, privacy, and logging
+  ---
+  duration_ms: 80.696542
+  type: 'suite'
+  ...
+# Subtest: guards and preconditions
+    # Subtest: every refusal case writes nothing
+    ok 1 - every refusal case writes nothing
+      ---
+      duration_ms: 9.188833
+      type: 'test'
+      ...
+    # Subtest: a missing migration or a different employee set stops the run before any write
+    ok 2 - a missing migration or a different employee set stops the run before any write
+      ---
+      duration_ms: 17.373875
+      type: 'test'
+      ...
+    1..2
+ok 38 - guards and preconditions
+  ---
+  duration_ms: 5076.572792
+  type: 'suite'
+  ...
+# Subtest: import
+    # Subtest: dry run writes nothing, reports the source counts, and warns that the oracle fixtures are missing
+    ok 1 - dry run writes nothing, reports the source counts, and warns that the oracle fixtures are missing
+      ---
+      duration_ms: 47.5985
+      type: 'test'
+      ...
+    # Subtest: apply copies exact counts, maps HR users by email, creates the missing one inactive, and keeps UUIDs and snapshots
+    ok 2 - apply copies exact counts, maps HR users by email, creates the missing one inactive, and keeps UUIDs and snapshots
+      ---
+      duration_ms: 185.789667
+      type: 'test'
+      ...
+    # Subtest: a second apply writes nothing and reports every row skipped
+    ok 3 - a second apply writes nothing and reports every row skipped
+      ---
+      duration_ms: 42.999167
+      type: 'test'
+      ...
+    # Subtest: imported Rohan traces follow the trace-time scope rule through the conversation API
+    ok 4 - imported Rohan traces follow the trace-time scope rule through the conversation API
+      ---
+      duration_ms: 67.545958
+      type: 'test'
+      ...
+    1..4
+ok 39 - import
+  ---
+  duration_ms: 344.138667
+  type: 'suite'
+  ...
+# Subtest: demo:mcp-calls
+    # Subtest: only https or loopback http base URLs without credentials are accepted
+    ok 1 - only https or loopback http base URLs without credentials are accepted
+      ---
+      duration_ms: 0.210833
+      type: 'test'
+      ...
+    # Subtest: against a local backend it records one SUCCEEDED and two REJECTED calls, and prints no secrets
+    ok 2 - against a local backend it records one SUCCEEDED and two REJECTED calls, and prints no secrets
+      ---
+      duration_ms: 131.4565
+      type: 'test'
+      ...
+    1..2
+ok 40 - demo:mcp-calls
+  ---
+  duration_ms: 131.763166
+  type: 'suite'
+  ...
+# Subtest: guards
+    # Subtest: missing demo users, production, unsafe names, and mismatches are refused and write nothing
+    ok 1 - missing demo users, production, unsafe names, and mismatches are refused and write nothing
+      ---
+      duration_ms: 10.002417
+      type: 'test'
+      ...
+    1..1
+ok 41 - guards
+  ---
+  duration_ms: 2921.232
+  type: 'suite'
+  ...
+# Subtest: scenario
+    # Subtest: dry run writes nothing and plans every item
+    ok 1 - dry run writes nothing and plans every item
+      ---
+      duration_ms: 112.94375
+      type: 'test'
+      ...
+    # Subtest: apply creates every item through the services, away from the oracle-fixture employees
+    ok 2 - apply creates every item through the services, away from the oracle-fixture employees
+      ---
+      duration_ms: 361.550792
+      type: 'test'
+      ...
+    # Subtest: re-running writes nothing
+    ok 3 - re-running writes nothing
+      ---
+      duration_ms: 64.3345
+      type: 'test'
+      ...
+    # Subtest: the seed is unchanged apart from the scenario and oracle rows
+    ok 4 - the seed is unchanged apart from the scenario and oracle rows
+      ---
+      duration_ms: 6.376666
+      type: 'test'
+      ...
+    # Subtest: the dashboard and the request list show the expected counts
+    ok 5 - the dashboard and the request list show the expected counts
+      ---
+      duration_ms: 10155.837125
+      type: 'test'
+      ...
+    1..5
+ok 42 - scenario
+  ---
+  duration_ms: 10781.262875
+  type: 'suite'
+  ...
+# Subtest: authorization and non-disclosure
+    # Subtest: Admin sees every employee
+    ok 1 - Admin sees every employee
+      ---
+      duration_ms: 109.296875
+      type: 'test'
+      ...
+    # Subtest: Rohan sees only India employees in Tech or Support, and totals exclude hidden employees
+    ok 2 - Rohan sees only India employees in Tech or Support, and totals exclude hidden employees
+      ---
+      duration_ms: 76.783292
+      type: 'test'
+      ...
+    # Subtest: an empty department scope returns no employees and no options
+    ok 3 - an empty department scope returns no employees and no options
+      ---
+      duration_ms: 32.574042
+      type: 'test'
+      ...
+    # Subtest: Rohan cannot find an out-of-scope employee by code, name, or email
+    ok 4 - Rohan cannot find an out-of-scope employee by code, name, or email
+      ---
+      duration_ms: 74.123541
+      type: 'test'
+      ...
+    # Subtest: a filter cannot widen the scope
+    ok 5 - a filter cannot widen the scope
+      ---
+      duration_ms: 53.78775
+      type: 'test'
+      ...
+    # Subtest: out-of-scope, unknown, and malformed detail requests return identical 404 bodies
+    ok 6 - out-of-scope, unknown, and malformed detail requests return identical 404 bodies
+      ---
+      duration_ms: 29.017709
+      type: 'test'
+      ...
+    # Subtest: options contain only values inside the caller scope
+    ok 7 - options contain only values inside the caller scope
+      ---
+      duration_ms: 84.733333
+      type: 'test'
+      ...
+    # Subtest: missing, invalid, revoked, expired, and inactive sessions are rejected on all three endpoints
+    ok 8 - missing, invalid, revoked, expired, and inactive sessions are rejected on all three endpoints
+      ---
+      duration_ms: 123.941666
+      type: 'test'
+      ...
+    1..8
+ok 43 - authorization and non-disclosure
+  ---
+  duration_ms: 3948.093833
+  type: 'suite'
+  ...
+# Subtest: search
+    # Subtest: finds an employee by exact code and by code prefix, case-insensitively
+    ok 1 - finds an employee by exact code and by code prefix, case-insensitively
+      ---
+      duration_ms: 44.833167
+      type: 'test'
+      ...
+    # Subtest: finds employees by partial first, last, and full name without case sensitivity
+    ok 2 - finds employees by partial first, last, and full name without case sensitivity
+      ---
+      duration_ms: 86.82725
+      type: 'test'
+      ...
+    # Subtest: finds an employee by exact email without case sensitivity, but not by partial email
+    ok 3 - finds an employee by exact email without case sensitivity, but not by partial email
+      ---
+      duration_ms: 42.424125
+      type: 'test'
+      ...
+    # Subtest: wildcard and SQL control characters are searched literally
+    ok 4 - wildcard and SQL control characters are searched literally
+      ---
+      duration_ms: 102.569333
+      type: 'test'
+      ...
+    1..4
+ok 44 - search
+  ---
+  duration_ms: 276.836291
+  type: 'suite'
+  ...
+# Subtest: filters
+    # Subtest: each filter alone matches independent SQL counts
+    ok 1 - each filter alone matches independent SQL counts
+      ---
+      duration_ms: 108.207083
+      type: 'test'
+      ...
+    # Subtest: combined filters match independent SQL counts
+    ok 2 - combined filters match independent SQL counts
+      ---
+      duration_ms: 22.478375
+      type: 'test'
+      ...
+    # Subtest: Rohan with department=Tech sees only India Tech employees
+    ok 3 - Rohan with department=Tech sees only India Tech employees
+      ---
+      duration_ms: 26.7925
+      type: 'test'
+      ...
+    1..3
+ok 45 - filters
+  ---
+  duration_ms: 157.66975
+  type: 'suite'
+  ...
+# Subtest: pagination and sorting
+    # Subtest: returns 25 rows by default with page metadata
+    ok 1 - returns 25 rows by default with page metadata
+      ---
+      duration_ms: 15.310417
+      type: 'test'
+      ...
+    # Subtest: returns no more than the requested page size
+    ok 2 - returns no more than the requested page size
+      ---
+      duration_ms: 27.741209
+      type: 'test'
+      ...
+    # Subtest: the last page is partial and a page after it is empty with correct totals
+    ok 3 - the last page is partial and a page after it is empty with correct totals
+      ---
+      duration_ms: 66.203667
+      type: 'test'
+      ...
+    # Subtest: adjacent pages do not repeat rows for every sort
+    ok 4 - adjacent pages do not repeat rows for every sort
+      ---
+      duration_ms: 299.88
+      type: 'test'
+      ...
+    # Subtest: every non-salary sort orders ascending and descending with the employee-code tie-breaker
+    ok 5 - every non-salary sort orders ascending and descending with the employee-code tie-breaker
+      ---
+      duration_ms: 228.765208
+      type: 'test'
+      ...
+    1..5
+ok 46 - pagination and sorting
+  ---
+  duration_ms: 638.109084
+  type: 'suite'
+  ...
+# Subtest: compensation selection
+    # Subtest: CURRENTLY_WORKING selects the latest record on or before the as-of date
+    ok 1 - CURRENTLY_WORKING selects the latest record on or before the as-of date
+      ---
+      duration_ms: 13.104375
+      type: 'test'
+      ...
+    # Subtest: a future record becomes current on its effective date
+    ok 2 - a future record becomes current on its effective date
+      ---
+      duration_ms: 44.9415
+      type: 'test'
+      ...
+    # Subtest: two records on one effective date use the higher version
+    ok 3 - two records on one effective date use the higher version
+      ---
+      duration_ms: 7.744584
+      type: 'test'
+      ...
+    # Subtest: SOON_TO_JOIN selects the earliest future record as UPCOMING
+    ok 4 - SOON_TO_JOIN selects the earliest future record as UPCOMING
+      ---
+      duration_ms: 9.899334
+      type: 'test'
+      ...
+    # Subtest: LEFT selects the latest record on or before the end date as HISTORICAL
+    ok 5 - LEFT selects the latest record on or before the end date as HISTORICAL
+      ---
+      duration_ms: 12.811
+      type: 'test'
+      ...
+    # Subtest: directory rows use the same selection as detail
+    ok 6 - directory rows use the same selection as detail
+      ---
+      duration_ms: 28.813625
+      type: 'test'
+      ...
+    # Subtest: seeded employees show exact decimal strings and the right state
+    ok 7 - seeded employees show exact decimal strings and the right state
+      ---
+      duration_ms: 14.292333
+      type: 'test'
+      ...
+    1..7
+ok 47 - compensation selection
+  ---
+  duration_ms: 131.842833
+  type: 'suite'
+  ...
+# Subtest: employee detail
+    # Subtest: returns the employee version and every record in effective-date and version order
+    ok 1 - returns the employee version and every record in effective-date and version order
+      ---
+      duration_ms: 8.786292
+      type: 'test'
+      ...
+    # Subtest: responses contain no internal database IDs
+    ok 2 - responses contain no internal database IDs
+      ---
+      duration_ms: 48.604083
+      type: 'test'
+      ...
+    # Subtest: Rohan can open an in-scope employee
+    ok 3 - Rohan can open an in-scope employee
+      ---
+      duration_ms: 9.544959
+      type: 'test'
+      ...
+    1..3
+ok 48 - employee detail
+  ---
+  duration_ms: 67.067917
+  type: 'suite'
+  ...
+# Subtest: cross-currency salary sorting
+    # Subtest: base salary sorts by the unrounded USD value
+    ok 1 - base salary sorts by the unrounded USD value
+      ---
+      duration_ms: 25.711791
+      type: 'test'
+      ...
+    # Subtest: annual cash compensation produces its own order
+    ok 2 - annual cash compensation produces its own order
+      ---
+      duration_ms: 13.955208
+      type: 'test'
+      ...
+    # Subtest: native values stay unchanged and USD equivalents round half-up for display
+    ok 3 - native values stay unchanged and USD equivalents round half-up for display
+      ---
+      duration_ms: 16.260875
+      type: 'test'
+      ...
+    # Subtest: salary sort over all employees is ordered across page boundaries
+    ok 4 - salary sort over all employees is ordered across page boundaries
+      ---
+      duration_ms: 80.487
+      type: 'test'
+      ...
+    # Subtest: a missing INR rate rejects salary sorting but not other requests
+    ok 5 - a missing INR rate rejects salary sorting but not other requests
+      ---
+      duration_ms: 75.733292
+      type: 'test'
+      ...
+    # Subtest: no converted salary column exists on employee or compensation tables
+    ok 6 - no converted salary column exists on employee or compensation tables
+      ---
+      duration_ms: 5.98725
+      type: 'test'
+      ...
+    1..6
+ok 49 - cross-currency salary sorting
+  ---
+  duration_ms: 218.33975
+  type: 'suite'
+  ...
+# Subtest: logging
+    # Subtest: logs contain no search text, employee codes, names, emails, salaries, or tokens
+    ok 1 - logs contain no search text, employee codes, names, emails, salaries, or tokens
+      ---
+      duration_ms: 68.71725
+      type: 'test'
+      ...
+    1..1
+ok 50 - logging
+  ---
+  duration_ms: 68.788125
+  type: 'suite'
+  ...
+# Subtest: guards
+    # Subtest: production, unknown APP_ENV, unsafe names, an unconfirmed name, and a different connected database are refused before any write
+    ok 1 - production, unknown APP_ENV, unsafe names, an unconfirmed name, and a different connected database are refused before any write
+      ---
+      duration_ms: 4.781125
+      type: 'test'
+      ...
+    # Subtest: databaseNameOf never returns credentials
+    ok 2 - databaseNameOf never returns credentials
+      ---
+      duration_ms: 0.130375
+      type: 'test'
+      ...
+    1..2
+ok 51 - guards
+  ---
+  duration_ms: 3122.830708
+  type: 'suite'
+  ...
+# Subtest: fixtures
+    # Subtest: dry run writes nothing and plans both fixtures
+    ok 1 - dry run writes nothing and plans both fixtures
+      ---
+      duration_ms: 76.573583
+      type: 'test'
+      ...
+    # Subtest: applied manifest: distinct recordedAt and effectiveFrom, exact money, correct selection, and scope
+    ok 2 - applied manifest: distinct recordedAt and effectiveFrom, exact money, correct selection, and scope
+      ---
+      duration_ms: 6.728
+      type: 'test'
+      ...
+    # Subtest: re-running finds the same fixtures and writes nothing; only two non-import records exist
+    ok 3 - re-running finds the same fixtures and writes nothing; only two non-import records exist
+      ---
+      duration_ms: 14.555917
+      type: 'test'
+      ...
+    1..3
+ok 52 - fixtures
+  ---
+  duration_ms: 98.033417
+  type: 'suite'
+  ...
+# Subtest: permissions
+    # Subtest: Admin HR lists and views HR users
+    ok 1 - Admin HR lists and views HR users
+      ---
+      duration_ms: 32.687334
+      type: 'test'
+      ...
+    # Subtest: Scoped HR gets 403 on every operation and nothing is written
+    ok 2 - Scoped HR gets 403 on every operation and nothing is written
+      ---
+      duration_ms: 44.897333
+      type: 'test'
+      ...
+    # Subtest: every operation requires authentication
+    ok 3 - every operation requires authentication
+      ---
+      duration_ms: 5.119667
+      type: 'test'
+      ...
+    # Subtest: an inactive Admin cannot manage HR users, even with a principal loaded before deactivation
+    ok 4 - an inactive Admin cannot manage HR users, even with a principal loaded before deactivation
+      ---
+      duration_ms: 92.8415
+      type: 'test'
+      ...
+    1..4
+ok 53 - permissions
+  ---
+  duration_ms: 734.910416
+  type: 'suite'
+  ...
+# Subtest: creation
+    # Subtest: Admin creates a Scoped HR user and sees the temporary password once
+    ok 1 - Admin creates a Scoped HR user and sees the temporary password once
+      ---
+      duration_ms: 67.10225
+      type: 'test'
+      ...
+    # Subtest: Admin creates another Admin with empty scopes
+    ok 2 - Admin creates another Admin with empty scopes
+      ---
+      duration_ms: 30.749959
+      type: 'test'
+      ...
+    # Subtest: rejects an Admin with scopes and a Scoped HR user without both scope lists
+    ok 3 - rejects an Admin with scopes and a Scoped HR user without both scope lists
+      ---
+      duration_ms: 52.711542
+      type: 'test'
+      ...
+    # Subtest: rejects a duplicate email without case sensitivity
+    ok 4 - rejects a duplicate email without case sensitivity
+      ---
+      duration_ms: 61.779917
+      type: 'test'
+      ...
+    # Subtest: the temporary password appears only in the successful creation response
+    ok 5 - the temporary password appears only in the successful creation response
+      ---
+      duration_ms: 78.185834
+      type: 'test'
+      ...
+    # Subtest: the same idempotency key creates one user, also when retried concurrently
+    ok 6 - the same idempotency key creates one user, also when retried concurrently
+      ---
+      duration_ms: 62.466167
+      type: 'test'
+      ...
+    1..6
+ok 54 - creation
+  ---
+  duration_ms: 353.304875
+  type: 'suite'
+  ...
+# Subtest: scope
+    # Subtest: scope preview returns the exact cross-product and accessible employee count
+    ok 1 - scope preview returns the exact cross-product and accessible employee count
+      ---
+      duration_ms: 85.327875
+      type: 'test'
+      ...
+    # Subtest: replacing both dimensions commits once, audits exact states, and applies on the next request
+    ok 2 - replacing both dimensions commits once, audits exact states, and applies on the next request
+      ---
+      duration_ms: 92.209
+      type: 'test'
+      ...
+    # Subtest: an existing empty scope loads safely and grants no employee access
+    ok 3 - an existing empty scope loads safely and grants no employee access
+      ---
+      duration_ms: 36.628125
+      type: 'test'
+      ...
+    # Subtest: rejects unknown, malformed, and repeated scope values
+    ok 4 - rejects unknown, malformed, and repeated scope values
+      ---
+      duration_ms: 41.9435
+      type: 'test'
+      ...
+    1..4
+ok 55 - scope
+  ---
+  duration_ms: 256.300125
+  type: 'suite'
+  ...
+# Subtest: role
+    # Subtest: promotion removes all scope rows and revokes existing sessions
+    ok 1 - promotion removes all scope rows and revokes existing sessions
+      ---
+      duration_ms: 106.957542
+      type: 'test'
+      ...
+    # Subtest: Admin-to-Scoped demotion and Admin scope assignment are rejected
+    ok 2 - Admin-to-Scoped demotion and Admin scope assignment are rejected
+      ---
+      duration_ms: 28.046917
+      type: 'test'
+      ...
+    1..2
+ok 56 - role
+  ---
+  duration_ms: 135.117416
+  type: 'suite'
+  ...
+# Subtest: activation and deactivation
+    # Subtest: deactivation revokes every session; reactivation restores role and scopes but not sessions
+    ok 1 - deactivation revokes every session; reactivation restores role and scopes but not sessions
+      ---
+      duration_ms: 121.5125
+      type: 'test'
+      ...
+    # Subtest: deactivation and reactivation require reason notes within their limits
+    ok 2 - deactivation and reactivation require reason notes within their limits
+      ---
+      duration_ms: 51.863792
+      type: 'test'
+      ...
+    # Subtest: concurrent cross-deactivations of two Admins leave one active Admin
+    ok 3 - concurrent cross-deactivations of two Admins leave one active Admin
+      ---
+      duration_ms: 887.557125
+      type: 'test'
+      ...
+    1..3
+ok 57 - activation and deactivation
+  ---
+  duration_ms: 1061.132583
+  type: 'suite'
+  ...
+# Subtest: concurrency and idempotency
+    # Subtest: every target update requires an expected version and an idempotency key
+    ok 1 - every target update requires an expected version and an idempotency key
+      ---
+      duration_ms: 96.285625
+      type: 'test'
+      ...
+    # Subtest: a stale expected version returns 409 and changes no user, scope, session, version, or audit row
+    ok 2 - a stale expected version returns 409 and changes no user, scope, session, version, or audit row
+      ---
+      duration_ms: 112.368458
+      type: 'test'
+      ...
+    # Subtest: same key and command replays the original result; same key with different data conflicts
+    ok 3 - same key and command replays the original result; same key with different data conflicts
+      ---
+      duration_ms: 177.573584
+      type: 'test'
+      ...
+    # Subtest: two concurrent scope changes from one version produce one success and one stale conflict
+    ok 4 - two concurrent scope changes from one version produce one success and one stale conflict
+      ---
+      duration_ms: 71.922958
+      type: 'test'
+      ...
+    # Subtest: the confirmation must match an unexpired preview for this operation, target, and actor
+    ok 5 - the confirmation must match an unexpired preview for this operation, target, and actor
+      ---
+      duration_ms: 84.539083
+      type: 'test'
+      ...
+    1..5
+ok 58 - concurrency and idempotency
+  ---
+  duration_ms: 542.926916
+  type: 'suite'
+  ...
+# Subtest: audit
+    # Subtest: access audit lists exact events newest first with actor, states, reason, and version
+    ok 1 - access audit lists exact events newest first with actor, states, reason, and version
+      ---
+      duration_ms: 58.400167
+      type: 'test'
+      ...
+    # Subtest: a no-change submission writes no audit event and keeps the version
+    ok 2 - a no-change submission writes no audit event and keeps the version
+      ---
+      duration_ms: 57.871083
+      type: 'test'
+      ...
+    # Subtest: an audit insert failure rolls back user, scope, role, status, session, and version changes
+    ok 3 - an audit insert failure rolls back user, scope, role, status, session, and version changes
+      ---
+      duration_ms: 194.537625
+      type: 'test'
+      ...
+    # Subtest: audit events cannot be updated or deleted through application operations
+    ok 4 - audit events cannot be updated or deleted through application operations
+      ---
+      duration_ms: 25.562417
+      type: 'test'
+      ...
+    # Subtest: audit rows contain no password, hash, JWT, cookie, session ID, or authorization data
+    ok 5 - audit rows contain no password, hash, JWT, cookie, session ID, or authorization data
+      ---
+      duration_ms: 61.61225
+      type: 'test'
+      ...
+    1..5
+ok 59 - audit
+  ---
+  duration_ms: 398.2105
+  type: 'suite'
+  ...
+# Subtest: API
+    # Subtest: list search, filters, sorting, and pagination run server-side
+    ok 1 - list search, filters, sorting, and pagination run server-side
+      ---
+      duration_ms: 121.881167
+      type: 'test'
+      ...
+    # Subtest: runtime schemas reject unknown and malformed fields
+    ok 2 - runtime schemas reject unknown and malformed fields
+      ---
+      duration_ms: 39.648708
+      type: 'test'
+      ...
+    # Subtest: responses contain no password hash or session data
+    ok 3 - responses contain no password hash or session data
+      ---
+      duration_ms: 71.608166
+      type: 'test'
+      ...
+    # Subtest: logs contain only route patterns: no body, password, token, or audit state
+    ok 4 - logs contain only route patterns: no body, password, token, or audit state
+      ---
+      duration_ms: 55.101084
+      type: 'test'
+      ...
+    1..4
+ok 60 - API
+  ---
+  duration_ms: 288.418459
+  type: 'suite'
+  ...
+# Subtest: temporary-password recovery (11a)
+    # Subtest: a lost creation response is recovered by regenerating the temporary password
+    ok 1 - a lost creation response is recovered by regenerating the temporary password
+      ---
+      duration_ms: 121.6
+      type: 'test'
+      ...
+    # Subtest: Scoped HR gets 403 and unauthenticated requests get 401; nothing is written
+    ok 2 - Scoped HR gets 403 and unauthenticated requests get 401; nothing is written
+      ---
+      duration_ms: 40.388208
+      type: 'test'
+      ...
+    # Subtest: preview writes nothing and reports the exact target, sessions, warning, reason, and expiry
+    ok 3 - preview writes nothing and reports the exact target, sessions, warning, reason, and expiry
+      ---
+      duration_ms: 94.639667
+      type: 'test'
+      ...
+    # Subtest: confirmation stores only a new Argon2id hash, revokes every session, and audits once
+    ok 4 - confirmation stores only a new Argon2id hash, revokes every session, and audits once
+      ---
+      duration_ms: 129.102166
+      type: 'test'
+      ...
+    # Subtest: a stale expected version writes nothing
+    ok 5 - a stale expected version writes nothing
+      ---
+      duration_ms: 95.061333
+      type: 'test'
+      ...
+    # Subtest: same key and command replays without regenerating; same key with other data conflicts
+    ok 6 - same key and command replays without regenerating; same key with other data conflicts
+      ---
+      duration_ms: 189.3925
+      type: 'test'
+      ...
+    # Subtest: a fresh regeneration after a lost regeneration response returns another usable password
+    ok 7 - a fresh regeneration after a lost regeneration response returns another usable password
+      ---
+      duration_ms: 180.749875
+      type: 'test'
+      ...
+    # Subtest: an audit insert failure rolls back the hash, sessions, and version
+    ok 8 - an audit insert failure rolls back the hash, sessions, and version
+      ---
+      duration_ms: 115.409958
+      type: 'test'
+      ...
+    # Subtest: concurrent regenerations: different keys give one success and one stale conflict; the same key applies once
+    ok 9 - concurrent regenerations: different keys give one success and one stale conflict; the same key applies once
+      ---
+      duration_ms: 125.219334
+      type: 'test'
+      ...
+    # Subtest: reason, expected version, and idempotency key are required
+    ok 10 - reason, expected version, and idempotency key are required
+      ---
+      duration_ms: 50.420875
+      type: 'test'
+      ...
+    # Subtest: an Admin cannot regenerate their own temporary password; nothing is written
+    ok 11 - an Admin cannot regenerate their own temporary password; nothing is written
+      ---
+      duration_ms: 16.125375
+      type: 'test'
+      ...
+    # Subtest: sign-in racing regeneration
+        # Subtest: sign-in first: the regeneration waits, then revokes the new session
+        ok 1 - sign-in first: the regeneration waits, then revokes the new session
+          ---
+          duration_ms: 91.096667
+          type: 'test'
+          ...
+        # Subtest: regeneration first: the sign-in waits, then reads the new hash and the old password fails
+        ok 2 - regeneration first: the sign-in waits, then reads the new hash and the old password fails
+          ---
+          duration_ms: 115.28875
+          type: 'test'
+          ...
+        1..2
+    ok 12 - sign-in racing regeneration
+      ---
+      duration_ms: 206.508833
+      type: 'suite'
+      ...
+    # Subtest: the password and hash are absent from logs, audit, OpenAPI, reads, and replay output
+    ok 13 - the password and hash are absent from logs, audit, OpenAPI, reads, and replay output
+      ---
+      duration_ms: 88.376625
+      type: 'test'
+      ...
+    1..13
+ok 61 - temporary-password recovery (11a)
+  ---
+  duration_ms: 1453.51
+  type: 'suite'
+  ...
+# Subtest: migration 004
+    # Subtest: extends access_audit_events only, with checked operation, reason, and version columns
+    ok 1 - extends access_audit_events only, with checked operation, reason, and version columns
+      ---
+      duration_ms: 5.50325
+      type: 'test'
+      ...
+    1..1
+ok 62 - migration 004
+  ---
+  duration_ms: 5.576584
+  type: 'suite'
+  ...
+# Subtest: last active Admin
+    # Subtest: the last active Admin cannot be deactivated; self-deactivation works when another Admin is active
+    ok 1 - the last active Admin cannot be deactivated; self-deactivation works when another Admin is active
+      ---
+      duration_ms: 135.1815
+      type: 'test'
+      ...
+    1..1
+ok 63 - last active Admin
+  ---
+  duration_ms: 135.260083
+  type: 'suite'
+  ...
+# Subtest: initial schema: tables and keys
+    # Subtest: records 001_initial_schema.sql and applies nothing on a repeat run
+    ok 1 - records 001_initial_schema.sql and applies nothing on a repeat run
+      ---
+      duration_ms: 5.695208
+      type: 'test'
+      ...
+    # Subtest: creates the approved 001 tables
+    ok 2 - creates the approved 001 tables
+      ---
+      duration_ms: 3.396625
+      type: 'test'
+      ...
+    # Subtest: creates the approved primary keys, unique constraints, and indexes
+    ok 3 - creates the approved primary keys, unique constraints, and indexes
+      ---
+      duration_ms: 1.163417
+      type: 'test'
+      ...
+    # Subtest: creates restrictive foreign keys
+    ok 4 - creates restrictive foreign keys
+      ---
+      duration_ms: 0.909041
+      type: 'test'
+      ...
+    # Subtest: stores money as DECIMAL(15,2) and stores no monthly salary
+    ok 5 - stores money as DECIMAL(15,2) and stores no monthly salary
+      ---
+      duration_ms: 1.129125
+      type: 'test'
+      ...
+    1..5
+ok 64 - initial schema: tables and keys
+  ---
+  duration_ms: 221.847833
+  type: 'suite'
+  ...
+# Subtest: initial schema: reference data
+    # Subtest: stores India with INR and the United States with USD
+    ok 1 - stores India with INR and the United States with USD
+      ---
+      duration_ms: 0.916125
+      type: 'test'
+      ...
+    # Subtest: rejects a duplicate country code
+    ok 2 - rejects a duplicate country code
+      ---
+      duration_ms: 2.735625
+      type: 'test'
+      ...
+    # Subtest: rejects a duplicate country name
+    ok 3 - rejects a duplicate country name
+      ---
+      duration_ms: 0.802916
+      type: 'test'
+      ...
+    # Subtest: rejects a country code that is not two uppercase letters
+    ok 4 - rejects a country code that is not two uppercase letters
+      ---
+      duration_ms: 0.538875
+      type: 'test'
+      ...
+    # Subtest: rejects a duplicate department name, including a case variant
+    ok 5 - rejects a duplicate department name, including a case variant
+      ---
+      duration_ms: 1.020958
+      type: 'test'
+      ...
+    # Subtest: rejects a job title for a missing department
+    ok 6 - rejects a job title for a missing department
+      ---
+      duration_ms: 1.326791
+      type: 'test'
+      ...
+    # Subtest: rejects a duplicate department, title, and level combination
+    ok 7 - rejects a duplicate department, title, and level combination
+      ---
+      duration_ms: 1.628375
+      type: 'test'
+      ...
+    # Subtest: rejects unsupported currency and level values
+    ok 8 - rejects unsupported currency and level values
+      ---
+      duration_ms: 1.184792
+      type: 'test'
+      ...
+    1..8
+ok 65 - initial schema: reference data
+  ---
+  duration_ms: 12.231625
+  type: 'suite'
+  ...
+# Subtest: initial schema: employees
+    # Subtest: accepts a valid employee and starts version at 1
+    ok 1 - accepts a valid employee and starts version at 1
+      ---
+      duration_ms: 2.762292
+      type: 'test'
+      ...
+    # Subtest: defaults created_at and updated_at to the current UTC time
+    ok 2 - defaults created_at and updated_at to the current UTC time
+      ---
+      duration_ms: 1.194334
+      type: 'test'
+      ...
+    # Subtest: moves updated_at forward on update
+    ok 3 - moves updated_at forward on update
+      ---
+      duration_ms: 22.794917
+      type: 'test'
+      ...
+    # Subtest: rejects a duplicate employee code
+    ok 4 - rejects a duplicate employee code
+      ---
+      duration_ms: 1.321042
+      type: 'test'
+      ...
+    # Subtest: rejects a duplicate email address, including a case variant
+    ok 5 - rejects a duplicate email address, including a case variant
+      ---
+      duration_ms: 1.718917
+      type: 'test'
+      ...
+    # Subtest: rejects employee code ACME1234
+    ok 6 - rejects employee code ACME1234
+      ---
+      duration_ms: 0.630583
+      type: 'test'
+      ...
+    # Subtest: rejects employee code EMP000001
+    ok 7 - rejects employee code EMP000001
+      ---
+      duration_ms: 0.54375
+      type: 'test'
+      ...
+    # Subtest: rejects employee code acme00003
+    ok 8 - rejects employee code acme00003
+      ---
+      duration_ms: 0.580667
+      type: 'test'
+      ...
+    # Subtest: rejects employee code ACME0000X
+    ok 9 - rejects employee code ACME0000X
+      ---
+      duration_ms: 0.549833
+      type: 'test'
+      ...
+    # Subtest: rejects an unknown country, including a lowercase code
+    ok 10 - rejects an unknown country, including a lowercase code
+      ---
+      duration_ms: 1.343584
+      type: 'test'
+      ...
+    # Subtest: rejects an unknown job title
+    ok 11 - rejects an unknown job title
+      ---
+      duration_ms: 0.715125
+      type: 'test'
+      ...
+    # Subtest: rejects an unsupported employment status
+    ok 12 - rejects an unsupported employment status
+      ---
+      duration_ms: 0.511167
+      type: 'test'
+      ...
+    # Subtest: rejects an empty or whitespace-only name
+    ok 13 - rejects an empty or whitespace-only name
+      ---
+      duration_ms: 0.970459
+      type: 'test'
+      ...
+    # Subtest: rejects a LEFT employee without an employment end date
+    ok 14 - rejects a LEFT employee without an employment end date
+      ---
+      duration_ms: 0.634917
+      type: 'test'
+      ...
+    # Subtest: rejects a CURRENTLY_WORKING employee with an employment end date
+    ok 15 - rejects a CURRENTLY_WORKING employee with an employment end date
+      ---
+      duration_ms: 0.560292
+      type: 'test'
+      ...
+    # Subtest: rejects a SOON_TO_JOIN employee with an employment end date
+    ok 16 - rejects a SOON_TO_JOIN employee with an employment end date
+      ---
+      duration_ms: 0.549417
+      type: 'test'
+      ...
+    # Subtest: rejects an employment end date that is not after the hire date
+    ok 17 - rejects an employment end date that is not after the hire date
+      ---
+      duration_ms: 2.270166
+      type: 'test'
+      ...
+    # Subtest: accepts a LEFT employee whose end date is after the hire date
+    ok 18 - accepts a LEFT employee whose end date is after the hire date
+      ---
+      duration_ms: 0.701542
+      type: 'test'
+      ...
+    # Subtest: rejects employee version 0
+    ok 19 - rejects employee version 0
+      ---
+      duration_ms: 0.466916
+      type: 'test'
+      ...
+    1..19
+ok 66 - initial schema: employees
+  ---
+  duration_ms: 41.359083
+  type: 'suite'
+  ...
+# Subtest: initial schema: compensation records
+    # Subtest: accepts compensation version 1 for a valid employee
+    ok 1 - accepts compensation version 1 for a valid employee
+      ---
+      duration_ms: 2.429375
+      type: 'test'
+      ...
+    # Subtest: returns salary and bonus as exact decimal strings
+    ok 2 - returns salary and bonus as exact decimal strings
+      ---
+      duration_ms: 1.618625
+      type: 'test'
+      ...
+    # Subtest: rounds a third decimal place, so application validation is required
+    ok 3 - rounds a third decimal place, so application validation is required
+      ---
+      duration_ms: 1.436666
+      type: 'test'
+      ...
+    # Subtest: rejects compensation for an unknown employee
+    ok 4 - rejects compensation for an unknown employee
+      ---
+      duration_ms: 0.798458
+      type: 'test'
+      ...
+    # Subtest: rejects a zero or negative annual base salary
+    ok 5 - rejects a zero or negative annual base salary
+      ---
+      duration_ms: 1.364375
+      type: 'test'
+      ...
+    # Subtest: rejects a negative annual bonus and accepts zero
+    ok 6 - rejects a negative annual bonus and accepts zero
+      ---
+      duration_ms: 1.378916
+      type: 'test'
+      ...
+    # Subtest: rejects an unsupported currency, pay frequency, or change reason
+    ok 7 - rejects an unsupported currency, pay frequency, or change reason
+      ---
+      duration_ms: 1.76425
+      type: 'test'
+      ...
+    # Subtest: rejects compensation version 0
+    ok 8 - rejects compensation version 0
+      ---
+      duration_ms: 0.915708
+      type: 'test'
+      ...
+    # Subtest: rejects a duplicate employee and version pair
+    ok 9 - rejects a duplicate employee and version pair
+      ---
+      duration_ms: 1.337083
+      type: 'test'
+      ...
+    # Subtest: allows two versions with the same effective date; the higher version wins
+    ok 10 - allows two versions with the same effective date; the higher version wins
+      ---
+      duration_ms: 2.053417
+      type: 'test'
+      ...
+    # Subtest: does not make a future record current for an earlier as-of date
+    ok 11 - does not make a future record current for an earlier as-of date
+      ---
+      duration_ms: 2.799292
+      type: 'test'
+      ...
+    1..11
+ok 67 - initial schema: compensation records
+  ---
+  duration_ms: 18.191875
+  type: 'suite'
+  ...
+# Subtest: initial schema: delete protection
+    # Subtest: prevents deleting an employee who has compensation records
+    ok 1 - prevents deleting an employee who has compensation records
+      ---
+      duration_ms: 1.677708
+      type: 'test'
+      ...
+    # Subtest: prevents deleting a referenced country
+    ok 2 - prevents deleting a referenced country
+      ---
+      duration_ms: 1.061959
+      type: 'test'
+      ...
+    # Subtest: prevents deleting a referenced department
+    ok 3 - prevents deleting a referenced department
+      ---
+      duration_ms: 0.536834
+      type: 'test'
+      ...
+    # Subtest: prevents deleting a referenced job title
+    ok 4 - prevents deleting a referenced job title
+      ---
+      duration_ms: 0.978167
+      type: 'test'
+      ...
+    1..4
+ok 68 - initial schema: delete protection
+  ---
+  duration_ms: 4.368
+  type: 'suite'
+  ...
+# Subtest: runMigrations
+    # Subtest: applies pending files in file-name order and records each one
+    ok 1 - applies pending files in file-name order and records each one
+      ---
+      duration_ms: 93.913875
+      type: 'test'
+      ...
+    # Subtest: does not apply an already recorded migration again
+    ok 2 - does not apply an already recorded migration again
+      ---
+      duration_ms: 20.999125
+      type: 'test'
+      ...
+    # Subtest: applies only the new file on a later run
+    ok 3 - applies only the new file on a later run
+      ---
+      duration_ms: 22.0385
+      type: 'test'
+      ...
+    # Subtest: stops at a failing migration and does not record it
+    ok 4 - stops at a failing migration and does not record it
+      ---
+      duration_ms: 20.881375
+      type: 'test'
+      ...
+    # Subtest: rejects a .sql file that does not follow the NNN_name.sql pattern
+    ok 5 - rejects a .sql file that does not follow the NNN_name.sql pattern
+      ---
+      duration_ms: 8.185459
+      type: 'test'
+      ...
+    1..5
+ok 69 - runMigrations
+  ---
+  duration_ms: 182.919
+  type: 'suite'
+  ...
+# Subtest: migration creates all seven tables with foreign keys, unique sequences and search indexes
+ok 70 - migration creates all seven tables with foreign keys, unique sequences and search indexes
+  ---
+  duration_ms: 154.599958
+  type: 'test'
+  ...
+# Subtest: observability checks and unsigned token columns reject invalid persisted states
+ok 71 - observability checks and unsigned token columns reject invalid persisted states
+  ---
+  duration_ms: 30.714125
+  type: 'test'
+  ...
+# Subtest: concurrent traces receive distinct conversation sequence numbers
+ok 72 - concurrent traces receive distinct conversation sequence numbers
+  ---
+  duration_ms: 36.809
+  type: 'test'
+  ...
+# Subtest: owned conversations keep ordered messages and allocate concurrent sequences safely
+ok 73 - owned conversations keep ordered messages and allocate concurrent sequences safely
+  ---
+  duration_ms: 24.728458
+  type: 'test'
+  ...
+# Subtest: trace retains multiple model/tool calls, scrubbed rejected arguments, salary evidence and exact totals
+ok 74 - trace retains multiple model/tool calls, scrubbed rejected arguments, salary evidence and exact totals
+  ---
+  duration_ms: 31.910125
+  type: 'test'
+  ...
+# Subtest: Admin trace list returns complete typed summaries with distinct ordered tools and no raw content
+ok 75 - Admin trace list returns complete typed summaries with distinct ordered tools and no raw content
+  ---
+  duration_ms: 23.233166
+  type: 'test'
+  ...
+# Subtest: rejected assistant and MCP calls cannot retain an execution result
+ok 76 - rejected assistant and MCP calls cannot retain an execution result
+  ---
+  duration_ms: 15.066875
+  type: 'test'
+  ...
+# Subtest: assistant and MCP execution failures retain safe errors; successful MCP keeps synthetic results
+ok 77 - assistant and MCP execution failures retain safe errors; successful MCP keeps synthetic results
+  ---
+  duration_ms: 14.659666
+  type: 'test'
+  ...
+# Subtest: idempotency key and command hash must be a valid pair before trace creation
+ok 78 - idempotency key and command hash must be a valid pair before trace creation
+  ---
+  duration_ms: 1.137708
+  type: 'test'
+  ...
+# Subtest: the trace-time actor scope is validated, stored sorted, and all-or-nothing
+ok 79 - the trace-time actor scope is validated, stored sorted, and all-or-nothing
+  ---
+  duration_ms: 9.987959
+  type: 'test'
+  ...
+# Subtest: same-command idempotency replay returns original trace and sequence without new rows
+ok 80 - same-command idempotency replay returns original trace and sequence without new rows
+  ---
+  duration_ms: 10.413833
+  type: 'test'
+  ...
+# Subtest: tool calls start only after their parent model outcome was persisted as successful
+ok 81 - tool calls start only after their parent model outcome was persisted as successful
+  ---
+  duration_ms: 17.46025
+  type: 'test'
+  ...
+# Subtest: review compare-and-set rejects stale replacement
+ok 82 - review compare-and-set rejects stale replacement
+  ---
+  duration_ms: 9.099209
+  type: 'test'
+  ...
+# Subtest: delete removes one turn aggregate and nulls a later previous trace
+ok 83 - delete removes one turn aggregate and nulls a later previous trace
+  ---
+  duration_ms: 20.921791
+  type: 'test'
+  ...
+# Subtest: retention dry-run preserves data then deletes old trace and MCP aggregates only
+ok 84 - retention dry-run preserves data then deletes old trace and MCP aggregates only
+  ---
+  duration_ms: 21.582584
+  type: 'test'
+  ...
+# Subtest: oversized call payload fails before writing a partial row
+ok 85 - oversized call payload fails before writing a partial row
+  ---
+  duration_ms: 6.269667
+  type: 'test'
+  ...
+# Subtest: a failed trace cannot store a fabricated final assistant answer
+ok 86 - a failed trace cannot store a fabricated final assistant answer
+  ---
+  duration_ms: 5.627167
+  type: 'test'
+  ...
+# Subtest: salary adjustment schema
+    # Subtest: adds exactly salary_bands and compensation_change_requests
+    ok 1 - adds exactly salary_bands and compensation_change_requests
+      ---
+      duration_ms: 6.593084
+      type: 'test'
+      ...
+    # Subtest: adds the approved compensation_records columns, all nullable for historical rows
+    ok 2 - adds the approved compensation_records columns, all nullable for historical rows
+      ---
+      duration_ms: 0.94675
+      type: 'test'
+      ...
+    # Subtest: creates the approved keys
+    ok 3 - creates the approved keys
+      ---
+      duration_ms: 1.069083
+      type: 'test'
+      ...
+    # Subtest: every new foreign key is RESTRICT
+    ok 4 - every new foreign key is RESTRICT
+      ---
+      duration_ms: 0.704833
+      type: 'test'
+      ...
+    1..4
+ok 87 - salary adjustment schema
+  ---
+  duration_ms: 236.451833
+  type: 'suite'
+  ...
+# Subtest: salary_bands constraints
+    # Subtest: accepts a valid band and rejects a duplicate
+    ok 1 - accepts a valid band and rejects a duplicate
+      ---
+      duration_ms: 3.601292
+      type: 'test'
+      ...
+    # Subtest: rejects inverted ranges and out-of-policy percentages
+    ok 2 - rejects inverted ranges and out-of-policy percentages
+      ---
+      duration_ms: 3.470167
+      type: 'test'
+      ...
+    1..2
+ok 88 - salary_bands constraints
+  ---
+  duration_ms: 7.181041
+  type: 'suite'
+  ...
+# Subtest: compensation_change_requests constraints
+    # Subtest: allows only one pending request per employee
+    ok 1 - allows only one pending request per employee
+      ---
+      duration_ms: 3.905458
+      type: 'test'
+      ...
+    # Subtest: a request idempotency key is unique per requester
+    ok 2 - a request idempotency key is unique per requester
+      ---
+      duration_ms: 1.651833
+      type: 'test'
+      ...
+    # Subtest: rejects inconsistent states, missing notes, and no-change requests
+    ok 3 - rejects inconsistent states, missing notes, and no-change requests
+      ---
+      duration_ms: 3.798958
+      type: 'test'
+      ...
+    # Subtest: restricts deletes of referenced employees and HR users
+    ok 4 - restricts deletes of referenced employees and HR users
+      ---
+      duration_ms: 1.633125
+      type: 'test'
+      ...
+    1..4
+ok 89 - compensation_change_requests constraints
+  ---
+  duration_ms: 11.154833
+  type: 'suite'
+  ...
+# Subtest: compensation_records additions
+    # Subtest: an operation idempotency key is unique per HR user
+    ok 1 - an operation idempotency key is unique per HR user
+      ---
+      duration_ms: 1.360166
+      type: 'test'
+      ...
+    # Subtest: an INITIAL_IMPORT record has no actor, source request, or previous record
+    ok 2 - an INITIAL_IMPORT record has no actor, source request, or previous record
+      ---
+      duration_ms: 0.453667
+      type: 'test'
+      ...
+    # Subtest: a CORRECTION record written by an HR user requires a note
+    ok 3 - a CORRECTION record written by an HR user requires a note
+      ---
+      duration_ms: 0.436583
+      type: 'test'
+      ...
+    # Subtest: fingerprint rules: required on direct changes, hex SHA-256 only, absent on imports
+    ok 4 - fingerprint rules: required on direct changes, hex SHA-256 only, absent on imports
+      ---
+      duration_ms: 2.206291
+      type: 'test'
+      ...
+    1..4
+ok 90 - compensation_records additions
+  ---
+  duration_ms: 4.578667
+  type: 'suite'
+  ...
+# Subtest: preview
+    # Subtest: Admin preview returns exact values and DIRECT_APPLY, and writes nothing
+    ok 1 - Admin preview returns exact values and DIRECT_APPLY, and writes nothing
+      ---
+      duration_ms: 154.462375
+      type: 'test'
+      ...
+    # Subtest: Scoped HR preview returns SUBMIT_REQUEST
+    ok 2 - Scoped HR preview returns SUBMIT_REQUEST
+      ---
+      duration_ms: 15.951084
+      type: 'test'
+      ...
+    # Subtest: unknown and out-of-scope employees get identical 404s; LEFT is ineligible
+    ok 3 - unknown and out-of-scope employees get identical 404s; LEFT is ineligible
+      ---
+      duration_ms: 24.693208
+      type: 'test'
+      ...
+    # Subtest: invalid adjustments return VALIDATION_ERROR with a reason
+    ok 4 - invalid adjustments return VALIDATION_ERROR with a reason
+      ---
+      duration_ms: 78.481084
+      type: 'test'
+      ...
+    # Subtest: missing authentication fails on every salary route
+    ok 5 - missing authentication fails on every salary route
+      ---
+      duration_ms: 13.291792
+      type: 'test'
+      ...
+    1..5
+ok 91 - preview
+  ---
+  duration_ms: 663.454959
+  type: 'suite'
+  ...
+# Subtest: preview token
+    # Subtest: rejects changed fields, an expired preview, and another actor
+    ok 1 - rejects changed fields, an expired preview, and another actor
+      ---
+      duration_ms: 53.677333
+      type: 'test'
+      ...
+    # Subtest: the confirmation mode is bound to the role
+    ok 2 - the confirmation mode is bound to the role
+      ---
+      duration_ms: 18.553625
+      type: 'test'
+      ...
+    1..2
+ok 92 - preview token
+  ---
+  duration_ms: 72.383791
+  type: 'suite'
+  ...
+# Subtest: Admin direct change
+    # Subtest: creates one immutable version with actor, previous record, and note
+    ok 1 - creates one immutable version with actor, previous record, and note
+      ---
+      duration_ms: 24.305291
+      type: 'test'
+      ...
+    # Subtest: a direct bonus change keeps base salary
+    ok 2 - a direct bonus change keeps base salary
+      ---
+      duration_ms: 16.531041
+      type: 'test'
+      ...
+    # Subtest: a duplicate confirmation returns the original result and creates one version
+    ok 3 - a duplicate confirmation returns the original result and creates one version
+      ---
+      duration_ms: 35.443083
+      type: 'test'
+      ...
+    # Subtest: two concurrent identical confirmations with one key create one version
+    ok 4 - two concurrent identical confirmations with one key create one version
+      ---
+      duration_ms: 22.384292
+      type: 'test'
+      ...
+    # Subtest: same key, different method with the same rounded outcome: conflict
+    ok 5 - same key, different method with the same rounded outcome: conflict
+      ---
+      duration_ms: 26.045
+      type: 'test'
+      ...
+    # Subtest: same key, different input with the same rounded outcome: conflict
+    ok 6 - same key, different input with the same rounded outcome: conflict
+      ---
+      duration_ms: 25.614875
+      type: 'test'
+      ...
+    # Subtest: same key and exact command replays the original result, even after the preview expired
+    ok 7 - same key and exact command replays the original result, even after the preview expired
+      ---
+      duration_ms: 26.689834
+      type: 'test'
+      ...
+    # Subtest: direct records store only a SHA-256 fingerprint; imports and approvals store none
+    ok 8 - direct records store only a SHA-256 fingerprint; imports and approvals store none
+      ---
+      duration_ms: 39.960625
+      type: 'test'
+      ...
+    # Subtest: a US employee direct adjustment keeps USD and uses the US salary band
+    ok 9 - a US employee direct adjustment keeps USD and uses the US salary band
+      ---
+      duration_ms: 27.428292
+      type: 'test'
+      ...
+    # Subtest: an Idempotency-Key is required
+    ok 10 - an Idempotency-Key is required
+      ---
+      duration_ms: 13.509417
+      type: 'test'
+      ...
+    # Subtest: two concurrent direct changes against one version: one success, one stale conflict
+    ok 11 - two concurrent direct changes against one version: one success, one stale conflict
+      ---
+      duration_ms: 26.418
+      type: 'test'
+      ...
+    # Subtest: a direct change makes the pending request stale
+    ok 12 - a direct change makes the pending request stale
+      ---
+      duration_ms: 28.701583
+      type: 'test'
+      ...
+    # Subtest: compensation and the stale update roll back together
+    ok 13 - compensation and the stale update roll back together
+      ---
+      duration_ms: 51.543292
+      type: 'test'
+      ...
+    # Subtest: Scoped HR cannot call direct apply
+    ok 14 - Scoped HR cannot call direct apply
+      ---
+      duration_ms: 15.307666
+      type: 'test'
+      ...
+    1..14
+ok 93 - Admin direct change
+  ---
+  duration_ms: 380.382792
+  type: 'suite'
+  ...
+# Subtest: Scoped HR requests
+    # Subtest: creates one pending request and no compensation; a retry returns the same request
+    ok 1 - creates one pending request and no compensation; a retry returns the same request
+      ---
+      duration_ms: 26.967083
+      type: 'test'
+      ...
+    # Subtest: request: same key, different method with the same rounded outcome is a duplicate operation
+    ok 2 - request: same key, different method with the same rounded outcome is a duplicate operation
+      ---
+      duration_ms: 19.271125
+      type: 'test'
+      ...
+    # Subtest: a second pending request for the same employee is rejected
+    ok 3 - a second pending request for the same employee is rejected
+      ---
+      duration_ms: 20.829084
+      type: 'test'
+      ...
+    # Subtest: Scoped HR cannot request an out-of-scope employee
+    ok 4 - Scoped HR cannot request an out-of-scope employee
+      ---
+      duration_ms: 19.306208
+      type: 'test'
+      ...
+    # Subtest: Scoped HR cannot approve or cancel any request, including their own
+    ok 5 - Scoped HR cannot approve or cancel any request, including their own
+      ---
+      duration_ms: 23.248917
+      type: 'test'
+      ...
+    # Subtest: Scoped HR sees requests for employees in scope, including other requesters, and nothing else
+    ok 6 - Scoped HR sees requests for employees in scope, including other requesters, and nothing else
+      ---
+      duration_ms: 42.383042
+      type: 'test'
+      ...
+    1..6
+ok 94 - Scoped HR requests
+  ---
+  duration_ms: 152.228
+  type: 'suite'
+  ...
+# Subtest: approval and cancellation
+    # Subtest: approval creates the exact requested version, with the approving Admin as actor
+    ok 1 - approval creates the exact requested version, with the approving Admin as actor
+      ---
+      duration_ms: 27.000167
+      type: 'test'
+      ...
+    # Subtest: repeated approval returns the original result; another Admin gets a conflict
+    ok 2 - repeated approval returns the original result; another Admin gets a conflict
+      ---
+      duration_ms: 35.764
+      type: 'test'
+      ...
+    # Subtest: two Admins approving one request concurrently: one success, one conflict
+    ok 3 - two Admins approving one request concurrently: one success, one conflict
+      ---
+      duration_ms: 26.975792
+      type: 'test'
+      ...
+    # Subtest: a compensation insert failure leaves the request pending
+    ok 4 - a compensation insert failure leaves the request pending
+      ---
+      duration_ms: 54.687
+      type: 'test'
+      ...
+    # Subtest: a request-status update failure rolls back the compensation insert
+    ok 5 - a request-status update failure rolls back the compensation insert
+      ---
+      duration_ms: 45.156125
+      type: 'test'
+      ...
+    # Subtest: cancellation requires a note, changes no compensation, and is idempotent
+    ok 6 - cancellation requires a note, changes no compensation, and is idempotent
+      ---
+      duration_ms: 39.849042
+      type: 'test'
+      ...
+    # Subtest: an approval key reused for another request is a duplicate operation
+    ok 7 - an approval key reused for another request is a duplicate operation
+      ---
+      duration_ms: 37.577042
+      type: 'test'
+      ...
+    # Subtest: after approval, a new request is allowed against the new version
+    ok 8 - after approval, a new request is allowed against the new version
+      ---
+      duration_ms: 29.249
+      type: 'test'
+      ...
+    1..8
+ok 95 - approval and cancellation
+  ---
+  duration_ms: 296.5385
+  type: 'suite'
+  ...
+# Subtest: approval revalidation
+    # Subtest: a stale request cannot be approved
+    ok 1 - a stale request cannot be approved
+      ---
+      duration_ms: 29.150625
+      type: 'test'
+      ...
+    # Subtest: an inactive requester makes the request stale at approval
+    ok 2 - an inactive requester makes the request stale at approval
+      ---
+      duration_ms: 52.883917
+      type: 'test'
+      ...
+    # Subtest: requester scope removal makes the request stale at approval
+    ok 3 - requester scope removal makes the request stale at approval
+      ---
+      duration_ms: 42.195541
+      type: 'test'
+      ...
+    # Subtest: an employee who left makes the request stale and ineligible
+    ok 4 - an employee who left makes the request stale and ineligible
+      ---
+      duration_ms: 29.561333
+      type: 'test'
+      ...
+    # Subtest: an effective date that passed while pending makes the request stale
+    ok 5 - an effective date that passed while pending makes the request stale
+      ---
+      duration_ms: 45.380208
+      type: 'test'
+      ...
+    # Subtest: a salary band that no longer permits the result makes the request stale
+    ok 6 - a salary band that no longer permits the result makes the request stale
+      ---
+      duration_ms: 24.927459
+      type: 'test'
+      ...
+    1..6
+ok 96 - approval revalidation
+  ---
+  duration_ms: 224.36375
+  type: 'suite'
+  ...
+# Subtest: effective dates and future changes
+    # Subtest: a future change becomes current only on its effective date
+    ok 1 - a future change becomes current only on its effective date
+      ---
+      duration_ms: 45.669208
+      type: 'test'
+      ...
+    # Subtest: a second approved future change is rejected; an immediate change keeps the future amount and warns
+    ok 2 - a second approved future change is rejected; an immediate change keeps the future amount and warns
+      ---
+      duration_ms: 38.150083
+      type: 'test'
+      ...
+    # Subtest: a soon-to-join employee is eligible from the start date
+    ok 3 - a soon-to-join employee is eligible from the start date
+      ---
+      duration_ms: 19.034584
+      type: 'test'
+      ...
+    1..3
+ok 97 - effective dates and future changes
+  ---
+  duration_ms: 103.01025
+  type: 'suite'
+  ...
+# Subtest: request list
+    # Subtest: filters and sorting are allowlisted and parameterized
+    ok 1 - filters and sorting are allowlisted and parameterized
+      ---
+      duration_ms: 59.894542
+      type: 'test'
+      ...
+    1..1
+ok 98 - request list
+  ---
+  duration_ms: 59.973958
+  type: 'suite'
+  ...
+# Subtest: response and logging hygiene
+    # Subtest: responses contain no internal IDs or keys
+    ok 1 - responses contain no internal IDs or keys
+      ---
+      duration_ms: 37.578709
+      type: 'test'
+      ...
+    # Subtest: logs contain no salary values, notes, preview tokens, idempotency keys, or bodies
+    ok 2 - logs contain no salary values, notes, preview tokens, idempotency keys, or bodies
+      ---
+      duration_ms: 49.603166
+      type: 'test'
+      ...
+    1..2
+ok 99 - response and logging hygiene
+  ---
+  duration_ms: 87.290875
+  type: 'suite'
+  ...
+# Subtest: reference data
+    # Subtest: creates the approved countries, departments, and 44 job titles
+    ok 1 - creates the approved countries, departments, and 44 job titles
+      ---
+      duration_ms: 81.672083
+      type: 'test'
+      ...
+    # Subtest: running reference-data setup again creates no duplicates
+    ok 2 - running reference-data setup again creates no duplicates
+      ---
+      duration_ms: 48.310459
+      type: 'test'
+      ...
+    # Subtest: creates one salary band per job title and country from the approved ranges and caps
+    ok 3 - creates one salary band per job title and country from the approved ranges and caps
+      ---
+      duration_ms: 1.290708
+      type: 'test'
+      ...
+    # Subtest: keeps an existing band unchanged
+    ok 4 - keeps an existing band unchanged
+      ---
+      duration_ms: 48.770167
+      type: 'test'
+      ...
+    # Subtest: refuses an existing country with the wrong currency
+    ok 5 - refuses an existing country with the wrong currency
+      ---
+      duration_ms: 2.344958
+      type: 'test'
+      ...
+    # Subtest: rejects an unresolved department, title, and level combination
+    ok 6 - rejects an unresolved department, title, and level combination
+      ---
+      duration_ms: 0.198875
+      type: 'test'
+      ...
+    1..6
+ok 100 - reference data
+  ---
+  duration_ms: 1679.179333
+  type: 'suite'
+  ...
+# Subtest: seedDatabase
+    # Subtest: inserts exactly 10,000 employees and 10,000 compensation records
+    ok 1 - inserts exactly 10,000 employees and 10,000 compensation records
+      ---
+      duration_ms: 2.505291
+      type: 'test'
+      ...
+    # Subtest: stores unique employee codes and email addresses
+    ok 2 - stores unique employee codes and email addresses
+      ---
+      duration_ms: 10.616625
+      type: 'test'
+      ...
+    # Subtest: gives every employee exactly one compensation record
+    ok 3 - gives every employee exactly one compensation record
+      ---
+      duration_ms: 8.382084
+      type: 'test'
+      ...
+    # Subtest: marks every compensation record as version 1 INITIAL_IMPORT
+    ok 4 - marks every compensation record as version 1 INITIAL_IMPORT
+      ---
+      duration_ms: 5.07725
+      type: 'test'
+      ...
+    # Subtest: matches selected workbook rows exactly
+    ok 5 - matches selected workbook rows exactly
+      ---
+      duration_ms: 7.236125
+      type: 'test'
+      ...
+    # Subtest: matches the approved country, department, level, and status totals
+    ok 6 - matches the approved country, department, level, and status totals
+      ---
+      duration_ms: 22.197958
+      type: 'test'
+      ...
+    # Subtest: leaves existing data untouched when the workbook is invalid
+    ok 7 - leaves existing data untouched when the workbook is invalid
+      ---
+      duration_ms: 27.174708
+      type: 'test'
+      ...
+    # Subtest: replaces existing data on a second run instead of appending
+    ok 8 - replaces existing data on a second run instead of appending
+      ---
+      duration_ms: 1587.929417
+      type: 'test'
+      ...
+    # Subtest: rolls back the deletes and inserts when an insert fails inside the transaction
+    ok 9 - rolls back the deletes and inserts when an insert fails inside the transaction
+      ---
+      duration_ms: 1686.292083
+      type: 'test'
+      ...
+    # Subtest: a seed after the rolled-back run still produces 10,000 and 10,000
+    ok 10 - a seed after the rolled-back run still produces 10,000 and 10,000
+      ---
+      duration_ms: 1743.238709
+      type: 'test'
+      ...
+    # Subtest: replaces data that has change requests and chained compensation records
+    ok 11 - replaces data that has change requests and chained compensation records
+      ---
+      duration_ms: 1653.723458
+      type: 'test'
+      ...
+    1..11
+ok 101 - seedDatabase
+  ---
+  duration_ms: 8278.866541
+  type: 'suite'
+  ...
+# Subtest: guards
+    # Subtest: missing demo users, production, unsafe names, and mismatches are refused and write nothing
+    ok 1 - missing demo users, production, unsafe names, and mismatches are refused and write nothing
+      ---
+      duration_ms: 15.674458
+      type: 'test'
+      ...
+    1..1
+ok 102 - guards
+  ---
+  duration_ms: 340.52075
+  type: 'suite'
+  ...
+# Subtest: fixtures
+    # Subtest: dry run writes nothing and lists every planned shape
+    ok 1 - dry run writes nothing and lists every planned shape
+      ---
+      duration_ms: 14.883375
+      type: 'test'
+      ...
+    # Subtest: apply creates every shape, readable through the Admin list, detail, and summary
+    ok 2 - apply creates every shape, readable through the Admin list, detail, and summary
+      ---
+      duration_ms: 492.485542
+      type: 'test'
+      ...
+    # Subtest: re-running finds every fixture and writes nothing
+    ok 3 - re-running finds every fixture and writes nothing
+      ---
+      duration_ms: 18.007959
+      type: 'test'
+      ...
+    1..3
+ok 103 - fixtures
+  ---
+  duration_ms: 639.72375
+  type: 'suite'
+  ...
+# Subtest: no runtime code path
+    # Subtest: nothing under src/ outside src/evaluation/ imports src/evaluation/
+    ok 1 - nothing under src/ outside src/evaluation/ imports src/evaluation/
+      ---
+      duration_ms: 11.180958
+      type: 'test'
+      ...
+    1..1
+ok 104 - no runtime code path
+  ---
+  duration_ms: 11.286584
+  type: 'suite'
+  ...
+1..104
+# tests 404
+# suites 88
+# pass 404
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 125712.039041
+# start of coverage report
+# -----------------------------------------------------------------------------------------------------------------------------------------------
+# file                             | line % | branch % | funcs % | uncovered lines
+# -----------------------------------------------------------------------------------------------------------------------------------------------
+# src                              |        |          |         | 
+#  access                          |        |          |         | 
+#   access-command.ts              | 100.00 |   100.00 |  100.00 | 
+#   access-policy.ts               | 100.00 |    84.62 |  100.00 | 
+#   access-preview-token.ts        | 100.00 |    96.67 |   90.91 | 
+#   demo-users.ts                  | 100.00 |   100.00 |  100.00 | 
+#   hr-access-service.ts           |  99.41 |    83.09 |   98.33 | 38-40 254
+#   hr-users.ts                    |  99.12 |    92.67 |  100.00 | 43-44 197 407 428-429
+#   passwords.ts                   | 100.00 |    70.00 |  100.00 | 
+#   session-tokens.ts              |  93.58 |    83.33 |   90.91 | 20-22 27-30
+#   sessions.ts                    | 100.00 |    97.44 |  100.00 | 
+#  assistant                       |        |          |         | 
+#   actor-scope.ts                 | 100.00 |    93.33 |  100.00 | 
+#   assistant-service.ts           |  97.37 |    89.66 |   85.71 | 79-80 125 169 184-187 201-202
+#   compensation-insights.ts       | 100.00 |    94.74 |  100.00 | 
+#   conversation-service.ts        |  99.53 |    83.69 |   97.83 | 126 174
+#   model.ts                       | 100.00 |   100.00 |  100.00 | 
+#   observability                  |        |          |         | 
+#    admin-repository.ts           | 100.00 |    93.41 |  100.00 | 
+#    admin-service.ts              |  98.11 |    94.19 |   94.59 | 29-30 33 38
+#    repository.ts                 |  96.33 |    84.56 |  100.00 | 12 21 36-37 104-106 121-122 147-148 198 314-316 323-324 362
+#    retention.ts                  |  58.97 |    83.33 |   75.00 | 16-31
+#    validation.ts                 |  97.37 |    85.37 |  100.00 | 54-55
+#   tool-outcome.ts                | 100.00 |   100.00 |  100.00 | 
+#   tool-schemas.ts                | 100.00 |    66.67 |  100.00 | 
+#   tools.ts                       |  96.54 |    84.88 |   96.67 | 19 73-74 167 193-194 217-221 232
+#  compensation                    |        |          |         | 
+#   adjustment.ts                  |  95.04 |    91.84 |  100.00 | 38-43 76
+#   fingerprint.ts                 | 100.00 |   100.00 |  100.00 | 
+#   plan.ts                        |  95.04 |    93.75 |  100.00 | 30-34 62
+#   preview-token.ts               | 100.00 |    96.30 |   91.67 | 
+#   salary-adjustment-service.ts   |  98.10 |    85.05 |   96.30 | 76-77 116 194-196 300 367-368 425 491 546 600 603-604 610-611
+#  dashboard                       |        |          |         | 
+#   dashboard-service.ts           | 100.00 |    90.71 |  100.00 | 
+#  db                              |        |          |         | 
+#   connection.ts                  |  96.61 |    80.00 |  100.00 | 8 27
+#   migrate.ts                     |  98.95 |    95.83 |  100.00 | 43
+#  directory                       |        |          |         | 
+#   directory-repository.ts        | 100.00 |    98.72 |  100.00 | 
+#  errors.ts                       | 100.00 |    66.67 |  100.00 | 
+#  evaluation                      |        |          |         | 
+#   demo-import.ts                 |  98.69 |    88.66 |  100.00 | 88 104 114
+#   demo-mcp-calls.ts              | 100.00 |    93.10 |   88.89 | 
+#   demo-scenario.ts               | 100.00 |    91.67 |  100.00 | 
+#   fixture-guard.ts               | 100.00 |    96.00 |  100.00 | 
+#   oracle-fixtures.ts             |  98.91 |    82.35 |  100.00 | 39-40
+#   trace-fixtures.ts              | 100.00 |    95.00 |  100.00 | 
+#   trace-seed.ts                  | 100.00 |    91.11 |  100.00 | 
+#  http                            |        |          |         | 
+#   admin-observability-routes.ts  |  97.66 |    89.55 |  100.00 | 37-38 95 112
+#   app.ts                         | 100.00 |   100.00 |   60.00 | 
+#   assistant-routes.ts            |  94.21 |    82.35 |  100.00 | 63-69
+#   auth-routes.ts                 |  98.98 |    90.91 |  100.00 | 61
+#   contract.ts                    | 100.00 |    88.89 |  100.00 | 
+#   dashboard-routes.ts            |  91.78 |    95.45 |  100.00 | 25-30
+#   directory-routes.ts            |  94.64 |    84.62 |  100.00 | 22-24
+#   errors.ts                      | 100.00 |    68.97 |  100.00 | 
+#   hr-access-routes.ts            |  99.49 |    96.30 |  100.00 | 44
+#   mcp-routes.ts                  |  95.92 |    77.08 |   92.31 | 34 76 79-80 103-106
+#   openapi.ts                     | 100.00 |   100.00 |  100.00 | 
+#   rate-limit.ts                  |  95.70 |    72.00 |   71.43 | 37-38 44-46 73-75
+#   request-log.ts                 | 100.00 |   100.00 |   80.00 | 
+#   salary-routes.ts               | 100.00 |    98.25 |  100.00 | 
+#  money                           |        |          |         | 
+#   decimal.ts                     |  96.88 |    82.35 |   91.67 | 34 38-39
+#  paths.ts                        |  95.83 |    85.71 |  100.00 | 6
+#  seed                            |        |          |         | 
+#   reference-data.ts              | 100.00 |    94.74 |  100.00 | 
+#   replace-employees.ts           |  99.23 |    88.24 |  100.00 | 64
+#   seed-database.ts               | 100.00 |   100.00 |  100.00 | 
+#   seed-safety.ts                 |  78.57 |    57.14 |   75.00 | 8 16-17 19 21-22
+#   workbook-reader.ts             |  93.40 |    52.00 |   92.86 | 24 56-58 67-68 101 106 114-118 124
+#  source-workbook                 |        |          |         | 
+#   constants.ts                   | 100.00 |   100.00 |  100.00 | 
+#   employee-dataset.ts            |  91.11 |    77.42 |  100.00 | 15-16 31 35-37 45 48
+#   employee-generator.ts          |  98.62 |    92.31 |  100.00 | 26-27
+#   employee-validator.ts          |  89.41 |    43.75 |   90.91 | 53-55 64-65 74-76 80 93 97-99 105 123-124 128 131-134 149-150 166-167 181 185
+#   iso-date.ts                    |  93.33 |    71.43 |   80.00 | 7 19
+#   names.ts                       | 100.00 |   100.00 |  100.00 | 
+#   seeded-random.ts               |  97.73 |    88.89 |  100.00 | 5
+#   source-workbook.ts             |  89.13 |    60.00 |   71.43 | 11-15 18-19 33 41 45
+#   workbook-writer.ts             | 100.00 |    91.67 |  100.00 | 
+# -----------------------------------------------------------------------------------------------------------------------------------------------
+# all files                        |  98.32 |    86.95 |   96.77 | 
+# -----------------------------------------------------------------------------------------------------------------------------------------------
+# end of coverage report

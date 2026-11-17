@@ -1,0 +1,24 @@
+TAP version 13
+# EXPLAIN {"24h":{"statuses":["t:range:idx_ai_traces_summary"],"percentiles":["t:range:idx_ai_traces_summary"],"toolCalls":["t:range:idx_ai_traces_started","tc:ref:uk_ai_tool_calls_trace_sequence"],"modelCalls":["t:range:idx_ai_traces_started","mc:ref:uk_ai_model_calls_trace_sequence"],"mcp":["m:range:idx_mcp_started"],"failures":["t:range:idx_ai_traces_status"],"tokens":["t:range:idx_ai_traces_summary"],"series":["t:range:idx_ai_traces_summary"],"unreviewed":["t:range:idx_ai_traces_summary","r:eq_ref:PRIMARY"]},"30d":{"statuses":["t:range:idx_ai_traces_summary"],"percentiles":["t:range:idx_ai_traces_summary"],"toolCalls":["t:range:idx_ai_traces_started","tc:ref:uk_ai_tool_calls_trace_sequence"],"modelCalls":["t:range:idx_ai_traces_started","mc:ref:uk_ai_model_calls_trace_sequence"],"mcp":["m:range:idx_mcp_started"],"failures":["t:range:idx_ai_traces_status"],"tokens":["t:range:idx_ai_traces_summary"],"series":["t:range:idx_ai_traces_summary"],"unreviewed":["t:range:idx_ai_traces_summary","r:eq_ref:PRIMARY"]}}
+# Subtest: monitoring summary
+    # Subtest: query plans with 10,000 traces over 90 days (recorded in the response)
+    ok 1 - query plans with 10,000 traces over 90 days (recorded in the response)
+      ---
+      duration_ms: 676.000125
+      type: 'test'
+      ...
+    1..1
+ok 1 - monitoring summary
+  ---
+  duration_ms: 1041.065833
+  type: 'suite'
+  ...
+1..1
+# tests 1
+# suites 1
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1575.958083
