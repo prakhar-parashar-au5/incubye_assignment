@@ -11,12 +11,12 @@ import { ADMIN_QUEUE_HREF } from "@/lib/salary";
 import { signOut } from "@/server/actions/auth";
 
 // Application shell: a navy rail on desktop, a compact navy header on mobile. Dashboard,
-// Employees, Salary requests, Assistant, and (Admin HR only) HR Access and AI monitoring are built; the other sections are listed as plain
+// Employees, Salary requests, Assistant, and (Admin HR only) HR Access, AI monitoring, and Artifacts are built; the other sections are listed as plain
 // text marked "Coming later", never as controls.
 
 export type ShellIdentity = { name: string; role: string; scope: string; isAdmin: boolean };
 
-export type ShellSection = "dashboard" | "employees" | "requests" | "assistant" | "hr-access" | "monitoring";
+export type ShellSection = "dashboard" | "employees" | "requests" | "assistant" | "hr-access" | "monitoring" | "artifacts";
 
 // Admin HR opens the approval queue (pending, oldest first); Scoped HR opens their request list.
 const sections = (isAdmin: boolean): { id: ShellSection; label: string; href: string }[] => [
@@ -27,6 +27,8 @@ const sections = (isAdmin: boolean): { id: ShellSection; label: string; href: st
   // Presentation only: the backend answers 403 to anyone who is not current Admin HR.
   ...(isAdmin ? [{ id: "hr-access" as const, label: "HR Access", href: "/hr-access" }] : []),
   ...(isAdmin ? [{ id: "monitoring" as const, label: "AI monitoring", href: "/admin/ai-monitoring" }] : []),
+  // Presentation only: every /artifacts route checks Admin HR on the server (src/server/artifacts.ts).
+  ...(isAdmin ? [{ id: "artifacts" as const, label: "Artifacts", href: "/artifacts" }] : []),
 ];
 
 function Navigation({ className, current, isAdmin }: { className?: string; current: ShellSection; isAdmin: boolean }) {

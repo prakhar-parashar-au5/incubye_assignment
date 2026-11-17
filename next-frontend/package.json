@@ -16,7 +16,9 @@
     "test:e2e": "playwright test",
     "check": "npm run api:check && npm run lint && npm run typecheck && npm test",
     "api:generate": "node scripts/generate-api-contract.mjs",
-    "api:check": "node scripts/generate-api-contract.mjs --check"
+    "api:check": "node scripts/generate-api-contract.mjs --check",
+    "artifacts:sync": "node scripts/sync-artifacts.mjs",
+    "artifacts:check": "node scripts/sync-artifacts.mjs --check"
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",
